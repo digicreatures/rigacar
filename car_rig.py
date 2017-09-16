@@ -85,6 +85,7 @@ def Generate(origin):
     FLWheel = amt.edit_bones["FLWheel"]
     FLWheel.layers[29] = True
     FLWheel.layers[0] = False
+    FLWheel.parent = damperCenter
 
     BRWheel = amt.edit_bones["BRWheel"]
     BRWheel.layers[29] = True
@@ -232,6 +233,13 @@ def Generate(origin):
     cns3.head_tail = 1
     cns3.target = ob
     cns3.subtarget = 'damperBack'
+    # Copy Location constraint BRWheel -> damperBack
+    cns3b = BRWheel.constraints.new('COPY_LOCATION')
+    cns3b.target = ob
+    cns3b.subtarget = 'damperBack'
+    cns3b.head_tail = 1
+    cns3b.use_y = False
+    cns3b.use_z = False
     # Copy Rotation constraint BRWheel -> BLWHeel
     cns3c = BRWheel.constraints.new('COPY_ROTATION')
     cns3c.target = ob
