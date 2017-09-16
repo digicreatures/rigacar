@@ -408,7 +408,7 @@ def Generate(origin):
     if FLWheel.head.z <= 0:
         fmod.coefficients = (0, 1)
     else:
-        fmod.coefficients = (0, FLWheel.head.z)
+        fmod.coefficients = (0, 1/FLWheel.head.z)
 
     # parent body bone
     ob.parent = empty
