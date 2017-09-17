@@ -49,13 +49,13 @@ def Generate():
 
     bpy.ops.object.mode_set(mode='EDIT')
     #####################################Computing Average Positions#################################
-    posx = (ob.data.bones['FRWheel'].head_local[0] + ob.data.bones['FLWheel'].head_local[0]) /2
-    posy = (ob.data.bones['FRWheel'].head_local[1] + ob.data.bones['FLWheel'].head_local[1]) /2
-    posz = (ob.data.bones['FRWheel'].head_local[2] + ob.data.bones['FLWheel'].head_local[2]) /2
+    posx = (ob.data.bones['Wheel.F.R'].head_local[0] + ob.data.bones['Wheel.F.L'].head_local[0]) /2
+    posy = (ob.data.bones['Wheel.F.R'].head_local[1] + ob.data.bones['Wheel.F.L'].head_local[1]) /2
+    posz = (ob.data.bones['Wheel.F.R'].head_local[2] + ob.data.bones['Wheel.F.L'].head_local[2]) /2
 
-    pos2x = (ob.data.bones['BRWheel'].head_local[0] + ob.data.bones['BLWheel'].head_local[0]) /2
-    pos2y = (ob.data.bones['BRWheel'].head_local[1] + ob.data.bones['BLWheel'].head_local[1]) /2
-    pos2z = (ob.data.bones['BRWheel'].head_local[2] + ob.data.bones['BLWheel'].head_local[2]) /2
+    pos2x = (ob.data.bones['Wheel.B.R'].head_local[0] + ob.data.bones['Wheel.B.L'].head_local[0]) /2
+    pos2y = (ob.data.bones['Wheel.B.R'].head_local[1] + ob.data.bones['Wheel.B.L'].head_local[1]) /2
+    pos2z = (ob.data.bones['Wheel.B.R'].head_local[2] + ob.data.bones['Wheel.B.L'].head_local[2]) /2
 
     pos3x = ob.data.bones['Body'].head_local[0]
     pos3y = ob.data.bones['Body'].head_local[1]
@@ -65,27 +65,26 @@ def Generate():
     #####################################Create Bones#################################
     Root = amt.edit_bones.new("Root")
     Root.head = (pos3x,pos3y,0)
-    Root.tail = (pos3x,pos3y,pos3z+5)
+    Root.tail = (pos3x,pos3y+3,0)
 
     wheelEngine = amt.edit_bones.new("wheelEngine")
     wheelEngine.head = (posx,posy-1,posz)
-    wheelEngine.tail = (posx,posy-3,posz)
+    wheelEngine.tail = (posx,posy-.5,posz)
     wheelEngine.parent = Root
 
     wheelEngine.layers[30] = True
     wheelEngine.layers[0] = False
 
     axis = amt.edit_bones.new("axis")
-    axis.head = (pos2x,pos2y,pos2z)
-    axis.tail = (posx,posy,posz)
-    axis.roll = math.pi
+    axis.head = (posx,posy,posz)
+    axis.tail = (pos2x,pos2y,pos2z)
 
     axis.layers[30] = True
     axis.layers[0] = False
 
     damperCenter = amt.edit_bones.new("damperCenter")
     damperCenter.head = ob.data.bones['Body'].head_local
-    damperCenter.tail = (pos3x,pos3y-1,pos3z)
+    damperCenter.tail = (pos3x,pos3y+.5,pos3z)
     damperCenter.layers[30] = True
     damperCenter.layers[0] = False
     damperCenter.parent = Root
@@ -95,85 +94,77 @@ def Generate():
     body.layers[31] = True
     body.layers[0] = False
 
-    FRWheel = amt.edit_bones["FRWheel"]
+    FRWheel = amt.edit_bones['Wheel.F.R']
     FRWheel.layers[29] = True
     FRWheel.layers[0] = False
     FRWheel.parent = damperCenter
 
-    FLWheel = amt.edit_bones["FLWheel"]
+    FLWheel = amt.edit_bones['Wheel.F.L']
     FLWheel.layers[29] = True
     FLWheel.layers[0] = False
     FLWheel.parent = damperCenter
 
-    BRWheel = amt.edit_bones["BRWheel"]
+    BRWheel = amt.edit_bones['Wheel.B.R']
     BRWheel.layers[29] = True
     BRWheel.layers[0] = False
     BRWheel.parent = damperCenter
 
-    BLWheel = amt.edit_bones["BLWheel"]
+    BLWheel = amt.edit_bones['Wheel.B.L']
     BLWheel.layers[29] = True
     BLWheel.layers[0] = False
     BLWheel.parent = damperCenter
 
-    wheelFront = amt.edit_bones.new("wheelFront")
-    wheelFront.head = (posx,posy,posz)
-    wheelFront.tail = (posx,posy-0.8,posz)
-    wheelFront.parent = damperCenter
-    wheelFront.layers[31] = True
-    wheelFront.layers[0] = False
-
     steeringWheel = amt.edit_bones.new("steeringWheel")
     steeringWheel.head = (posx,posy-2,posz)
-    steeringWheel.tail = (posx,posy-2.5,posz)
+    steeringWheel.tail = (posx,posy-1.5,posz)
     steeringWheel.parent = Root
 
     damperFront = amt.edit_bones.new("damperFront")
-    damperFront.head = ob.data.bones['FRWheel'].head_local
-    damperFront.tail = ob.data.bones['FLWheel'].head_local
+    damperFront.head = ob.data.bones['Wheel.F.R'].head_local
+    damperFront.tail = ob.data.bones['Wheel.F.L'].head_local
     damperFront.layers[30] = True
     damperFront.layers[0] = False
 
     damperBack = amt.edit_bones.new("damperBack")
-    damperBack.head = ob.data.bones['BRWheel'].head_local
-    damperBack.tail = ob.data.bones['BLWheel'].head_local
+    damperBack.head = ob.data.bones['Wheel.B.R'].head_local
+    damperBack.tail = ob.data.bones['Wheel.B.L'].head_local
     damperBack.layers[30] = True
     damperBack.layers[0] = False
 
     damper = amt.edit_bones.new("damper")
     damper.head = (pos3x,pos3y,pos3z+2)
-    damper.tail = (pos3x,pos3y-1,pos3z+2)
+    damper.tail = (pos3x,pos3y+1,pos3z+2)
     damper.parent = damperCenter
 
     FRSensor = amt.edit_bones.new("FRSensor")
-    FRSensor.head = ob.data.bones['FRWheel'].head_local
-    FRSensor.tail = ob.data.bones['FRWheel'].head_local
-    FRSensor.tail[2] = FRSensor.tail.z+0.3
+    FRSensor.head = ob.data.bones['Wheel.F.R'].head_local
+    FRSensor.tail = ob.data.bones['Wheel.F.R'].head_local
+    FRSensor.tail[1] = FRSensor.tail.y+0.3
     FRSensor.parent = damperCenter
 
     FLSensor = amt.edit_bones.new("FLSensor")
-    FLSensor.head = ob.data.bones['FLWheel'].head_local
-    FLSensor.tail = ob.data.bones['FLWheel'].head_local
-    FLSensor.tail[2] = FLSensor.tail.z+0.3
+    FLSensor.head = ob.data.bones['Wheel.F.L'].head_local
+    FLSensor.tail = ob.data.bones['Wheel.F.L'].head_local
+    FLSensor.tail[1] = FLSensor.tail.y+0.3
     FLSensor.parent = damperCenter
 
     BRSensor = amt.edit_bones.new("BRSensor")
-    BRSensor.head = ob.data.bones['BRWheel'].head_local
-    BRSensor.tail = ob.data.bones['BRWheel'].head_local
-    BRSensor.tail[2] = BRSensor.tail.z+0.3
+    BRSensor.head = ob.data.bones['Wheel.B.R'].head_local
+    BRSensor.tail = ob.data.bones['Wheel.B.R'].head_local
+    BRSensor.tail[1] = BRSensor.tail.y+0.3
     BRSensor.parent = damperCenter
 
     BLSensor = amt.edit_bones.new("BLSensor")
-    BLSensor.head = ob.data.bones['BLWheel'].head_local
-    BLSensor.tail = ob.data.bones['BLWheel'].head_local
-    BLSensor.tail[2] = BLSensor.tail.z+0.3
+    BLSensor.head = ob.data.bones['Wheel.B.L'].head_local
+    BLSensor.tail = ob.data.bones['Wheel.B.L'].head_local
+    BLSensor.tail[1] = BLSensor.tail.y+0.3
     BLSensor.parent = damperCenter
 
     WheelRot = amt.edit_bones.new("WheelRot")
-    WheelRot.head = ob.data.bones['FLWheel'].head_local
-    WheelRot.tail = ob.data.bones['FLWheel'].head_local
+    WheelRot.head = ob.data.bones['Wheel.F.L'].head_local
+    WheelRot.tail = ob.data.bones['Wheel.F.L'].head_local
     WheelRot.tail[1] = FLSensor.tail.y+0.3
     WheelRot.parent = damperCenter
-    WheelRot.roll = math.pi
 
 
     #####################################Pose Constraints#################################
@@ -185,18 +176,11 @@ def Generate():
     steeringWheel.lock_rotation = (True, True, True)
     steeringWheel.lock_rotation_w = True
 
-
-    # Locked Track constraint wheelFront -> steeringWheel
-    wheelFront = ob.pose.bones['wheelFront']
-    cns1 = wheelFront.constraints.new('LOCKED_TRACK')
-    cns1.target = ob
-    cns1.subtarget = 'steeringWheel'
-
     # Constaints on wheels
-    add_wheel_constraints(ob, 'FLWheel', 'FLSensor')
-    add_wheel_constraints(ob, 'FRWheel', 'FRSensor')
-    add_wheel_constraints(ob, 'BLWheel', 'BLSensor')
-    add_wheel_constraints(ob, 'BRWheel', 'BRSensor')
+    add_wheel_constraints(ob, 'Wheel.F.L', 'FLSensor')
+    add_wheel_constraints(ob, 'Wheel.F.R', 'FRSensor')
+    add_wheel_constraints(ob, 'Wheel.B.L', 'BLSensor')
+    add_wheel_constraints(ob, 'Wheel.B.R', 'BRSensor')
 
     # Transformation constraint Body -> damper
     damperCenter = ob.pose.bones['Body']
@@ -208,12 +192,12 @@ def Generate():
     cns4.from_min_y = -0.3
     cns4.from_max_y = 0.3
     cns4.map_to_x_from = "Y"
-    cns4.map_to_z_from = "X"
+    cns4.map_to_y_from = "X"
     cns4.map_to = "ROTATION"
-    cns4.to_min_x_rot = math.radians(-6)
-    cns4.to_max_x_rot = math.radians(6)
-    cns4.to_min_z_rot = math.radians(-7)
-    cns4.to_max_z_rot = math.radians(7)
+    cns4.to_min_x_rot = math.radians(6)
+    cns4.to_max_x_rot = math.radians(-6)
+    cns4.to_min_y_rot = math.radians(-7)
+    cns4.to_max_y_rot = math.radians(7)
     cns4.owner_space = 'LOCAL'
     cns4.target_space = 'LOCAL'
      # Transformation constraint Body -> damper
@@ -221,11 +205,10 @@ def Generate():
     cns4 = damperCenter.constraints.new('TRANSFORM')
     cns4.target = ob
     cns4.subtarget = 'damper'
-    cns4.from_min_z = -0.1
-    cns4.from_max_z = 0.1
-    cns4.map_to_y_from = "Z"
-    cns4.to_min_y = -0.1
-    cns4.to_max_y = 0.1
+    cns4.from_min_z = -0.5
+    cns4.from_max_z = 0.5
+    cns4.to_min_z = -0.1
+    cns4.to_max_z = 0.1
     cns4.owner_space = 'LOCAL'
     cns4.target_space = 'LOCAL'
 
@@ -234,13 +217,14 @@ def Generate():
     axis = ob.pose.bones['axis']
     cns5 = axis.constraints.new('COPY_LOCATION')
     cns5.target = ob
-    cns5.subtarget = 'damperBack'
+    cns5.subtarget = 'damperFront'
     cns5.head_tail = 0.5
     # Tract To constraint axis -> damperFront
     cns6 = axis.constraints.new('TRACK_TO')
     cns6.target = ob
-    cns6.subtarget = 'damperFront'
+    cns6.subtarget = 'damperBack'
     cns6.head_tail = 0.5
+    cns6.track_axis = 'TRACK_Y'
     cns6.use_target_z = True
     cns6.owner_space = 'POSE'
     cns6.target_space = 'POSE'
@@ -248,8 +232,8 @@ def Generate():
     cns7 = axis.constraints.new('DAMPED_TRACK')
     cns7.influence = 0.5
     cns7.target = ob
-    cns7.subtarget = 'damperBack'
-    cns7.track_axis = "TRACK_X"
+    cns7.subtarget = 'damperFront'
+    cns7.track_axis = "TRACK_NEGATIVE_X"
     cns7.influence = 0.5
 
     # Copy Location constraint damperBack -> BRWheel
@@ -275,7 +259,7 @@ def Generate():
     # Copy Location constraint Sensors ->
     for sensor_name in ('FLSensor', 'FRSensor', 'BLSensor', 'BRSensor'):
         Sensor = ob.pose.bones[sensor_name]
-        Sensor.lock_location = (True,False,True)
+        Sensor.lock_location = (True,True,False)
         cns = Sensor.constraints.new('SHRINKWRAP')
         cns.distance = Sensor.head.z
 
@@ -291,30 +275,6 @@ def Generate():
     cns.use_x = False
     cns.use_y = False
 
-
-    #############################################Add Driver#########################
-
-    # fcurve = FLWheel.driver_add('rotation_euler', 0)
-    # drv = fcurve.driver
-    # drv.type = 'AVERAGE'
-    # var = drv.variables.new()
-    # var.name = 'x'
-    # var.type = 'TRANSFORMS'
-    #
-    # targ = var.targets[0]
-    # targ.id = empty
-    # targ.transform_type = 'LOC_Y'
-    # targ.transform_space = "LOCAL_SPACE"
-    #
-    # fmod = fcurve.modifiers[0]
-    # fmod.mode = 'POLYNOMIAL'
-    # fmod.poly_order = 1
-    # if FLWheel.head.z <= 0:
-    #     fmod.coefficients = (0, 1)
-    # else:
-    #     fmod.coefficients = (0, 1/FLWheel.head.z)
-
-    # bpy.ops.object.select_all(action="TOGGLE")
     ob.select = True
     bpy.context.scene.objects.active = ob
 
@@ -322,36 +282,28 @@ def Generate():
 
 
 def add_wheel_constraints(ob, wheel_name, sensor_name):
-    # Copy Location constraint XXWheel -> XXSensor
     wheel = ob.pose.bones[wheel_name]
     wheel.rotation_mode = "XYZ"
+
+    # Copy Location constraint from ground sensor
     cns = wheel.constraints.new('COPY_LOCATION')
     cns.target = ob
     cns.subtarget = sensor_name
     cns.use_x = False
     cns.use_y = False
 
-    # # Damped Track constraint XXWheel -> damper
-    # cns = wheel.constraints.new('DAMPED_TRACK')
-    # cns.track_axis = 'TRACK_X' if wheel_name in ('FLWheel', 'BLWheel') else 'TRACK_NEGATIVE_X'
-    # cns.target = ob
-    # cns.subtarget = 'damperFront' if wheel_name in ('FLWheel', 'FRWheel') else 'damperBack'
-    #
-    # # Copy Location constraint XXWheel -> damper
-    # cns = wheel.constraints.new('COPY_LOCATION')
-    # cns.target = ob
-    # cns.subtarget = 'damperFront' if wheel_name in ('FLWheel', 'FRWheel') else 'damperBack'
-    # cns.head_tail = 1
-    # cns.use_y = False
-    # cns.use_z = False
-
-    if wheel_name in ('FLWheel', 'FRWheel'):
-        # Copy Rotation constraint XXWheel -> wheelFront
-        cns = wheel.constraints.new('COPY_ROTATION')
+    if wheel_name in ('Wheel.F.L', 'Wheel.F.R'):
+        cns = wheel.constraints.new('TRANSFORM')
         cns.target = ob
-        cns.subtarget = 'wheelFront'
-        cns.use_x = False
-        cns.use_y = False
+        cns.subtarget = 'steeringWheel'
+        cns.from_min_x = -1
+        cns.from_max_x = 1
+        cns.map_to_z_from = "X"
+        cns.map_to = "ROTATION"
+        cns.to_min_z_rot = math.radians(-25)
+        cns.to_max_z_rot = math.radians(25)
+        cns.owner_space = 'LOCAL'
+        cns.target_space = 'LOCAL'
 
     # Copy Rotation constraint XXWheel -> WheelRot
     cns = wheel.constraints.new('COPY_ROTATION')
@@ -359,18 +311,20 @@ def add_wheel_constraints(ob, wheel_name, sensor_name):
     cns.subtarget = 'WheelRot'
     cns.use_y = False
     cns.use_z = False
+    cns.owner_space = 'LOCAL'
+    cns.target_space = 'LOCAL'
 
     # Transformation constraint XXWheel -> wheelEngine
     cns = wheel.constraints.new('TRANSFORM')
     cns.target = ob
     cns.subtarget = 'wheelEngine'
     cns.use_motion_extrapolate = True
-    cns.from_min_y = wheel.head.z
-    cns.from_max_y = 0
+    cns.from_min_y = 0
+    cns.from_max_y = wheel.head.z * math.pi
     cns.map_to_x_from = "Y"
     cns.map_to = "ROTATION"
     cns.to_min_x_rot = 0
-    cns.to_max_x_rot = math.pi
+    cns.to_max_x_rot = -math.pi
     cns.owner_space = 'LOCAL'
     cns.target_space = 'LOCAL_WITH_PARENT'
 
@@ -426,6 +380,11 @@ class AddCarMetaRig(bpy.types.Operator):
     bl_label = "Add car meta rig"
     bl_options = {'REGISTER', 'UNDO'}
 
+    def _create_bone(self, armature, name, head, tail):
+        b = armature.edit_bones.new(name)
+        b.head = head
+        b.tail = tail
+
     def execute(self, context):
         """Creates the meta rig with basic bones"""
 
@@ -437,25 +396,14 @@ class AddCarMetaRig(bpy.types.Operator):
 
         #create meta rig bones
         bpy.ops.object.mode_set(mode='EDIT')
-        body = amt.edit_bones.new('Body')
-        body.head = (0,0,0.8)
-        body.tail = (0,0,1.8)
 
-        FRW = amt.edit_bones.new('FLWheel')
-        FRW.head = (0.9,-2,1)
-        FRW.tail = (0.9,-2.5,1)
+        self._create_bone(amt, 'Body',      (  0,  0, .8), (  0,    2, .8))
+        self._create_bone(amt, 'Wheel.F.L', ( .9, -2,  1), ( .9, -1.5,  1))
+        self._create_bone(amt, 'Wheel.F.R', (-.9, -2,  1), (-.9, -1.5,  1))
+        self._create_bone(amt, 'Wheel.B.L', ( .9,  2,  1), ( .9,  2.5,  1))
+        self._create_bone(amt, 'Wheel.B.R', (-.9,  2,  1), (-.9,  2.5,  1))
 
-        FLW = amt.edit_bones.new('FRWheel')
-        FLW.head = (-0.9,-2,1)
-        FLW.tail = (-0.9,-2.5,1)
-
-        BRW = amt.edit_bones.new('BLWheel')
-        BRW.head = (0.9,2,1)
-        BRW.tail = (0.9,1.5,1)
-
-        BLW = amt.edit_bones.new('BRWheel')
-        BLW.head = (-0.9,2,1)
-        BLW.tail = (-0.9,1.5,1)
+        bpy.ops.object.mode_set(mode='OBJECT')
         return{'FINISHED'}
 
 
@@ -464,10 +412,6 @@ class GenerateRig(bpy.types.Operator):
 
     bl_idname = "car.rig_generate"
     bl_label = "Generate Car Rig"
-
-    # I must study this
-    #bl_register = True
-    #bl_undo = True
     bl_options = {'UNDO'}
 
     def execute(self, context):
