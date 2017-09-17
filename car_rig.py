@@ -168,8 +168,8 @@ def Generate(origin):
     WheelRot.tail = ob.data.bones['FLWheel'].head_local
     WheelRot.tail[1] = FLSensor.tail.y+0.3
     WheelRot.parent = damperCenter
+    WheelRot.roll = math.pi
 
-    FLWheel.parent = WheelRot
 
     #####################################Pose Constraints#################################
     bpy.ops.object.mode_set(mode='POSE')
@@ -348,6 +348,13 @@ def add_wheel_constraints(ob, wheel_name, sensor_name):
         cns.use_x = False
         cns.use_y = False
 
+    # Copy Rotation constraint XXWheel -> WheelRot
+    cns = wheel.constraints.new('COPY_ROTATION')
+    cns.target = ob
+    cns.subtarget = 'WheelRot'
+    cns.use_y = False
+    cns.use_z = False
+
     # Transformation constraint XXWheel -> wheelEngine
     cns = wheel.constraints.new('TRANSFORM')
     cns.target = ob
@@ -443,7 +450,8 @@ class UIPanel(bpy.types.Panel):
         return context.object is not None and "metaCarRig" in context.object
 
     def draw(self, context):
-        self.layout.prop(context.object.data, '["turning_wheels"]', text = "Wheels")
+        if 'turning_wheels' in context.object.data:
+            self.layout.prop(context.object.data, '["turning_wheels"]', text = "Wheels")
 
 
 ### Add menu create car meta rig
