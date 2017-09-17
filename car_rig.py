@@ -31,9 +31,14 @@ bl_info = {
 
 import bpy
 import math
+import bpy_extras
 from bpy.props import *
 
-def Generate(origin):
+ANIM_BONE_LAYER=1
+DEF_BONE_LAYER=30
+MECA_BONE_LAYER=31
+
+def Generate():
     print("Starting car rig generation...")
 
     ob = bpy.context.active_object
@@ -383,45 +388,6 @@ def add_wheel_constraints(ob, wheel_name, sensor_name):
     targ.data_path = '["turning_wheels"]'
 
 
-def CreateCarMetaRig(origin):       #create Car meta rig
-    #create meta rig
-    amt = bpy.data.armatures.new('CarMetaRigData')
-    rig = bpy.data.objects.new('CarMetaRig', amt)
-    rig["metaCarRig"] = True
-    rig.location = origin
-    rig.show_x_ray = True
-    #link to scene
-    scn = bpy.context.scene
-    scn.objects.link(rig)
-    scn.objects.active = rig
-    scn.update()
-
-    #create meta rig bones
-    bpy.ops.object.mode_set(mode='EDIT')
-    body = amt.edit_bones.new('Body')
-    body.head = (0,0,0.8)
-    body.tail = (0,0,1.8)
-
-    FRW = amt.edit_bones.new('FLWheel')
-    FRW.head = (0.9,-2,1)
-    FRW.tail = (0.9,-2.5,1)
-
-    FLW = amt.edit_bones.new('FRWheel')
-    FLW.head = (-0.9,-2,1)
-    FLW.tail = (-0.9,-2.5,1)
-
-    BRW = amt.edit_bones.new('BLWheel')
-    BRW.head = (0.9,2,1)
-    BRW.tail = (0.9,1.5,1)
-
-    BLW = amt.edit_bones.new('BRWheel')
-    BLW.head = (-0.9,2,1)
-    BLW.tail = (-0.9,1.5,1)
-
-    #switch to object mode
-    bpy.ops.object.mode_set(mode='OBJECT')
-
-
 #generate button
 class UImetaRigGenerate(bpy.types.Panel):
     bl_label = "Car Rig"
@@ -431,7 +397,7 @@ class UImetaRigGenerate(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.object is not None and "metaCarRig" in context.object
+        return context.object is not None and "Car Rig" in context.object
 
     def draw(self, context):
         obj = bpy.context.active_object
@@ -447,21 +413,49 @@ class UIPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.object is not None and "metaCarRig" in context.object
+        return context.object is not None and "Car Rig" in context.object
 
     def draw(self, context):
         if 'turning_wheels' in context.object.data:
             self.layout.prop(context.object.data, '["turning_wheels"]', text = "Wheels")
 
-
-### Add menu create car meta rig
 class AddCarMetaRig(bpy.types.Operator):
+    """Operator to create Car Meta Rig"""
+
     bl_idname = "car.meta_rig"
     bl_label = "Add car meta rig"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        CreateCarMetaRig((0,0,0))
+        """Creates the meta rig with basic bones"""
+
+        #create meta rig
+        amt = bpy.data.armatures.new('CarMetaRigData')
+        obj = bpy_extras.object_utils.object_data_add(context, amt, name='CarMetaRig')
+        rig = obj.object
+        rig["Car Rig"] = True
+
+        #create meta rig bones
+        bpy.ops.object.mode_set(mode='EDIT')
+        body = amt.edit_bones.new('Body')
+        body.head = (0,0,0.8)
+        body.tail = (0,0,1.8)
+
+        FRW = amt.edit_bones.new('FLWheel')
+        FRW.head = (0.9,-2,1)
+        FRW.tail = (0.9,-2.5,1)
+
+        FLW = amt.edit_bones.new('FRWheel')
+        FLW.head = (-0.9,-2,1)
+        FLW.tail = (-0.9,-2.5,1)
+
+        BRW = amt.edit_bones.new('BLWheel')
+        BRW.head = (0.9,2,1)
+        BRW.tail = (0.9,1.5,1)
+
+        BLW = amt.edit_bones.new('BRWheel')
+        BLW.head = (-0.9,2,1)
+        BLW.tail = (-0.9,1.5,1)
         return{'FINISHED'}
 
 
@@ -477,12 +471,12 @@ class GenerateRig(bpy.types.Operator):
     bl_options = {'UNDO'}
 
     def execute(self, context):
-        Generate((0,0,0))
+        Generate()
         return {"FINISHED"}
 
 # Add to menu
 def menu_func(self, context):
-    self.layout.operator("car.meta_rig",text="Car(Meta-Rig)",icon='MESH_CUBE')
+    self.layout.operator("car.meta_rig",text="Car (Meta-Rig)",icon='AUTO')
 
 def register():
     bpy.types.INFO_MT_armature_add.prepend(menu_func)
