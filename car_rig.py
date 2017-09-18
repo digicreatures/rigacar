@@ -82,20 +82,24 @@ def Generate():
     Root = amt.edit_bones.new('Root')
     Root.head = (pos3x,pos3y,0)
     Root.tail = (pos3x,pos3y+3,0)
+    Root.use_deform = False
 
     wheelEngine = amt.edit_bones.new('MCH-Wheel.engine')
     wheelEngine.head = (posx,posy-1,posz)
     wheelEngine.tail = (posx,posy-.5,posz)
     wheelEngine.parent = Root
+    wheelEngine.use_deform = False
 
     axis = amt.edit_bones.new('MCH-axis')
     axis.head = (posx,posy,posz)
     axis.tail = (pos2x,pos2y,pos2z)
+    axis.use_deform = False
 
     damperCenter = amt.edit_bones.new('MCH-Damper.center')
     damperCenter.head = ob.data.bones['DEF-Body'].head_local
     damperCenter.tail = (pos3x,pos3y+.5,pos3z)
     damperCenter.parent = Root
+    damperCenter.use_deform = False
 
     body = amt.edit_bones['DEF-Body']
     body.parent = axis
@@ -116,49 +120,58 @@ def Generate():
     steeringWheel.head = (posx,posy-2,posz)
     steeringWheel.tail = (posx,posy-1.5,posz)
     steeringWheel.parent = Root
+    steeringWheel.use_deform = False
 
     damperFront = amt.edit_bones.new('MCH-Damper.front')
     damperFront.head = ob.data.bones['DEF-Wheel.F.R'].head_local
     damperFront.tail = ob.data.bones['DEF-Wheel.F.L'].head_local
+    damperFront.use_deform = False
 
     damperBack = amt.edit_bones.new('MCH-Damper.back')
     damperBack.head = ob.data.bones['DEF-Wheel.B.R'].head_local
     damperBack.tail = ob.data.bones['DEF-Wheel.B.L'].head_local
+    damperBack.use_deform = False
 
     damper = amt.edit_bones.new('Damper')
     damper.head = (pos3x,pos3y,pos3z+2)
     damper.tail = (pos3x,pos3y+1,pos3z+2)
     damper.parent = damperCenter
+    damper.use_deform = False
 
     FRSensor = amt.edit_bones.new('MCH-GroundSensor.F.R')
     FRSensor.head = ob.data.bones['DEF-Wheel.F.R'].head_local
     FRSensor.tail = ob.data.bones['DEF-Wheel.F.R'].head_local
     FRSensor.tail[1] = FRSensor.tail.y+0.3
     FRSensor.parent = damperCenter
+    FRSensor.use_deform = False
 
     FLSensor = amt.edit_bones.new('MCH-GroundSensor.F.L')
     FLSensor.head = ob.data.bones['DEF-Wheel.F.L'].head_local
     FLSensor.tail = ob.data.bones['DEF-Wheel.F.L'].head_local
     FLSensor.tail[1] = FLSensor.tail.y+0.3
     FLSensor.parent = damperCenter
+    FLSensor.use_deform = False
 
     BRSensor = amt.edit_bones.new('MCH-GroundSensor.B.R')
     BRSensor.head = ob.data.bones['DEF-Wheel.B.R'].head_local
     BRSensor.tail = ob.data.bones['DEF-Wheel.B.R'].head_local
     BRSensor.tail[1] = BRSensor.tail.y+0.3
     BRSensor.parent = damperCenter
+    BRSensor.use_deform = False
 
     BLSensor = amt.edit_bones.new('MCH-GroundSensor.B.L')
     BLSensor.head = ob.data.bones['DEF-Wheel.B.L'].head_local
     BLSensor.tail = ob.data.bones['DEF-Wheel.B.L'].head_local
     BLSensor.tail[1] = BLSensor.tail.y+0.3
     BLSensor.parent = damperCenter
+    BLSensor.use_deform = False
 
     WheelRot = amt.edit_bones.new('Wheel rotation')
     WheelRot.head = ob.data.bones['DEF-Wheel.F.L'].head_local
     WheelRot.tail = ob.data.bones['DEF-Wheel.F.L'].head_local
     WheelRot.tail[1] = FLSensor.tail.y+0.3
     WheelRot.parent = damperCenter
+    WheelRot.use_deform = False
 
     for b in amt.edit_bones:
         apply_layer(b)
