@@ -34,9 +34,25 @@ import math
 import bpy_extras
 from bpy.props import *
 
-ANIM_BONE_LAYER=1
+ANIM_BONE_LAYER=0
+GROUND_SENSOR_BONE_LAYER=1
 DEF_BONE_LAYER=30
-MECA_BONE_LAYER=31
+MCH_BONE_LAYER=31
+
+def apply_layer(bone):
+    layers = [False] * 32
+
+    if bone.name.startswith('DEF-'):
+        layers[DEF_BONE_LAYER] = True
+    elif bone.name.startswith('MCH-'):
+        if "GroundSensor" in bone.name:
+            layers[GROUND_SENSOR_BONE_LAYER] = True
+        else:
+            layers[MCH_BONE_LAYER] = True
+    else:
+        layers[ANIM_BONE_LAYER] = True
+
+    bone.layers = layers
 
 def Generate():
     print("Starting car rig generation...")
@@ -72,46 +88,28 @@ def Generate():
     wheelEngine.tail = (posx,posy-.5,posz)
     wheelEngine.parent = Root
 
-    wheelEngine.layers[30] = True
-    wheelEngine.layers[0] = False
-
     axis = amt.edit_bones.new('MCH-axis')
     axis.head = (posx,posy,posz)
     axis.tail = (pos2x,pos2y,pos2z)
 
-    axis.layers[30] = True
-    axis.layers[0] = False
-
     damperCenter = amt.edit_bones.new('MCH-Damper.center')
     damperCenter.head = ob.data.bones['DEF-Body'].head_local
     damperCenter.tail = (pos3x,pos3y+.5,pos3z)
-    damperCenter.layers[30] = True
-    damperCenter.layers[0] = False
     damperCenter.parent = Root
 
     body = amt.edit_bones['DEF-Body']
     body.parent = axis
-    body.layers[31] = True
-    body.layers[0] = False
 
     FRWheel = amt.edit_bones['DEF-Wheel.F.R']
-    FRWheel.layers[29] = True
-    FRWheel.layers[0] = False
     FRWheel.parent = damperCenter
 
     FLWheel = amt.edit_bones['DEF-Wheel.F.L']
-    FLWheel.layers[29] = True
-    FLWheel.layers[0] = False
     FLWheel.parent = damperCenter
 
     BRWheel = amt.edit_bones['DEF-Wheel.B.R']
-    BRWheel.layers[29] = True
-    BRWheel.layers[0] = False
     BRWheel.parent = damperCenter
 
     BLWheel = amt.edit_bones['DEF-Wheel.B.L']
-    BLWheel.layers[29] = True
-    BLWheel.layers[0] = False
     BLWheel.parent = damperCenter
 
     steeringWheel = amt.edit_bones.new('Steering')
@@ -122,14 +120,10 @@ def Generate():
     damperFront = amt.edit_bones.new('MCH-Damper.front')
     damperFront.head = ob.data.bones['DEF-Wheel.F.R'].head_local
     damperFront.tail = ob.data.bones['DEF-Wheel.F.L'].head_local
-    damperFront.layers[30] = True
-    damperFront.layers[0] = False
 
     damperBack = amt.edit_bones.new('MCH-Damper.back')
     damperBack.head = ob.data.bones['DEF-Wheel.B.R'].head_local
     damperBack.tail = ob.data.bones['DEF-Wheel.B.L'].head_local
-    damperBack.layers[30] = True
-    damperBack.layers[0] = False
 
     damper = amt.edit_bones.new('Damper')
     damper.head = (pos3x,pos3y,pos3z+2)
@@ -166,6 +160,8 @@ def Generate():
     WheelRot.tail[1] = FLSensor.tail.y+0.3
     WheelRot.parent = damperCenter
 
+    for b in amt.edit_bones:
+        apply_layer(b)
 
     #####################################Pose Constraints#################################
     bpy.ops.object.mode_set(mode='POSE')
