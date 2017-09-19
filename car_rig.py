@@ -32,6 +32,7 @@ bl_info = {
 import bpy
 import math
 import bpy_extras
+import mathutils
 from bpy.props import *
 
 ANIM_BONE_LAYER=0
@@ -53,6 +54,52 @@ def apply_layer(bone):
         layers[ANIM_BONE_LAYER] = True
 
     bone.layers = layers
+
+class BakeWheelRotationOperator(bpy.types.Operator):
+    bl_idname = 'car.bake_wheel_rotation'
+    bl_label = 'Car Rig: bake wheels rotation'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.object is not None and "Car Rig" in context.object
+
+    def execute(self, context):
+        self.bake_wheel_rotation(context.object)
+        return {'FINISHED'}
+
+    def evaluate_distance_per_frame(self, action):
+        fc_root = []
+        for i in range(0, 3):
+            fc_root.append(action.fcurves.find('pose.bones["Root"].location', i))
+
+        start = int(min([f.range()[0] for f in fc_root]))
+        end = int(max([f.range()[1] for f in fc_root])) + 1
+
+        yield start, 0
+
+        prev_pos = mathutils.Vector((fc_root[0].evaluate(start), fc_root[1].evaluate(start), fc_root[2].evaluate(start)))
+        distance = 0
+        for f in range(start + 1, end):
+            pos = mathutils.Vector((fc_root[0].evaluate(f), fc_root[1].evaluate(f), fc_root[2].evaluate(f)))
+            distance += (pos - prev_pos).magnitude
+            # TODO yield only if speed has changed (avoid unecessary keyframes)
+            yield f, distance
+            prev_pos = pos
+
+    def bake_wheel_rotation(self, rig_ob):
+        fcurve_datapath = 'pose.bones["Wheel rotation"].rotation_euler'
+        action = rig_ob.animation_data.action
+
+        # TODO fcurve should be recreated once we had remove unecessary keyframes
+        fc_speed = action.fcurves.find(fcurve_datapath, 0)
+        if fc_speed is None:
+            fc_speed = action.fcurves.new(fcurve_datapath, 0, 'Wheel rotation')
+
+        for f, distance in self.evaluate_distance_per_frame(action):
+            # TODO compute real rotation on definitive bones
+            fc_speed.keyframe_points.insert(f, distance)
+
 
 def Generate():
     print("Starting car rig generation...")
@@ -402,6 +449,7 @@ def register():
     bpy.types.INFO_MT_armature_add.append(menu_func)
     bpy.utils.register_class(UImetaRigGenerate)
     bpy.utils.register_class(GenerateRig)
+    bpy.utils.register_class(BakeWheelRotationOperator)
     bpy.utils.register_class(AddCarMetaRig)
     bpy.utils.register_class(UIPanel)
 
@@ -409,6 +457,7 @@ def unregister():
     bpy.types.INFO_MT_armature_add.remove(menu_func)
     bpy.utils.unregister_class(UImetaRigGenerate)
     bpy.utils.unregister_class(GenerateRig)
+    bpy.utils.unregister_class(BakeWheelRotationOperator)
     bpy.utils.unregister_class(AddCarMetaRig)
     bpy.utils.unregister_class(UIPanel)
 
