@@ -395,6 +395,7 @@ class UIPanel(bpy.types.Panel):
     def draw(self, context):
         if 'turning_wheels' in context.object.data:
             self.layout.prop(context.object.data, '["turning_wheels"]', text = "Wheels")
+            self.layout.operator('car.bake_wheel_rotation', 'Bake wheels animation', 'Automatically generates wheels animation based on Root bone animation.')
 
 class AddCarMetaRig(bpy.types.Operator):
     """Operator to create Car Meta Rig"""
