@@ -137,9 +137,11 @@ class BakeWheelRotationOperator(bpy.types.Operator):
 
         fc_speed = action.fcurves.new(fcurve_datapath, 0, 'Wheel rotation baking')
 
+        speed_ratio = 1.0 / target_bone.head_local.z if target_bone.head_local.z > .0 else 1.0
+
         for f, distance in self._evaluate_distance_per_frame(action, source_bone):
             # TODO compute real rotation on definitive bones
-            fc_speed.keyframe_points.insert(f, distance)
+            fc_speed.keyframe_points.insert(f, distance * speed_ratio)
 
 
 def Generate():
