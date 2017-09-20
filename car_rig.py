@@ -31,8 +31,10 @@ bl_info = {
 
 import bpy
 import math
+import sys
 import bpy_extras
 import mathutils
+import itertools
 from bpy.props import *
 
 ANIM_BONE_LAYER=0
@@ -55,6 +57,29 @@ def apply_layer(bone):
 
     bone.layers = layers
 
+
+class FCurvesEvaluator:
+    """Encapsulates a bunch of FCurves for vector animations."""
+
+    def __init__(self, fcurves, default_value):
+        self.default_value = default_value
+        self.fcurves = fcurves
+
+    def evaluate(self, f):
+        result = []
+        for fcurve, value in zip(self.fcurves, self.default_value):
+            if fcurve is not None:
+                result.append(fcurve.evaluate(f))
+            else:
+                result.append(value)
+        return result
+
+    def range(self):
+        start = min([f.range()[0] if f is not None else sys.maxsize for f in self.fcurves])
+        end = max([f.range()[1] if f is not None else 0 for f in self.fcurves])
+        return [start, end]
+
+
 class BakeWheelRotationOperator(bpy.types.Operator):
     bl_idname = 'car.bake_wheel_rotation'
     bl_label = 'Car Rig: bake wheels rotation'
@@ -62,42 +87,57 @@ class BakeWheelRotationOperator(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.object is not None and "Car Rig" in context.object
+        return (context.object is not None and
+                context.object.animation_data.action is not None and
+                "Car Rig" in context.object and
+                context.object["Car Rig"])
 
     def execute(self, context):
-        self.bake_wheel_rotation(context.object)
+        self._bake_wheel_rotation(context.object.animation_data.action, context.object.data.bones['Root'], context.object.data.bones['Wheel rotation'])
         context.object.data['wheels_on_y_axis'] = False
         return {'FINISHED'}
 
-    def evaluate_distance_per_frame(self, action):
-        fc_root = []
-        for i in range(0, 3):
-            fc_root.append(action.fcurves.find('pose.bones["Root"].location', i))
+    def _create_rotation_evaluator(self, action, source_bone):
+        fcurve_name = 'pose.bones["%s"].rotation_quaternion' % source_bone.name
+        fc_root_rot = [action.fcurves.find(fcurve_name , i) for i in range(0, 4)]
+        return FCurvesEvaluator(fc_root_rot, default_value= (1.0, .0, .0, .0))
 
-        start = int(min([f.range()[0] for f in fc_root]))
-        end = int(max([f.range()[1] for f in fc_root])) + 1
+    def _create_location_evaluator(self, action, source_bone):
+        fcurve_name = 'pose.bones["%s"].location' % source_bone.name
+        fc_root_loc = [action.fcurves.find(fcurve_name , i) for i in range(0, 3)]
+        return FCurvesEvaluator(fc_root_loc, default_value= (.0, .0, .0))
 
-        yield start, 0
+    def _evaluate_distance_per_frame(self, action, source_bone):
+        locEvaluator = self._create_location_evaluator(action, source_bone)
+        rotEvaluator = self._create_rotation_evaluator(action, source_bone)
 
-        prev_pos = mathutils.Vector((fc_root[0].evaluate(start), fc_root[1].evaluate(start), fc_root[2].evaluate(start)))
+        start, end = locEvaluator.range()
+        if end - start <= 0:
+            return
+
+        source_bone_init_vector = (source_bone.head_local - source_bone.tail_local).normalized()
+        prev_pos = mathutils.Vector(locEvaluator.evaluate(start))
         distance = 0
-        for f in range(start + 1, end):
-            pos = mathutils.Vector((fc_root[0].evaluate(f), fc_root[1].evaluate(f), fc_root[2].evaluate(f)))
-            distance += (pos - prev_pos).magnitude
+        for f in range(int(start), int(end)+1):
+            pos = mathutils.Vector(locEvaluator.evaluate(f))
+            rotation_quaternion = mathutils.Quaternion(rotEvaluator.evaluate(f))
+            speed_vector = pos - prev_pos
+            root_orientation = rotation_quaternion * source_bone_init_vector
+            distance += math.copysign(speed_vector.magnitude, root_orientation.dot(speed_vector))
             # TODO yield only if speed has changed (avoid unecessary keyframes)
             yield f, distance
             prev_pos = pos
 
-    def bake_wheel_rotation(self, rig_ob):
-        fcurve_datapath = 'pose.bones["Wheel rotation"].rotation_euler'
-        action = rig_ob.animation_data.action
+    def _bake_wheel_rotation(self, action, source_bone, target_bone):
+        fcurve_datapath = 'pose.bones["%s"].rotation_euler' % target_bone.name
 
-        # TODO fcurve should be recreated once we had remove unecessary keyframes
         fc_speed = action.fcurves.find(fcurve_datapath, 0)
-        if fc_speed is None:
-            fc_speed = action.fcurves.new(fcurve_datapath, 0, 'Wheel rotation')
+        if fc_speed is not None:
+            action.fcurves.remove(fc_speed)
 
-        for f, distance in self.evaluate_distance_per_frame(action):
+        fc_speed = action.fcurves.new(fcurve_datapath, 0, 'Wheel rotation baking')
+
+        for f, distance in self._evaluate_distance_per_frame(action, source_bone):
             # TODO compute real rotation on definitive bones
             fc_speed.keyframe_points.insert(f, distance)
 
