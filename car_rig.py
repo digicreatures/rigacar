@@ -66,6 +66,7 @@ class BakeWheelRotationOperator(bpy.types.Operator):
 
     def execute(self, context):
         self.bake_wheel_rotation(context.object)
+        context.object.data['wheels_on_y_axis'] = False
         return {'FINISHED'}
 
     def evaluate_distance_per_frame(self, action):
@@ -105,9 +106,9 @@ def Generate():
     print("Starting car rig generation...")
 
     ob = bpy.context.active_object
-    ob.name = "Car Rig"
     amt = ob.data
-    amt['turning_wheels'] = True
+    ob["Car Rig"] = True
+    amt['wheels_on_y_axis'] = True
 
     bpy.ops.object.mode_set(mode='EDIT')
 
@@ -356,7 +357,7 @@ def add_wheel_constraints(ob, wheel_name, sensor_name):
     targ = var.targets[0]
     targ.id_type = 'ARMATURE'
     targ.id = ob.data
-    targ.data_path = '["turning_wheels"]'
+    targ.data_path = '["wheels_on_y_axis"]'
 
 
 #generate button
@@ -371,10 +372,8 @@ class UImetaRigGenerate(bpy.types.Panel):
         return context.object is not None and "Car Rig" in context.object
 
     def draw(self, context):
-        obj = bpy.context.active_object
-        if obj.mode in {"POSE", "OBJECT"}:
+        if not context.object["Car Rig"] and context.object.mode in {"POSE", "OBJECT"}:
             self.layout.operator("car.rig_generate", text='Generate')
-
 
 ### Add panel to properties to adjust wheel size
 class UIPanel(bpy.types.Panel):
@@ -387,8 +386,10 @@ class UIPanel(bpy.types.Panel):
         return context.object is not None and "Car Rig" in context.object
 
     def draw(self, context):
-        if 'turning_wheels' in context.object.data:
-            self.layout.prop(context.object.data, '["turning_wheels"]', text = "Wheels")
+        if not context.object["Car Rig"] and context.object.mode in {"POSE", "OBJECT"}:
+            self.layout.operator("car.rig_generate", text='Generate')
+        if context.object["Car Rig"]:
+            self.layout.prop(context.object.data, '["wheels_on_y_axis"]', text = "Wheels on Y axis")
             self.layout.operator('car.bake_wheel_rotation', 'Bake wheels animation', 'Automatically generates wheels animation based on Root bone animation.')
 
 class AddCarMetaRig(bpy.types.Operator):
@@ -399,36 +400,31 @@ class AddCarMetaRig(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def _create_bone(self, selected_objects, rig, name, head):
-        target_obj = None
-        for o in selected_objects:
-            if o.name == name:
-                target_obj = o
-                break
-
         b = rig.data.edit_bones.new('DEF-' + name)
-        if target_obj is None:
-            b.head = head
-        else:
-            b.head = target_obj.location
-            target_obj.parent = rig
-            target_obj.parent_bone = b.name
-            target_obj.parent_type = 'BONE'
-            # BUG : target_obj is not located at the proper place (seems to be at the tail pos)
-            target_obj.matrix_local = rig.matrix_world.inverted()
-
+        b.head = head
         b.tail = b.head
         b.tail.y += 1.0
 
+        for target_obj in selected_objects:
+            if target_obj.name == name:
+                b.head = target_obj.location
+                b.tail = b.head
+                b.tail.y += 1.0
+                target_obj.parent = rig
+                target_obj.parent_bone = b.name
+                target_obj.parent_type = 'BONE'
+                target_obj.location += rig.matrix_world.to_translation()
+                target_obj.matrix_parent_inverse = (rig.matrix_world * mathutils.Matrix.Translation(b.tail)).inverted()
 
     def execute(self, context):
         """Creates the meta rig with basic bones"""
 
         selected_objects = context.selected_objects
         #create meta rig
-        amt = bpy.data.armatures.new('CarMetaRigData')
-        obj_data = bpy_extras.object_utils.object_data_add(context, amt, name='CarMetaRig')
+        amt = bpy.data.armatures.new('Car Rig Data')
+        obj_data = bpy_extras.object_utils.object_data_add(context, amt, name='Car Rig')
         rig = obj_data.object
-        rig["Car Rig"] = True
+        rig["Car Rig"] = False
 
         #create meta rig bones
         bpy.ops.object.mode_set(mode='EDIT')
