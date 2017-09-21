@@ -144,6 +144,55 @@ class BakeWheelRotationOperator(bpy.types.Operator):
             fc_speed.keyframe_points.insert(f, distance * speed_ratio)
 
 
+class BakeSteeringWheelRotationOperator(bpy.types.Operator):
+    bl_idname = 'car.bake_steering_wheel_rotation'
+    bl_label = 'Car Rig: bake steering wheel rotation'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.object is not None and
+                context.object.animation_data.action is not None and
+                "Car Rig" in context.object and
+                context.object["Car Rig"])
+
+    def execute(self, context):
+        self._bake_steering_wheel_rotation(context.object.animation_data.action, context.object.data.bones['Root'], context.object.data.bones['Steering'])
+        return {'FINISHED'}
+
+    def _create_rotation_evaluator(self, action, source_bone):
+        fcurve_name = 'pose.bones["%s"].rotation_quaternion' % source_bone.name
+        fc_root_rot = [action.fcurves.find(fcurve_name , i) for i in range(0, 4)]
+        return FCurvesEvaluator(fc_root_rot, default_value= (1.0, .0, .0, .0))
+
+    def _evaluate_rotation_per_frame(self, action, source_bone):
+        rotEvaluator = self._create_rotation_evaluator(action, source_bone)
+
+        start, end = rotEvaluator.range()
+        if end - start <= 0:
+            return
+
+        current_rotation_quaternion = mathutils.Quaternion(rotEvaluator.evaluate(start))
+        for f in range(int(start), int(end)+1):
+            next_rotation_quaternion = mathutils.Quaternion(rotEvaluator.evaluate(f + 1))
+            rot_axis, rot_angle = current_rotation_quaternion.rotation_difference(next_rotation_quaternion).to_axis_angle()
+            yield f, math.copysign(rot_angle, rot_axis.z)
+            current_rotation_quaternion = next_rotation_quaternion
+
+    def _bake_steering_wheel_rotation(self, action, source_bone, target_bone):
+        fcurve_datapath = 'pose.bones["%s"].location' % target_bone.name
+
+        fc_rot = action.fcurves.find(fcurve_datapath, 0)
+        if fc_rot is not None:
+            action.fcurves.remove(fc_rot)
+
+        fc_rot = action.fcurves.new(fcurve_datapath, 0, 'Wheel rotation baking')
+
+        for f, rotation_angle in self._evaluate_rotation_per_frame(action, source_bone):
+            # TODO use correct ratio and correct bone
+            fc_rot.keyframe_points.insert(f, rotation_angle / math.radians(25) * 4 * math.pi)
+
+
 def Generate():
     print("Starting car rig generation...")
 
@@ -432,7 +481,8 @@ class UIPanel(bpy.types.Panel):
             self.layout.operator("car.rig_generate", text='Generate')
         if context.object["Car Rig"]:
             self.layout.prop(context.object.data, '["wheels_on_y_axis"]', text = "Wheels on Y axis")
-            self.layout.operator('car.bake_wheel_rotation', 'Bake wheels animation', 'Automatically generates wheels animation based on Root bone animation.')
+            self.layout.operator('car.bake_wheel_rotation', 'Bake wheels rotation', 'Automatically generates wheels animation based on Root bone animation.')
+            self.layout.operator('car.bake_steering_wheel_rotation', 'Bake steering wheels', 'Automatically generates wheels animation based on Root bone animation.')
 
 class AddCarMetaRig(bpy.types.Operator):
     """Operator to create Car Meta Rig"""
@@ -501,6 +551,7 @@ def register():
     bpy.utils.register_class(UImetaRigGenerate)
     bpy.utils.register_class(GenerateRig)
     bpy.utils.register_class(BakeWheelRotationOperator)
+    bpy.utils.register_class(BakeSteeringWheelRotationOperator)
     bpy.utils.register_class(AddCarMetaRig)
     bpy.utils.register_class(UIPanel)
 
@@ -509,6 +560,7 @@ def unregister():
     bpy.utils.unregister_class(UImetaRigGenerate)
     bpy.utils.unregister_class(GenerateRig)
     bpy.utils.unregister_class(BakeWheelRotationOperator)
+    bpy.utils.unregister_class(BakeSteeringWheelRotationOperator)
     bpy.utils.unregister_class(AddCarMetaRig)
     bpy.utils.unregister_class(UIPanel)
 
