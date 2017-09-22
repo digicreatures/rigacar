@@ -581,11 +581,8 @@ class BakeWheelRotationOperator(bpy.types.Operator):
 
         fc_speed = action.fcurves.new(fcurve_datapath, 0, 'Wheel rotation baking')
 
-        speed_ratio = 1.0 / target_bone.head_local.z if target_bone.head_local.z > .0 else 1.0
-
         for f, distance in self._evaluate_distance_per_frame(action, source_bone):
-            # TODO compute real rotation on definitive bones
-            fc_speed.keyframe_points.insert(f, distance * speed_ratio)
+            fc_speed.keyframe_points.insert(f, distance)
 
 
 class BakeSteeringWheelRotationOperator(bpy.types.Operator):
@@ -635,7 +632,7 @@ class BakeSteeringWheelRotationOperator(bpy.types.Operator):
 
         for f, rotation_angle in self._evaluate_rotation_per_frame(action, source_bone):
             # TODO use correct ratio and correct bone
-            fc_rot.keyframe_points.insert(f, rotation_angle / math.radians(25) * 4 * math.pi)
+            fc_rot.keyframe_points.insert(f, math.tan(rotation_angle) * target_bone.length * 10)
 
 
 def menu_func(self, context):
