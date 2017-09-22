@@ -103,6 +103,18 @@ def generate_rig(context):
     mch_wheels.use_deform = False
     mch_wheels.parent = root
 
+    axisFt = amt.edit_bones.new('MCH-Axis.Ft')
+    axisFt.head = wheelFtR.head
+    axisFt.tail = wheelFtL.head
+    axisFt.use_deform = False
+    axisFt.parent = drift
+
+    axisBk = amt.edit_bones.new('MCH-Axis.Bk')
+    axisBk.head = wheelBkR.head
+    axisBk.tail = wheelBkL.head
+    axisBk.use_deform = False
+    axisBk.parent = drift
+
     damperFt = amt.edit_bones.new('MCH-Damper.Ft')
     damperFt.head = pos_front
     damperFt.tail = pos_front
@@ -118,9 +130,10 @@ def generate_rig(context):
     damperBk.parent = drift
 
     axis = amt.edit_bones.new('MCH-Axis')
-    axis.head = (damperFt.head + damperBk.head) / 2
-    axis.tail = damperBk.tail
+    axis.head = damperFt.head
+    axis.tail = damperBk.head
     axis.use_deform = False
+    axis.parent = damperFt
 
     mchBody = amt.edit_bones.new('MCH-Body')
     mchBody.head = body.head
@@ -211,7 +224,6 @@ def edit_generated_rig(context):
     edit_wheel_bones(ob, 'Bk.R')
 
     wheels = pose.bones['Wheels']
-    wheels.rotation_mode = "XYZ"
     wheels.lock_location = (True, True, True)
     wheels.lock_rotation = (False, True, True)
     wheels.lock_scale = (True, True, True)
@@ -266,46 +278,62 @@ def edit_generated_rig(context):
     targ.id = ob.data
     targ.data_path = '["wheels_on_y_axis"]'
 
-
     for damper_pos in ('Ft', 'Bk'):
         mch_damper = pose.bones['MCH-Damper.%s' % damper_pos]
-        for side, influence in (('L', 1), ('R', .5)):
-            subtarget = 'MCH-Wheel.%s.%s' % (damper_pos, side)
-            cns = mch_damper.constraints.new('COPY_LOCATION')
-            cns.name = 'Location from %s' % subtarget
-            cns.target = ob
-            cns.subtarget = subtarget
-            cns.head_tail = 0
-            cns.use_x = True
-            cns.use_y = True
-            cns.use_z = True
-            cns.owner_space = 'WORLD'
-            cns.target_space = 'WORLD'
-            cns.influence = influence
-
-    mch_axis = pose.bones['MCH-Axis']
-    for subtarget, influence in (('MCH-Damper.Ft', 1), ('MCH-Damper.Bk', .5)):
-        cns = mch_axis.constraints.new('COPY_LOCATION')
+        subtarget = 'MCH-Axis.%s' % damper_pos
+        cns = mch_damper.constraints.new('COPY_LOCATION')
         cns.name = 'Location from %s' % subtarget
         cns.target = ob
         cns.subtarget = subtarget
-        cns.head_tail = 0
+        cns.head_tail = .5
+        cns.use_x = False
+        cns.use_y = False
+        cns.use_z = True
+        cns.owner_space = 'WORLD'
+        cns.target_space = 'WORLD'
+
+        if damper_pos == 'Ft':
+            cns = mch_damper.constraints.new('DAMPED_TRACK')
+            cns.name = 'Track damper back'
+            cns.target = ob
+            cns.subtarget = 'MCH-Damper.Bk'
+            cns.track_axis = 'TRACK_Y'
+
+    for axis_pos in ('Ft', 'Bk'):
+        mch_axis = pose.bones['MCH-Axis.%s' % axis_pos]
+        cns = mch_axis.constraints.new('COPY_LOCATION')
+        cns.name = 'Copy location from right wheel'
+        cns.target = ob
+        cns.subtarget = 'MCH-Wheel.%s.R' % axis_pos
         cns.use_x = True
         cns.use_y = True
         cns.use_z = True
         cns.owner_space = 'WORLD'
         cns.target_space = 'WORLD'
-        cns.influence = influence
 
-        cns = mch_axis.constraints.new('COPY_ROTATION')
+        mch_axis = pose.bones['MCH-Axis.%s' % axis_pos]
+        cns = mch_axis.constraints.new('DAMPED_TRACK')
+        cns.name = 'Track Left Wheel'
+        cns.target = ob
+        cns.subtarget = 'MCH-Wheel.%s.L' % axis_pos
+        cns.track_axis = 'TRACK_Y'
+
+    mch_axis = pose.bones['MCH-Axis']
+    for axis_pos, influence in (('Ft', 1), ('Bk', .5)):
+        subtarget = 'MCH-Axis.%s' % axis_pos
+        cns = mch_axis.constraints.new('TRANSFORM')
         cns.name = 'Rotation from %s' % subtarget
         cns.target = ob
         cns.subtarget = subtarget
-        cns.use_x = True
-        cns.use_y = True
-        cns.use_z = True
-        cns.owner_space = 'WORLD'
-        cns.target_space = 'WORLD'
+        cns.map_from = 'ROTATION'
+        cns.from_min_x_rot = math.radians(-360)
+        cns.from_max_x_rot = math.radians(360)
+        cns.map_to_y_from = 'X'
+        cns.map_to = 'ROTATION'
+        cns.to_min_y_rot = math.radians(360)
+        cns.to_max_y_rot = math.radians(-360)
+        cns.owner_space = 'LOCAL'
+        cns.target_space = 'LOCAL'
         cns.influence = influence
 
     root = pose.bones['Root']
