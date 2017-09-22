@@ -136,19 +136,20 @@ def generate_rig(context):
     axisBk.use_deform = False
     axisBk.parent = drift
 
-    damperFt = amt.edit_bones.new('MCH-Damper.Ft')
-    damperFt.head = pos_front
-    damperFt.tail = pos_front
-    damperFt.tail.y += 2
-    damperFt.use_deform = False
-    damperFt.parent = drift
-
     damperBk = amt.edit_bones.new('MCH-Damper.Bk')
     damperBk.head = pos_back
     damperBk.tail = pos_back
     damperBk.tail.y += 2
     damperBk.use_deform = False
     damperBk.parent = drift
+
+    damperFt = amt.edit_bones.new('MCH-Damper.Ft')
+    damperFt.head = pos_front
+    align_vector = damperBk.head - damperFt.head
+    align_vector.magnitude = 2
+    damperFt.tail = pos_front + align_vector
+    damperFt.use_deform = False
+    damperFt.parent = drift
 
     axis = amt.edit_bones.new('MCH-Axis')
     axis.head = damperFt.head
