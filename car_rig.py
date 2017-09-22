@@ -339,12 +339,12 @@ def edit_generated_rig(context):
         cns.target = ob
         cns.subtarget = subtarget
         cns.map_from = 'ROTATION'
-        cns.from_min_x_rot = math.radians(-360)
-        cns.from_max_x_rot = math.radians(360)
+        cns.from_min_x_rot = math.radians(-180)
+        cns.from_max_x_rot = math.radians(180)
         cns.map_to_y_from = 'X'
         cns.map_to = 'ROTATION'
-        cns.to_min_y_rot = math.radians(360)
-        cns.to_max_y_rot = math.radians(-360)
+        cns.to_min_y_rot = math.radians(180)
+        cns.to_max_y_rot = math.radians(-180)
         cns.owner_space = 'LOCAL'
         cns.target_space = 'LOCAL'
         create_constraint_influence_driver(ob.data, cns, '["damper_rolling_factor"]', base_influence = influence)
