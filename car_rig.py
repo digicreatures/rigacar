@@ -99,12 +99,13 @@ def generate_rig(context):
 
     drift = amt.edit_bones.new('Drift')
     drift.head = (pos_front.x, pos_front.y, pos_front.z * 3)
-    drift.tail = (pos_front.x, pos_front.y + 3, pos_front.z * 3)
+    drift.tail = (pos_front.x, pos_front.y - 3, pos_front.z * 3)
+    drift.roll = math.pi
     drift.use_deform = False
     drift.parent = root
 
-    generate_wheel_bones(amt, 'Ft.L', root)
-    generate_wheel_bones(amt, 'Ft.R', root)
+    generate_wheel_bones(amt, 'Ft.L', drift)
+    generate_wheel_bones(amt, 'Ft.R', drift)
     generate_wheel_bones(amt, 'Bk.L', drift)
     generate_wheel_bones(amt, 'Bk.R', drift)
 
@@ -374,16 +375,27 @@ def edit_generated_rig(context):
     cns.subtarget = 'Steering'
     cns.track_axis = 'TRACK_NEGATIVE_Y'
 
+    cns = mch_steering.constraints.new('COPY_ROTATION')
+    cns.name = 'Drift counter animation'
+    cns.target = ob
+    cns.subtarget = 'Drift'
+    cns.use_x = False
+    cns.use_y = False
+    cns.use_z = True
+    cns.use_offset = True
+    cns.owner_space = 'LOCAL'
+    cns.target_space = 'LOCAL'
+
     mch_body = ob.pose.bones['MCH-Body']
     cns = mch_body.constraints.new('TRANSFORM')
     cns.name = 'Damper on rollover'
     cns.target = ob
     cns.subtarget = 'Damper'
     cns.map_from = 'LOCATION'
-    cns.from_min_x = -0.3
-    cns.from_max_x = 0.3
-    cns.from_min_y = -0.3
-    cns.from_max_y = 0.3
+    cns.from_min_x = -2
+    cns.from_max_x = 2
+    cns.from_min_y = -2
+    cns.from_max_y = 2
     cns.map_to_x_from = 'Y'
     cns.map_to_y_from = 'X'
     cns.map_to = 'ROTATION'
