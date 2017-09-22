@@ -148,7 +148,9 @@ def generate_rig(context):
     damper.head = body.head
     damper.tail = body.tail
     damper.head.z *= 4
+    damper.head.z += 2
     damper.tail.z *= 4
+    damper.tail.z += 2
     damper.use_deform = False
     damper.parent = axis
 
