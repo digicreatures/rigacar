@@ -689,7 +689,7 @@ class BakeSteeringWheelRotationOperator(bpy.types.Operator):
 
         for f, rotation_angle in self._evaluate_rotation_per_frame(action, source_bone):
             # TODO use correct ratio and correct bone
-            fc_rot.keyframe_points.insert(f, math.tan(rotation_angle) * target_bone.length * 10)
+            fc_rot.keyframe_points.insert(f, math.tan(rotation_angle) * target_bone.length * 50)
 
 
 def menu_func(self, context):
