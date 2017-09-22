@@ -53,12 +53,32 @@ def apply_layer(bone):
 
     bone.layers = layers
 
+def create_constraint_influence_driver(armature, cns, driver_data_path, base_influence = 1.0):
+    fcurve = cns.driver_add('influence')
+    drv = fcurve.driver
+    drv.type = 'AVERAGE'
+    var = drv.variables.new()
+    var.name = 'influence'
+    var.type = 'SINGLE_PROP'
+
+    targ = var.targets[0]
+    targ.id_type = 'ARMATURE'
+    targ.id = armature
+    targ.data_path = driver_data_path
+
+    if base_influence != 1.0:
+        fmod = fcurve.modifiers[0]
+        fmod.mode = 'POLYNOMIAL'
+        fmod.poly_order = 1
+        fmod.coefficients = (0, base_influence)
 
 def generate_rig(context):
     ob = context.active_object
-    amt = ob.data
     ob["Car Rig"] = True
+    amt = ob.data
     amt['wheels_on_y_axis'] = True
+    amt['damper_factor'] = .5
+    amt['damper_rolling_factor'] = .5
 
     bpy.ops.object.mode_set(mode='EDIT')
 
@@ -211,7 +231,6 @@ def edit_generated_rig(context):
     bpy.ops.object.mode_set(mode='POSE')
     ob = context.object
     pose = ob.pose
-    amt = ob.data
 
     for b in pose.bones:
         if b.name.startswith('DEF-') or b.name.startswith('MCH-'):
@@ -267,18 +286,7 @@ def edit_generated_rig(context):
     cns.owner_space = 'LOCAL'
     cns.target_space = 'LOCAL'
 
-    # Driver on influence for Transformation constraint
-    fcurve = cns.driver_add('influence')
-    drv = fcurve.driver
-    drv.type = 'AVERAGE'
-    var = drv.variables.new()
-    var.name = 'influence'
-    var.type = 'SINGLE_PROP'
-
-    targ = var.targets[0]
-    targ.id_type = 'ARMATURE'
-    targ.id = ob.data
-    targ.data_path = '["wheels_on_y_axis"]'
+    create_constraint_influence_driver(ob.data, cns, '["wheels_on_y_axis"]')
 
     for damper_pos in ('Ft', 'Bk'):
         mch_damper = pose.bones['MCH-Damper.%s' % damper_pos]
@@ -293,6 +301,7 @@ def edit_generated_rig(context):
         cns.use_z = True
         cns.owner_space = 'WORLD'
         cns.target_space = 'WORLD'
+        create_constraint_influence_driver(ob.data, cns, '["damper_factor"]')
 
         if damper_pos == 'Ft':
             cns = mch_damper.constraints.new('DAMPED_TRACK')
@@ -336,7 +345,7 @@ def edit_generated_rig(context):
         cns.to_max_y_rot = math.radians(-360)
         cns.owner_space = 'LOCAL'
         cns.target_space = 'LOCAL'
-        cns.influence = influence
+        create_constraint_influence_driver(ob.data, cns, '["damper_rolling_factor"]', base_influence = influence)
 
     root = pose.bones['Root']
     root.lock_scale = (True, True, True)
@@ -463,6 +472,8 @@ class BaseCarRigPanel:
             self.layout.operator("car.rig_generate", text='Generate')
         if context.object["Car Rig"]:
             self.layout.prop(context.object.data, '["wheels_on_y_axis"]', text = "Wheels on Y axis")
+            self.layout.prop(context.object.data, '["damper_factor"]', text = "Damper fact.")
+            self.layout.prop(context.object.data, '["damper_rolling_factor"]', text = "Damper rolling fact.")
             self.layout.operator('car.bake_wheel_rotation', 'Bake wheels rotation', 'Automatically generates wheels animation based on Root bone animation.')
             self.layout.operator('car.bake_steering_wheel_rotation', 'Bake steering wheels', 'Automatically generates wheels animation based on Root bone animation.')
 
