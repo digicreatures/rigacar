@@ -109,16 +109,31 @@ def generate_rig(context):
     generate_wheel_bones(amt, 'Bk.L', drift)
     generate_wheel_bones(amt, 'Bk.R', drift)
 
-    wheels = amt.edit_bones.new('Wheels')
+    wheels = amt.edit_bones.new('Front Wheels')
     wheels.head = wheelFtL.head
-    wheels.tail = wheelFtL.tail
-    wheels.tail.y = wheels.tail.z * 1.2
+    wheels.tail = wheelFtL.head
+    wheels.tail.y += wheels.tail.z * 1.2
     wheels.use_deform = False
     wheels.parent = amt.edit_bones['WheelBumper.Ft.L']
 
-    mch_wheels = amt.edit_bones.new('MCH-Wheels')
+    mch_wheels = amt.edit_bones.new('MCH-Wheels.Ft')
     mch_wheels.head = wheelFtL.head
     mch_wheels.tail = wheelFtL.tail
+    mch_wheels.head.x /= 2
+    mch_wheels.tail.x /= 2
+    mch_wheels.use_deform = False
+    mch_wheels.parent = root
+
+    wheels = amt.edit_bones.new('Back Wheels')
+    wheels.head = wheelBkL.head
+    wheels.tail = wheelBkL.head
+    wheels.tail.y += wheels.tail.z * 1.2
+    wheels.use_deform = False
+    wheels.parent = amt.edit_bones['WheelBumper.Bk.L']
+
+    mch_wheels = amt.edit_bones.new('MCH-Wheels.Bk')
+    mch_wheels.head = wheelBkL.head
+    mch_wheels.tail = wheelBkL.tail
     mch_wheels.head.x /= 2
     mch_wheels.tail.x /= 2
     mch_wheels.use_deform = False
@@ -246,7 +261,7 @@ def edit_generated_rig(context):
     edit_wheel_bones(ob, 'Bk.L')
     edit_wheel_bones(ob, 'Bk.R')
 
-    wheels = pose.bones['Wheels']
+    wheels = pose.bones['Front Wheels']
     wheels.lock_location = (True, True, True)
     wheels.lock_rotation = (False, True, True)
     wheels.lock_scale = (True, True, True)
@@ -260,18 +275,19 @@ def edit_generated_rig(context):
     cns.owner_space = 'LOCAL'
     cns.target_space = 'LOCAL'
 
-    mch_wheels = pose.bones['MCH-Wheels']
-    mch_wheels.rotation_mode = "XYZ"
-    cns = mch_wheels.constraints.new('COPY_ROTATION')
-    cns.name = 'Animation wheels'
-    cns.target = ob
-    cns.subtarget = 'Wheels'
-    cns.use_x = True
-    cns.use_y = False
-    cns.use_z = False
-    cns.use_offset = True
-    cns.owner_space = 'LOCAL'
-    cns.target_space = 'LOCAL'
+    for wheels_pos, subtarget_prefix in (('Ft', 'Front'), ('Bk', 'Back')):
+        mch_wheels = pose.bones['MCH-Wheels.%s' % wheels_pos]
+        mch_wheels.rotation_mode = "XYZ"
+        cns = mch_wheels.constraints.new('COPY_ROTATION')
+        cns.name = 'Animation wheels'
+        cns.target = ob
+        cns.subtarget = '%s Wheels' % subtarget_prefix
+        cns.use_x = True
+        cns.use_y = False
+        cns.use_z = False
+        cns.use_offset = True
+        cns.owner_space = 'LOCAL'
+        cns.target_space = 'LOCAL'
 
     for damper_pos in ('Ft', 'Bk'):
         mch_damper = pose.bones['MCH-Damper.%s' % damper_pos]
@@ -450,7 +466,7 @@ def edit_wheel_bones(ob, name_suffix):
 
     targ = var.targets[0]
     targ.id = ob
-    targ.bone_target = 'MCH-Wheels'
+    targ.bone_target = 'MCH-Wheels.%s' % ('Ft' if name_suffix.startswith('Ft.') else 'Bk')
     targ.transform_type = 'ROT_X'
     targ.transform_space = "LOCAL_SPACE"
 
