@@ -273,23 +273,6 @@ def edit_generated_rig(context):
     cns.owner_space = 'LOCAL'
     cns.target_space = 'LOCAL'
 
-    cns = mch_wheels.constraints.new('TRANSFORM')
-    cns.name = 'Wheel rotation along Y axis'
-    cns.target = ob
-    cns.subtarget = 'Root'
-    cns.use_motion_extrapolate = True
-    cns.map_from ='LOCATION'
-    cns.from_min_y = 0
-    cns.from_max_y = math.pi * 2 * abs(mch_wheels.head.z if mch_wheels.head.z != 0 else 1)
-    cns.map_to_x_from = 'Y'
-    cns.map_to ='ROTATION'
-    cns.to_min_x_rot = 0
-    cns.to_max_x_rot = -math.pi
-    cns.owner_space = 'LOCAL'
-    cns.target_space = 'LOCAL'
-
-    create_constraint_influence_driver(ob.data, cns, '["wheels_on_y_axis"]')
-
     for damper_pos in ('Ft', 'Bk'):
         mch_damper = pose.bones['MCH-Damper.%s' % damper_pos]
         subtarget = 'MCH-Axis.%s' % damper_pos
@@ -479,8 +462,26 @@ def edit_wheel_bones(ob, name_suffix):
     else:
         fmod.coefficients = (0, abs(1/mch_wheel.head.z))
 
+    cns = mch_wheel.constraints.new('TRANSFORM')
+    cns.name = 'Wheel rotation along Y axis'
+    cns.target = ob
+    cns.subtarget = 'Root'
+    cns.use_motion_extrapolate = True
+    cns.map_from ='LOCATION'
+    cns.from_min_y = - math.pi * 2 * abs(mch_wheel.head.z if mch_wheel.head.z != 0 else 1)
+    cns.from_max_y = - cns.from_min_y
+    cns.map_to_x_from = 'Y'
+    cns.map_to ='ROTATION'
+    cns.to_min_x_rot = math.pi
+    cns.to_max_x_rot = -math.pi
+    cns.owner_space = 'LOCAL'
+    cns.target_space = 'LOCAL'
+
+    create_constraint_influence_driver(ob.data, cns, '["wheels_on_y_axis"]')
+
     def_wheel = pose.bones['DEF-Wheel.%s' % name_suffix]
     def_wheel.rotation_mode = "XYZ"
+
 
 class BaseCarRigPanel:
     @classmethod
@@ -598,8 +599,7 @@ class BakeWheelRotationOperator(bpy.types.Operator):
                 context.object["Car Rig"])
 
     def execute(self, context):
-        target_bones = [context.object.data.bones[n] for n in ('MCH-Wheel.Ft.L', 'MCH-Wheel.Ft.R', 'MCH-Wheel.Bk.L', 'MCH-Wheel.Bk.R', )]
-        self._bake_wheel_rotation(context.object.animation_data.action, context.object.data.bones['Root'], target_bones)
+        self._bake_wheel_rotation(context.object.animation_data.action, context.object.data.bones['Root'], context.object.data.bones['MCH-Wheels'])
         context.object.data['wheels_on_y_axis'] = False
         return {'FINISHED'}
 
@@ -634,22 +634,17 @@ class BakeWheelRotationOperator(bpy.types.Operator):
             yield f, distance
             prev_pos = pos
 
-    def _bake_wheel_rotation(self, action, source_bone, target_bones):
-        fcurves = []
-        diameters = []
+    def _bake_wheel_rotation(self, action, source_bone, target_bone):
+        fcurve_datapath = 'pose.bones["%s"].rotation_euler' % target_bone.name
+        fc_rot = action.fcurves.find(fcurve_datapath, 0)
 
-        for target_bone in target_bones:
-            fcurve_datapath = 'pose.bones["%s"].rotation_euler' % target_bone.name
-            fc_rot = action.fcurves.find(fcurve_datapath, 0)
-            if fc_rot is not None:
-                action.fcurves.remove(fc_rot)
+        if fc_rot is not None:
+            action.fcurves.remove(fc_rot)
 
-            fcurves.append(action.fcurves.new(fcurve_datapath, 0, 'Wheels rotation baking'))
-            diameters.append(abs(target_bone.head_local.z) * 2 if target_bone.head_local.z != 0 else 1)
+        fc_rot = action.fcurves.new(fcurve_datapath, 0, 'Wheels rotation baking')
 
         for f, distance in self._evaluate_distance_per_frame(action, source_bone):
-            for fcurve, diameter in zip(fcurves, diameters):
-                fcurve.keyframe_points.insert(f, distance / diameter)
+            fc_rot.keyframe_points.insert(f, distance / target_bone.head_local.z)
 
 
 class BakeSteeringWheelRotationOperator(bpy.types.Operator):
