@@ -458,16 +458,26 @@ def edit_wheel_bones(ob, name_suffix):
         cns.owner_space = 'LOCAL'
         cns.target_space = 'LOCAL'
 
-    cns = mch_wheel.constraints.new('COPY_ROTATION')
-    cns.name = 'Copy MCH-Wheels rotation'
-    cns.target = ob
-    cns.subtarget = 'MCH-Wheels'
-    cns.use_x = True
-    cns.use_y = False
-    cns.use_z = False
-    cns.use_offset = True
-    cns.owner_space = 'LOCAL'
-    cns.target_space = 'LOCAL'
+    fcurve = mch_wheel.driver_add('rotation_euler', 0)
+    drv = fcurve.driver
+    drv.type = 'AVERAGE'
+    var = drv.variables.new()
+    var.name = 'x'
+    var.type = 'TRANSFORMS'
+
+    targ = var.targets[0]
+    targ.id = ob
+    targ.bone_target = 'MCH-Wheels'
+    targ.transform_type = 'ROT_X'
+    targ.transform_space = "LOCAL_SPACE"
+
+    fmod = fcurve.modifiers[0]
+    fmod.mode = 'POLYNOMIAL'
+    fmod.poly_order = 1
+    if mch_wheel.head.z == 0:
+        fmod.coefficients = (0, 1)
+    else:
+        fmod.coefficients = (0, abs(1/mch_wheel.head.z))
 
     def_wheel = pose.bones['DEF-Wheel.%s' % name_suffix]
     def_wheel.rotation_mode = "XYZ"
