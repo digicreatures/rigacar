@@ -254,6 +254,7 @@ def edit_generated_rig(context):
     edit_wheel_bones(ob, 'Bk.R')
 
     wheels = pose.bones['Front Wheels']
+    wheels.rotation_mode = "XYZ"
     wheels.lock_location = (True, True, True)
     wheels.lock_rotation = (False, True, True)
     wheels.lock_scale = (True, True, True)
@@ -266,6 +267,12 @@ def edit_generated_rig(context):
     cns.use_z = True
     cns.owner_space = 'LOCAL'
     cns.target_space = 'LOCAL'
+
+    wheels = pose.bones['Back Wheels']
+    wheels.rotation_mode = "XYZ"
+    wheels.lock_location = (True, True, True)
+    wheels.lock_rotation = (False, True, True)
+    wheels.lock_scale = (True, True, True)
 
     mch_wheel = pose.bones['MCH-Wheels']
     mch_wheel.rotation_mode = "XYZ"
