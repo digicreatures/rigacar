@@ -116,13 +116,13 @@ def generate_rig(context):
     wheels.use_deform = False
     wheels.parent = amt.edit_bones['WheelBumper.Ft.L']
 
-    mch_wheels = amt.edit_bones.new('MCH-Wheels.Ft')
+    mch_wheels = amt.edit_bones.new('MCH-Wheels')
     mch_wheels.head = wheelFtL.head
     mch_wheels.tail = wheelFtL.tail
     mch_wheels.head.x /= 2
     mch_wheels.tail.x /= 2
     mch_wheels.use_deform = False
-    mch_wheels.parent = root
+    mch_wheels.parent = drift
 
     wheels = amt.edit_bones.new('Back Wheels')
     wheels.head = wheelBkL.head
@@ -130,14 +130,6 @@ def generate_rig(context):
     wheels.tail.y += wheels.tail.z * 1.2
     wheels.use_deform = False
     wheels.parent = amt.edit_bones['WheelBumper.Bk.L']
-
-    mch_wheels = amt.edit_bones.new('MCH-Wheels.Bk')
-    mch_wheels.head = wheelBkL.head
-    mch_wheels.tail = wheelBkL.tail
-    mch_wheels.head.x /= 2
-    mch_wheels.tail.x /= 2
-    mch_wheels.use_deform = False
-    mch_wheels.parent = root
 
     axisFt = amt.edit_bones.new('MCH-Axis.Ft')
     axisFt.head = wheelFtR.head
@@ -275,19 +267,8 @@ def edit_generated_rig(context):
     cns.owner_space = 'LOCAL'
     cns.target_space = 'LOCAL'
 
-    for wheels_pos, subtarget_prefix in (('Ft', 'Front'), ('Bk', 'Back')):
-        mch_wheels = pose.bones['MCH-Wheels.%s' % wheels_pos]
-        mch_wheels.rotation_mode = "XYZ"
-        cns = mch_wheels.constraints.new('COPY_ROTATION')
-        cns.name = 'Animation wheels'
-        cns.target = ob
-        cns.subtarget = '%s Wheels' % subtarget_prefix
-        cns.use_x = True
-        cns.use_y = False
-        cns.use_z = False
-        cns.use_offset = True
-        cns.owner_space = 'LOCAL'
-        cns.target_space = 'LOCAL'
+    mch_wheel = pose.bones['MCH-Wheels']
+    mch_wheel.rotation_mode = "XYZ"
 
     for damper_pos in ('Ft', 'Bk'):
         mch_damper = pose.bones['MCH-Damper.%s' % damper_pos]
@@ -466,17 +447,14 @@ def edit_wheel_bones(ob, name_suffix):
 
     targ = var.targets[0]
     targ.id = ob
-    targ.bone_target = 'MCH-Wheels.%s' % ('Ft' if name_suffix.startswith('Ft.') else 'Bk')
+    targ.bone_target = 'MCH-Wheels'
     targ.transform_type = 'ROT_X'
     targ.transform_space = "LOCAL_SPACE"
 
     fmod = fcurve.modifiers[0]
     fmod.mode = 'POLYNOMIAL'
     fmod.poly_order = 1
-    if mch_wheel.head.z == 0:
-        fmod.coefficients = (0, 1)
-    else:
-        fmod.coefficients = (0, abs(1/mch_wheel.head.z))
+    fmod.coefficients = (0, abs(1 / (mch_wheel.head.z if mch_wheel.head.z != 0 else 1)))
 
     cns = mch_wheel.constraints.new('TRANSFORM')
     cns.name = 'Wheel rotation along Y axis'
@@ -484,7 +462,7 @@ def edit_wheel_bones(ob, name_suffix):
     cns.subtarget = 'Root'
     cns.use_motion_extrapolate = True
     cns.map_from ='LOCATION'
-    cns.from_min_y = - math.pi * 2 * abs(mch_wheel.head.z if mch_wheel.head.z != 0 else 1)
+    cns.from_min_y = - math.pi * abs(mch_wheel.head.z if mch_wheel.head.z != 0 else 1)
     cns.from_max_y = - cns.from_min_y
     cns.map_to_x_from = 'Y'
     cns.map_to ='ROTATION'
@@ -494,6 +472,17 @@ def edit_wheel_bones(ob, name_suffix):
     cns.target_space = 'LOCAL'
 
     create_constraint_influence_driver(ob.data, cns, '["wheels_on_y_axis"]')
+
+    cns = mch_wheel.constraints.new('COPY_ROTATION')
+    cns.name = 'Animation wheels'
+    cns.target = ob
+    cns.subtarget = '%s Wheels' % ('Front' if name_suffix.startswith('Ft.') else 'Back')
+    cns.use_x = True
+    cns.use_y = False
+    cns.use_z = False
+    cns.use_offset = True
+    cns.owner_space = 'LOCAL'
+    cns.target_space = 'LOCAL'
 
     def_wheel = pose.bones['DEF-Wheel.%s' % name_suffix]
     def_wheel.rotation_mode = "XYZ"
@@ -660,7 +649,7 @@ class BakeWheelRotationOperator(bpy.types.Operator):
         fc_rot = action.fcurves.new(fcurve_datapath, 0, 'Wheels rotation baking')
 
         for f, distance in self._evaluate_distance_per_frame(action, source_bone):
-            fc_rot.keyframe_points.insert(f, distance / target_bone.head_local.z)
+            fc_rot.keyframe_points.insert(f, distance)
 
 
 class BakeSteeringWheelRotationOperator(bpy.types.Operator):
@@ -706,7 +695,7 @@ class BakeSteeringWheelRotationOperator(bpy.types.Operator):
         if fc_rot is not None:
             action.fcurves.remove(fc_rot)
 
-        fc_rot = action.fcurves.new(fcurve_datapath, 0, 'Wheel rotation baking')
+        fc_rot = action.fcurves.new(fcurve_datapath, 0, 'Wheels rotation baking')
 
         for f, rotation_angle in self._evaluate_rotation_per_frame(action, source_bone):
             # TODO use correct ratio and correct bone
