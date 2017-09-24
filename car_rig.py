@@ -96,13 +96,17 @@ def generate_rig(context):
     pos_body = body.head
 
     root = amt.edit_bones.new('Root')
-    root.head = (pos_body.x, pos_body.y, 0)
-    root.tail = (pos_body.x, pos_body.y + 3, 0)
+    root.head = (body.head.x, body.head.y, 0)
+    root.tail = (body.tail.x, body.tail.y, 0)
     root.use_deform = False
 
     drift = amt.edit_bones.new('Drift')
-    drift.head = (pos_front.x, pos_front.y, pos_front.z * 3)
-    drift.tail = (pos_front.x, pos_front.y - 3, pos_front.z * 3)
+    drift.head = pos_front
+    drift.tail = pos_front
+    drift.head.y -= body.length * 0.5
+    drift.tail.y -= body.length * 0.8
+    drift.head.z = body.envelope_distance * 1.2
+    drift.tail.z = body.envelope_distance * 1.2
     drift.roll = math.pi
     drift.use_deform = False
     drift.parent = root
@@ -114,8 +118,9 @@ def generate_rig(context):
 
     wheels = amt.edit_bones.new('Front Wheels')
     wheels.head = wheelFtL.head
-    wheels.tail = wheelFtL.head
-    wheels.tail.y += wheels.tail.z * 1.2
+    wheels.tail = wheelFtL.tail
+    wheels.head.x += math.copysign(wheelFtL.envelope_distance * 1.3, wheels.head.x)
+    wheels.tail.x += math.copysign(wheelFtL.envelope_distance * 1.3, wheels.tail.x)
     wheels.use_deform = False
     wheels.parent = amt.edit_bones['WheelBumper.Ft.L']
 
@@ -129,8 +134,9 @@ def generate_rig(context):
 
     wheels = amt.edit_bones.new('Back Wheels')
     wheels.head = wheelBkL.head
-    wheels.tail = wheelBkL.head
-    wheels.tail.y += wheels.tail.z * 1.2
+    wheels.tail = wheelBkL.tail
+    wheels.head.x += math.copysign(wheelBkL.envelope_distance * 1.3, wheels.head.x)
+    wheels.tail.x += math.copysign(wheelBkL.envelope_distance * 1.3, wheels.tail.x)
     wheels.use_deform = False
     wheels.parent = amt.edit_bones['WheelBumper.Bk.L']
 
@@ -178,19 +184,17 @@ def generate_rig(context):
 
     damper = amt.edit_bones.new('Damper')
     damper.head = body.head
-    damper.tail = body.tail
-    damper.head.z *= 4
-    damper.head.z += 2
-    damper.tail.z *= 4
-    damper.tail.z += 2
+    damper.tail = body.head
+    damper.tail.y += body.envelope_distance
+    damper.head.z = body.envelope_distance * 1.5
+    damper.tail.z = body.envelope_distance * 1.5
     damper.use_deform = False
     damper.parent = axis
 
     mchSteering = amt.edit_bones.new('MCH-Steering')
     mchSteering.head = pos_front
     mchSteering.tail = pos_front
-    mchSteering.head.y -= 5
-    mchSteering.tail.y *= 3
+    mchSteering.tail.y += body.length * 0.3
     mchSteering.use_deform = False
     mchSteering.parent = root
 
@@ -224,8 +228,10 @@ def generate_wheel_bones(amt, name_suffix, parent_bone):
     wheel_bumper = amt.edit_bones.new('WheelBumper.%s' % name_suffix)
     wheel_bumper.head = def_wheel_bone.head
     wheel_bumper.tail = def_wheel_bone.tail
-    wheel_bumper.head.z *= .2
-    wheel_bumper.tail.z *= .2
+    wheel_bumper.head.x += math.copysign(def_wheel_bone.envelope_distance * 1.5, wheel_bumper.head.x)
+    wheel_bumper.tail.x += math.copysign(def_wheel_bone.envelope_distance * 1.5, wheel_bumper.tail.x)
+    wheel_bumper.head.z *= 1.5
+    wheel_bumper.tail.z *= 1.5
     wheel_bumper.use_deform = False
     wheel_bumper.parent = ground_sensor
 
@@ -543,22 +549,37 @@ class AddCarMetaRigOperator(bpy.types.Operator):
     bl_label = "Add car meta rig"
     bl_options = {'REGISTER', 'UNDO'}
 
+    def _compute_envelope_distance(self, obj, bound_box_co_index, default_offset):
+        if obj.bound_box is None:
+            return default_offset
+
+        max_x = max([abs(bb[bound_box_co_index]) for bb in obj.bound_box])
+
+        return max_x if max_x > 0 else default_offset
+
+
     def _create_bone(self, selected_objects, rig, name, head):
         b = rig.data.edit_bones.new('DEF-' + name)
         b.head = head
         b.tail = b.head
         b.tail.y += 1.0
+        b.envelope_distance = 0.25 if b.name != 'DEF-Body' else 1
 
         for target_obj in selected_objects:
             if target_obj.name == name:
                 b.head = target_obj.location
                 b.tail = b.head
-                b.tail.y += 1.0
+                b.tail.y += target_obj.dimensions[1] / 2 if target_obj.dimensions and target_obj.dimensions[0] != 0 else 1
+                if b.name == 'DEF-Body':
+                    b.envelope_distance = self._compute_envelope_distance(target_obj, bound_box_co_index = 2, default_offset = 1)
+                else:
+                    b.envelope_distance = self._compute_envelope_distance(target_obj, bound_box_co_index = 0, default_offset = .25)
                 target_obj.parent = rig
                 target_obj.parent_bone = b.name
                 target_obj.parent_type = 'BONE'
                 target_obj.location += rig.matrix_world.to_translation()
                 target_obj.matrix_parent_inverse = (rig.matrix_world * mathutils.Matrix.Translation(b.tail)).inverted()
+                break
 
     def execute(self, context):
         """Creates the meta rig with basic bones"""
