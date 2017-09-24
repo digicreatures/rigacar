@@ -720,7 +720,10 @@ class BakeSteeringWheelRotationOperator(bpy.types.Operator):
                 context.object.data['Car Rig'])
 
     def execute(self, context):
-        self._bake_steering_wheel_rotation(context.object.animation_data.action, context.object.data.bones['Root'], context.object.data.bones['MCH-Steering.controller'])
+        steering = context.object.data.bones['Steering']
+        mch_steering = context.object.data.bones['MCH-Steering']
+        distance = (steering.head - mch_steering.head).length
+        self._bake_steering_wheel_rotation(context.object.animation_data.action, distance, context.object.data.bones['Root'], context.object.data.bones['MCH-Steering.controller'])
         return {'FINISHED'}
 
     def _create_rotation_evaluator(self, action, source_bone):
@@ -742,7 +745,7 @@ class BakeSteeringWheelRotationOperator(bpy.types.Operator):
             yield f, math.copysign(rot_angle, rot_axis.z)
             current_rotation_quaternion = next_rotation_quaternion
 
-    def _bake_steering_wheel_rotation(self, action, source_bone, target_bone):
+    def _bake_steering_wheel_rotation(self, action, distance, source_bone, target_bone):
         fcurve_datapath = 'pose.bones["%s"].location' % target_bone.name
 
         fc_rot = action.fcurves.find(fcurve_datapath, 0)
@@ -753,7 +756,7 @@ class BakeSteeringWheelRotationOperator(bpy.types.Operator):
 
         for f, rotation_angle in self._evaluate_rotation_per_frame(action, source_bone):
             # TODO use correct ratio and correct bone
-            fc_rot.keyframe_points.insert(f, math.tan(rotation_angle) * target_bone.length * 10)
+            fc_rot.keyframe_points.insert(f, math.tan(rotation_angle * 10) * distance)
 
 
 def create_widgets():
