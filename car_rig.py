@@ -242,6 +242,7 @@ def generate_wheel_bones(amt, name_suffix, parent_bone):
 def edit_generated_rig(context):
     bpy.ops.object.mode_set(mode='POSE')
     ob = context.object
+    ob.draw_type = 'WIRE'
     pose = ob.pose
 
     for b in pose.bones:
@@ -261,6 +262,7 @@ def edit_generated_rig(context):
     wheels.lock_location = (True, True, True)
     wheels.lock_rotation = (False, True, True)
     wheels.lock_scale = (True, True, True)
+    wheels.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
     cns = wheels.constraints.new('COPY_ROTATION')
     cns.name = 'Steering rotation'
     cns.target = ob
@@ -276,6 +278,7 @@ def edit_generated_rig(context):
     wheels.lock_location = (True, True, True)
     wheels.lock_rotation = (False, True, True)
     wheels.lock_scale = (True, True, True)
+    wheels.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
 
     mch_wheel = pose.bones['MCH-Wheels']
     mch_wheel.rotation_mode = "XYZ"
@@ -341,23 +344,27 @@ def edit_generated_rig(context):
 
     root = pose.bones['Root']
     root.lock_scale = (True, True, True)
+    root.custom_shape = bpy.data.objects['WGT-CarRig.Root']
 
     drift = pose.bones['Drift']
     drift.lock_location = (True, True, True)
     drift.lock_rotation = (True, True, False)
     drift.lock_scale = (True, True, True)
     drift.rotation_mode = 'ZYX'
+    drift.custom_shape = bpy.data.objects['WGT-CarRig.Drift']
 
     damper = pose.bones['Damper']
     damper.lock_rotation = (True, True, True)
     damper.lock_scale = (True, True, True)
     damper.lock_rotation_w = True
+    damper.custom_shape = bpy.data.objects['WGT-CarRig.Damper']
 
     steering = pose.bones['Steering']
     steering.lock_location = (False, True, True)
     steering.lock_rotation = (True, True, True)
     steering.lock_scale = (True, True, True)
     steering.lock_rotation_w = True
+    steering.custom_shape = bpy.data.objects['WGT-CarRig.Steering']
 
     mch_steering = pose.bones['MCH-Steering']
     cns = mch_steering.constraints.new('DAMPED_TRACK')
@@ -433,6 +440,7 @@ def edit_wheel_bones(ob, name_suffix):
     wheel_bumper.lock_rotation = (True, True, True)
     wheel_bumper.lock_rotation_w = True
     wheel_bumper.lock_scale = (True, True, True)
+    wheel_bumper.custom_shape = bpy.data.objects['WGT-CarRig.WheelDamper']
 
     mch_wheel = pose.bones['MCH-Wheel.%s' % name_suffix]
     mch_wheel.rotation_mode = "XYZ"
@@ -752,10 +760,10 @@ def get_widgets():
                      (-0.4912033677101135, 0.9286617040634155, 0.0), (-0.4661526679992676, 0.9661527276039124, 0.0), (-0.42866164445877075, 0.9912034273147583, 0.0),
                      (0.5, 0.8844379782676697, 0.0), (0.3844379782676697, 1.0, 0.0), (0.4912033677101135, 0.9286617040634155, 0.0),
                      (0.4661526679992676, 0.9661527276039124, 0.0), (0.42866164445877075, 0.9912034273147583, 0.0), (0.1234154999256134, -1.0, 0.0),
-                     (0.1234154999256134, -1.0, 0.0), (0.1234154999256134, -1.0971899032592773, 0.0), (-0.1234154999256134, -1.0971899032592773, 0.0),
+                     (-0.1234154999256134, -1.0, 0.0), (0.1234154999256134, -1.0971899032592773, 0.0), (-0.1234154999256134, -1.0971899032592773, 0.0),
                      (0.3031257688999176, -1.0971899032592773, 0.0), (-0.3031257688999176, -1.0971899032592773, 0.0), (0.0, -1.25, 0.0)],
-        'edges': [(0, 2), (2, 3), (3, 4), (4, 1), (5, 7), (7, 8), (8, 9), (9, 6), (10, 12), (12, 13), (13, 14), (14, 11), (15, 17), (17, 18),
-                  (18, 19), (19, 16), (0, 10), (6, 15), (11, 16), (20, 5), (21, 1), (22, 20), (23, 21), (24, 22), (25, 23), (26, 24), (26, 25)]
+        'edges': [(0, 2), (2, 3), (3, 4), (4, 1), (5, 7), (7, 8), (8, 9), (9, 6), (10, 12), (12, 13), (13, 14), (14, 11), (15, 17), (17, 18), (18, 19),
+                  (19, 16), (0, 10), (6, 15), (11, 16), (20, 5), (21, 1), (22, 20), (23, 21), (24, 22), (25, 23), (26, 24), (26, 25)]
     }
 
     widgets['GroundSensor'] = {
