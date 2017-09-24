@@ -424,6 +424,18 @@ def edit_generated_rig(context):
     cns.owner_space = 'LOCAL'
     cns.target_space = 'LOCAL'
 
+    create_bone_group(pose, 'Damper', color_set='THEME09', bone_names=('Damper', 'WheelBumper.Ft.L', 'WheelBumper.Ft.R', 'WheelBumper.Bk.L', 'WheelBumper.Bk.R'))
+    create_bone_group(pose, 'Direction', color_set='THEME04', bone_names=('Root', 'Steering', 'Drift'))
+    create_bone_group(pose, 'Wheel', color_set='THEME03', bone_names=('Front Wheels', 'Back Wheels'))
+    create_bone_group(pose, 'GroundSensor', color_set='THEME02', bone_names=('GroundSensor.Ft.L', 'GroundSensor.Ft.R', 'GroundSensor.Bk.L', 'GroundSensor.Bk.R'))
+
+
+def create_bone_group(pose, group_name, color_set, bone_names):
+    group = pose.bone_groups.new(group_name)
+    group.color_set = color_set
+    for b in bone_names:
+        pose.bones[b].bone_group = group
+
 
 def edit_wheel_bones(ob, name_suffix):
     pose = ob.pose
