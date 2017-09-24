@@ -427,6 +427,7 @@ def edit_wheel_bones(ob, name_suffix):
     ground_sensor.lock_rotation = (True, True, True)
     ground_sensor.lock_rotation_w = True
     ground_sensor.lock_scale = (True, True, True)
+    ground_sensor.custom_shape = bpy.data.objects['WGT-CarRig.GroundSensor']
     cns = ground_sensor.constraints.new('SHRINKWRAP')
     cns.name = 'Ground projection'
     cns.shrinkwrap_type = 'PROJECT'
