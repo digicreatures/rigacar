@@ -656,7 +656,8 @@ class BakeWheelRotationOperator(bpy.types.Operator):
         fc_rot = action.fcurves.new(fcurve_datapath, 0, 'Wheels rotation baking')
 
         for f, distance in self._evaluate_distance_per_frame(action, source_bone):
-            fc_rot.keyframe_points.insert(f, distance)
+            rotation = (distance + math.pi) % (2 * math.pi) - math.pi
+            fc_rot.keyframe_points.insert(f, rotation)
 
 
 class BakeSteeringWheelRotationOperator(bpy.types.Operator):
