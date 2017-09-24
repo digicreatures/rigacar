@@ -54,7 +54,7 @@ def apply_layer(bone):
 
     bone.layers = layers
 
-def create_constraint_influence_driver(armature, cns, driver_data_path, base_influence = 1.0):
+def create_constraint_influence_driver(ob, cns, driver_data_path, base_influence = 1.0):
     fcurve = cns.driver_add('influence')
     drv = fcurve.driver
     drv.type = 'AVERAGE'
@@ -63,8 +63,8 @@ def create_constraint_influence_driver(armature, cns, driver_data_path, base_inf
     var.type = 'SINGLE_PROP'
 
     targ = var.targets[0]
-    targ.id_type = 'ARMATURE'
-    targ.id = armature
+    targ.id_type = 'OBJECT'
+    targ.id = ob
     targ.data_path = driver_data_path
 
     if base_influence != 1.0:
@@ -75,11 +75,11 @@ def create_constraint_influence_driver(armature, cns, driver_data_path, base_inf
 
 def generate_rig(context):
     ob = context.active_object
-    ob["Car Rig"] = True
+    ob['wheels_on_y_axis'] = True
+    ob['damper_factor'] = .5
+    ob['damper_rolling_factor'] = .5
     amt = ob.data
-    amt['wheels_on_y_axis'] = True
-    amt['damper_factor'] = .5
-    amt['damper_rolling_factor'] = .5
+    amt['Car Rig'] = True
 
     create_widgets()
 
@@ -302,7 +302,7 @@ def edit_generated_rig(context):
         cns.use_z = True
         cns.owner_space = 'WORLD'
         cns.target_space = 'WORLD'
-        create_constraint_influence_driver(ob.data, cns, '["damper_factor"]')
+        create_constraint_influence_driver(ob, cns, '["damper_factor"]')
 
         if damper_pos == 'Ft':
             cns = mch_damper.constraints.new('DAMPED_TRACK')
@@ -346,7 +346,7 @@ def edit_generated_rig(context):
         cns.to_max_y_rot = math.radians(-180)
         cns.owner_space = 'LOCAL'
         cns.target_space = 'LOCAL'
-        create_constraint_influence_driver(ob.data, cns, '["damper_rolling_factor"]', base_influence = influence)
+        create_constraint_influence_driver(ob, cns, '["damper_rolling_factor"]', base_influence = influence)
 
     root = pose.bones['Root']
     root.lock_scale = (True, True, True)
@@ -508,7 +508,7 @@ def edit_wheel_bones(ob, name_suffix):
     cns.owner_space = 'LOCAL'
     cns.target_space = 'LOCAL'
 
-    create_constraint_influence_driver(ob.data, cns, '["wheels_on_y_axis"]')
+    create_constraint_influence_driver(ob, cns, '["wheels_on_y_axis"]')
 
     cns = mch_wheel.constraints.new('COPY_ROTATION')
     cns.name = 'Animation wheels'
@@ -528,17 +528,17 @@ def edit_wheel_bones(ob, name_suffix):
 class BaseCarRigPanel:
     @classmethod
     def poll(cls, context):
-        return context.object is not None and "Car Rig" in context.object
+        return 'Car Rig' in context.object.data if context.object is not None and context.object.data is not None else False
 
     def draw(self, context):
-        if not context.object["Car Rig"] and context.object.mode in {"POSE", "OBJECT"}:
-            self.layout.operator("car.rig_generate", text='Generate')
-        if context.object["Car Rig"]:
-            self.layout.prop(context.object.data, '["wheels_on_y_axis"]', text = "Wheels on Y axis")
-            self.layout.prop(context.object.data, '["damper_factor"]', text = "Damper fact.")
-            self.layout.prop(context.object.data, '["damper_rolling_factor"]', text = "Damper rolling fact.")
+        if context.object.data['Car Rig']:
+            self.layout.prop(context.object, '["wheels_on_y_axis"]', text = "Wheels on Y axis")
+            self.layout.prop(context.object, '["damper_factor"]', text = "Damper fact.")
+            self.layout.prop(context.object, '["damper_rolling_factor"]', text = "Damper rolling fact.")
             self.layout.operator('car.bake_wheel_rotation', 'Bake wheels rotation', 'Automatically generates wheels animation based on Root bone animation.')
             self.layout.operator('car.bake_steering_wheel_rotation', 'Bake steering wheels', 'Automatically generates wheels animation based on Root bone animation.')
+        elif context.object.mode in {"POSE", "OBJECT"}:
+            self.layout.operator("car.rig_generate", text='Generate')
 
 
 class UICarRigPropertiesPanel(bpy.types.Panel, BaseCarRigPanel):
@@ -598,9 +598,9 @@ class AddCarMetaRigOperator(bpy.types.Operator):
 
         selected_objects = context.selected_objects
         amt = bpy.data.armatures.new('Car Rig Data')
+        amt['Car Rig'] = False
         obj_data = bpy_extras.object_utils.object_data_add(context, amt, name='Car Rig')
         rig = obj_data.object
-        rig["Car Rig"] = False
 
         bpy.ops.object.mode_set(mode='EDIT')
 
@@ -653,12 +653,12 @@ class BakeWheelRotationOperator(bpy.types.Operator):
         return (context.object is not None and
                 context.object.animation_data is not None and
                 context.object.animation_data.action is not None and
-                "Car Rig" in context.object and
-                context.object["Car Rig"])
+                'Car Rig' in context.object.data and
+                context.object.data['Car Rig'])
 
     def execute(self, context):
         self._bake_wheel_rotation(context.object.animation_data.action, context.object.data.bones['Root'], context.object.data.bones['MCH-Wheels'])
-        context.object.data['wheels_on_y_axis'] = False
+        context.object['wheels_on_y_axis'] = False
         return {'FINISHED'}
 
     def _create_rotation_evaluator(self, action, source_bone):
@@ -716,8 +716,8 @@ class BakeSteeringWheelRotationOperator(bpy.types.Operator):
         return (context.object is not None and
                 context.object.animation_data is not None and
                 context.object.animation_data.action is not None and
-                "Car Rig" in context.object and
-                context.object["Car Rig"])
+                'Car Rig' in context.object.data and
+                context.object.data['Car Rig'])
 
     def execute(self, context):
         self._bake_steering_wheel_rotation(context.object.animation_data.action, context.object.data.bones['Root'], context.object.data.bones['MCH-Steering.controller'])
