@@ -17,13 +17,12 @@
 # ##### END GPL LICENSE BLOCK #####
 
 bl_info = {
-    "name": "Car Rig",
-    "author": "David Gayerie (based on Ondrej Raha script)",
+    "name": "Generate Car Rig",
+    "author": "David Gayerie",
     "version": (0, 9),
     "blender": (2, 7, 9),
     "location": "View3D > Add > Armature",
-    "description": "Creates Car Rig",
-    "location": "Armature properties",
+    "description": "Adds a meta rig for 4 wheels vehicules and provides operators to generate efficient rig and bake wheels animation.",
     "wiki_url": "",
     "tracker_url": "",
     "category": "Rigging"}
@@ -180,8 +179,6 @@ def generate_rig(context):
     mchBody.use_deform = False
     mchBody.parent = axis
 
-    body.parent = mchBody
-
     damper = amt.edit_bones.new('Damper')
     damper.head = body.head
     damper.tail = body.head
@@ -241,8 +238,6 @@ def generate_wheel_bones(amt, name_suffix, parent_bone):
     mch_wheel.tail.y += 1
     mch_wheel.use_deform = False
     mch_wheel.parent = wheel_bumper
-
-    def_wheel_bone.parent = mch_wheel
 
 
 def edit_generated_rig(context):
@@ -424,6 +419,11 @@ def edit_generated_rig(context):
     cns.owner_space = 'LOCAL'
     cns.target_space = 'LOCAL'
 
+    body = ob.pose.bones['DEF-Body']
+    cns = body.constraints.new('COPY_TRANSFORMS')
+    cns.target = ob
+    cns.subtarget = 'MCH-Body'
+
     create_bone_group(pose, 'Damper', color_set='THEME09', bone_names=('Damper', 'WheelBumper.Ft.L', 'WheelBumper.Ft.R', 'WheelBumper.Bk.L', 'WheelBumper.Bk.R'))
     create_bone_group(pose, 'Direction', color_set='THEME04', bone_names=('Root', 'Steering', 'Drift'))
     create_bone_group(pose, 'Wheel', color_set='THEME03', bone_names=('Front Wheels', 'Back Wheels'))
@@ -523,6 +523,10 @@ def edit_wheel_bones(ob, name_suffix):
 
     def_wheel = pose.bones['DEF-Wheel.%s' % name_suffix]
     def_wheel.rotation_mode = "XYZ"
+    cns = def_wheel.constraints.new('COPY_TRANSFORMS')
+    cns.target = ob
+    cns.subtarget = 'MCH-Wheel.%s' % name_suffix
+
 
 
 class BaseCarRigPanel:
