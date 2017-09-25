@@ -93,17 +93,19 @@ def generate_rig(context):
     pos_front = (wheelFtR.head + wheelFtL.head) / 2
     pos_back = (wheelBkR.head + wheelBkL.head) / 2
     pos_body = body.head
+    body_width = max([abs(w.head.x + w.envelope_distance) for w in (wheelFtR, wheelFtL, wheelBkL, wheelBkR)])
+    body_length = max(body.length, 2 * body_width)
 
     root = amt.edit_bones.new('Root')
     root.head = (body.head.x, body.head.y, 0)
-    root.tail = (body.tail.x, body.tail.y, 0)
+    root.tail = (body.head.x, body.head.y + body_length, 0)
     root.use_deform = False
 
     drift = amt.edit_bones.new('Drift')
     drift.head = pos_front
     drift.tail = pos_front
-    drift.head.y -= body.length * 0.5
-    drift.tail.y -= body.length * 0.8
+    drift.head.y -= root.length * 0.5
+    drift.tail.y -= root.length * 0.8
     drift.head.z = body.envelope_distance * 1.2
     drift.tail.z = body.envelope_distance * 1.2
     drift.roll = math.pi
