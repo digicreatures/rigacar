@@ -984,7 +984,7 @@ def get_widgets():
 
 
 def menu_entries(menu, context):
-    menu.layout.operator("car.meta_rig",text="Car (deformation rig)",icon='AUTO')
+    menu.layout.operator("object.armature_car_deformation_rig",text="Car (deformation rig)",icon='AUTO')
 
 
 def register():
@@ -998,7 +998,7 @@ def register():
 
 
 def unregister():
-    bpy.types.INFO_MT_armature_add.remove(menu_func)
+    bpy.types.INFO_MT_armature_add.remove(menu_entries)
     bpy.utils.unregister_class(UICarRigPropertiesPanel)
     bpy.utils.unregister_class(GenerateCarAnimationRigOperator)
     bpy.utils.unregister_class(BakeWheelRotationOperator)
