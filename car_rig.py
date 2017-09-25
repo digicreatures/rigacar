@@ -699,7 +699,7 @@ class BakeWheelRotationOperator(bpy.types.Operator):
         if fc_rot is not None:
             action.fcurves.remove(fc_rot)
 
-        fc_rot = action.fcurves.new(fcurve_datapath, 0, 'Wheels rotation baking')
+        fc_rot = action.fcurves.new(fcurve_datapath, 0, target_bone.name)
 
         for f, distance in self._evaluate_distance_per_frame(action, source_bone):
             rotation = (distance + math.pi) % (2 * math.pi) - math.pi
@@ -752,7 +752,7 @@ class BakeSteeringWheelRotationOperator(bpy.types.Operator):
         if fc_rot is not None:
             action.fcurves.remove(fc_rot)
 
-        fc_rot = action.fcurves.new(fcurve_datapath, 0, 'Wheels rotation baking')
+        fc_rot = action.fcurves.new(fcurve_datapath, 0, target_bone.name)
 
         for f, rotation_angle in self._evaluate_rotation_per_frame(action, source_bone):
             # TODO use correct ratio and correct bone
