@@ -74,7 +74,7 @@ def create_constraint_influence_driver(ob, cns, driver_data_path, base_influence
 
 def generate_rig(context):
     ob = context.active_object
-    ob['wheels_on_y_axis'] = True
+    ob['wheels_on_y_axis'] = False
     ob['damper_factor'] = .5
     ob['damper_rolling_factor'] = .5
     amt = ob.data
@@ -539,10 +539,10 @@ class BaseCarRigPanel:
             self.layout.prop(context.object, '["wheels_on_y_axis"]', text = "Wheels on Y axis")
             self.layout.prop(context.object, '["damper_factor"]', text = "Damper fact.")
             self.layout.prop(context.object, '["damper_rolling_factor"]', text = "Damper rolling fact.")
-            self.layout.operator('car.bake_wheel_rotation', 'Bake wheels rotation', 'Automatically generates wheels animation based on Root bone animation.')
-            self.layout.operator('car.bake_steering_wheel_rotation', 'Bake steering wheels', 'Automatically generates wheels animation based on Root bone animation.')
+            self.layout.operator('anim.car_wheels_rotation_bake', 'Bake wheels rotation', 'Automatically generates wheels animation based on Root bone animation.')
+            self.layout.operator('anim.car_steering_wheels_rotation_bake', 'Bake steering wheels', 'Automatically generates wheels animation based on Root bone animation.')
         elif context.object.mode in {"POSE", "OBJECT"}:
-            self.layout.operator("car.rig_generate", text='Generate')
+            self.layout.operator("pose.car_animation_rig_generate", text='Generate')
 
 
 class UICarRigPropertiesPanel(bpy.types.Panel, BaseCarRigPanel):
@@ -558,11 +558,9 @@ class UICarRigView3DPanel(bpy.types.Panel, BaseCarRigPanel):
     bl_region_type = "UI"
 
 
-class AddCarMetaRigOperator(bpy.types.Operator):
-    """Operator to create Car Meta Rig"""
-
-    bl_idname = "car.meta_rig"
-    bl_label = "Add car meta rig"
+class AddCarDeformationRigOperator(bpy.types.Operator):
+    bl_idname = "object.armature_car_deformation_rig"
+    bl_label = "Add car deformation rig"
     bl_options = {'REGISTER', 'UNDO'}
 
     def _compute_envelope_distance(self, obj, bound_box_co_index, default_offset):
@@ -619,10 +617,15 @@ class AddCarMetaRigOperator(bpy.types.Operator):
         return{'FINISHED'}
 
 
-class GenerateCarRigOperator(bpy.types.Operator):
-    bl_idname = "car.rig_generate"
-    bl_label = "Generate Car Rig"
+class GenerateCarAnimationRigOperator(bpy.types.Operator):
+    bl_idname = "pose.car_animation_rig_generate"
+    bl_label = "Generate car animation rig"
     bl_options = {'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.object is not None and context.object.data is not None
+                and 'Car Rig' in context.object.data and not context.object.data['Car Rig'])
 
     def execute(self, context):
         generate_rig(context)
@@ -648,8 +651,8 @@ class FCurvesEvaluator:
 
 
 class BakeWheelRotationOperator(bpy.types.Operator):
-    bl_idname = 'car.bake_wheel_rotation'
-    bl_label = 'Car Rig: bake wheels rotation'
+    bl_idname = 'anim.car_wheels_rotation_bake'
+    bl_label = 'Bake car wheels rotation'
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -711,8 +714,8 @@ class BakeWheelRotationOperator(bpy.types.Operator):
 
 
 class BakeSteeringWheelRotationOperator(bpy.types.Operator):
-    bl_idname = 'car.bake_steering_wheel_rotation'
-    bl_label = 'Car Rig: bake steering wheel rotation'
+    bl_idname = 'anim.car_steering_wheels_rotation_bake'
+    bl_label = 'Bake car steering wheels rotation'
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -981,26 +984,26 @@ def get_widgets():
 
 
 def menu_entries(menu, context):
-    menu.layout.operator("car.meta_rig",text="Car (Meta-Rig)",icon='AUTO')
+    menu.layout.operator("car.meta_rig",text="Car (deformation rig)",icon='AUTO')
 
 
 def register():
     bpy.types.INFO_MT_armature_add.append(menu_entries)
     bpy.utils.register_class(UICarRigPropertiesPanel)
-    bpy.utils.register_class(GenerateCarRigOperator)
+    bpy.utils.register_class(GenerateCarAnimationRigOperator)
     bpy.utils.register_class(BakeWheelRotationOperator)
     bpy.utils.register_class(BakeSteeringWheelRotationOperator)
-    bpy.utils.register_class(AddCarMetaRigOperator)
+    bpy.utils.register_class(AddCarDeformationRigOperator)
     bpy.utils.register_class(UICarRigView3DPanel)
 
 
 def unregister():
     bpy.types.INFO_MT_armature_add.remove(menu_func)
     bpy.utils.unregister_class(UICarRigPropertiesPanel)
-    bpy.utils.unregister_class(GenerateCarRigOperator)
+    bpy.utils.unregister_class(GenerateCarAnimationRigOperator)
     bpy.utils.unregister_class(BakeWheelRotationOperator)
     bpy.utils.unregister_class(BakeSteeringWheelRotationOperator)
-    bpy.utils.unregister_class(AddCarMetaRigOperator)
+    bpy.utils.unregister_class(AddCarDeformationRigOperator)
     bpy.utils.unregister_class(UICarRigView3DPanel)
 
 
