@@ -59,10 +59,9 @@ def create_constraint_influence_driver(ob, cns, driver_data_path, base_influence
 def generate_animation_rig(context):
     ob = context.active_object
     ob['wheels_on_y_axis'] = False
-    ob['damper_factor'] = .5
-    ob['damper_rolling_factor'] = .5
+    ob['suspension_factor'] = .5
+    ob['suspension_rolling_factor'] = .5
     amt = ob.data
-    amt['Car Rig'] = True
 
     create_widgets()
 
@@ -113,7 +112,7 @@ def generate_animation_rig(context):
     wheels.head.x = math.copysign(wheelFtL.envelope_distance + .03, wheels.head.x)
     wheels.tail.x = math.copysign(wheelFtL.envelope_distance + .03, wheels.tail.x)
     wheels.use_deform = False
-    wheels.parent = amt.edit_bones['WheelBumper.Ft.L']
+    wheels.parent = amt.edit_bones['WheelDamper.Ft.L']
 
     mch_wheels = amt.edit_bones.new('MCH-Wheels')
     mch_wheels.head = wheelFtL.head
@@ -129,7 +128,7 @@ def generate_animation_rig(context):
     wheels.head.x = math.copysign(wheelBkL.envelope_distance + .03, wheels.head.x)
     wheels.tail.x = math.copysign(wheelBkL.envelope_distance + .03, wheels.tail.x)
     wheels.use_deform = False
-    wheels.parent = amt.edit_bones['WheelBumper.Bk.L']
+    wheels.parent = amt.edit_bones['WheelDamper.Bk.L']
 
     axisFt = amt.edit_bones.new('MCH-Axis.Ft')
     axisFt.head = wheelFtR.head
@@ -143,26 +142,26 @@ def generate_animation_rig(context):
     axisBk.use_deform = False
     axisBk.parent = drift
 
-    damperBk = amt.edit_bones.new('MCH-Damper.Bk')
-    damperBk.head = pos_back
-    damperBk.tail = pos_back
-    damperBk.tail.y += 2
-    damperBk.use_deform = False
-    damperBk.parent = drift
+    suspensionBk = amt.edit_bones.new('MCH-Suspension.Bk')
+    suspensionBk.head = pos_back
+    suspensionBk.tail = pos_back
+    suspensionBk.tail.y += 2
+    suspensionBk.use_deform = False
+    suspensionBk.parent = drift
 
-    damperFt = amt.edit_bones.new('MCH-Damper.Ft')
-    damperFt.head = pos_front
-    align_vector = damperBk.head - damperFt.head
+    suspensionFt = amt.edit_bones.new('MCH-Suspension.Ft')
+    suspensionFt.head = pos_front
+    align_vector = suspensionBk.head - suspensionFt.head
     align_vector.magnitude = 2
-    damperFt.tail = pos_front + align_vector
-    damperFt.use_deform = False
-    damperFt.parent = drift
+    suspensionFt.tail = pos_front + align_vector
+    suspensionFt.use_deform = False
+    suspensionFt.parent = drift
 
     axis = amt.edit_bones.new('MCH-Axis')
-    axis.head = damperFt.head
-    axis.tail = damperBk.head
+    axis.head = suspensionFt.head
+    axis.tail = suspensionBk.head
     axis.use_deform = False
-    axis.parent = damperFt
+    axis.parent = suspensionFt
 
     mchBody = amt.edit_bones.new('MCH-Body')
     mchBody.head = body.head
@@ -171,14 +170,14 @@ def generate_animation_rig(context):
     mchBody.use_deform = False
     mchBody.parent = axis
 
-    damper = amt.edit_bones.new('Damper')
-    damper.head = body.head
-    damper.tail = body.head
-    damper.tail.y += body.envelope_distance
-    damper.head.z = body.envelope_distance * 1.2
-    damper.tail.z = body.envelope_distance * 1.2
-    damper.use_deform = False
-    damper.parent = axis
+    suspension = amt.edit_bones.new('Suspension')
+    suspension.head = body.head
+    suspension.tail = body.head
+    suspension.tail.y += body.envelope_distance
+    suspension.head.z = body.envelope_distance * 1.2
+    suspension.tail.z = body.envelope_distance * 1.2
+    suspension.use_deform = False
+    suspension.parent = axis
 
     mchSteering = amt.edit_bones.new('MCH-Steering')
     mchSteering.head = pos_front
@@ -200,6 +199,9 @@ def generate_animation_rig(context):
     steering.use_deform = False
     steering.parent = steeringController
 
+    amt['Car Rig'] = True
+
+
 def generate_animation_wheel_bones(amt, name_suffix, parent_bone):
     def_wheel_bone = amt.edit_bones['DEF-Wheel.%s' % name_suffix]
 
@@ -213,22 +215,22 @@ def generate_animation_wheel_bones(amt, name_suffix, parent_bone):
     ground_sensor.use_deform = False
     ground_sensor.parent = parent_bone
 
-    wheel_bumper = amt.edit_bones.new('WheelBumper.%s' % name_suffix)
-    wheel_bumper.head = def_wheel_bone.head
-    wheel_bumper.tail = def_wheel_bone.tail
-    wheel_bumper.head.x = math.copysign(def_wheel_bone.envelope_distance + .2 * def_wheel_bone.length, wheel_bumper.head.x)
-    wheel_bumper.tail.x = math.copysign(def_wheel_bone.envelope_distance + .2 * def_wheel_bone.length, wheel_bumper.tail.x)
-    wheel_bumper.head.z *= 1.5
-    wheel_bumper.tail.z *= 1.5
-    wheel_bumper.use_deform = False
-    wheel_bumper.parent = ground_sensor
+    wheel_damper = amt.edit_bones.new('WheelDamper.%s' % name_suffix)
+    wheel_damper.head = def_wheel_bone.head
+    wheel_damper.tail = def_wheel_bone.tail
+    wheel_damper.head.x = math.copysign(def_wheel_bone.envelope_distance + .2 * def_wheel_bone.length, wheel_damper.head.x)
+    wheel_damper.tail.x = math.copysign(def_wheel_bone.envelope_distance + .2 * def_wheel_bone.length, wheel_damper.tail.x)
+    wheel_damper.head.z *= 1.5
+    wheel_damper.tail.z *= 1.5
+    wheel_damper.use_deform = False
+    wheel_damper.parent = ground_sensor
 
     mch_wheel = amt.edit_bones.new('MCH-Wheel.%s' % name_suffix)
     mch_wheel.head = def_wheel_bone.head
     mch_wheel.tail = def_wheel_bone.tail
     mch_wheel.tail.y += 1
     mch_wheel.use_deform = False
-    mch_wheel.parent = wheel_bumper
+    mch_wheel.parent = wheel_damper
 
 
 def generate_constraints_on_rig(context):
@@ -275,10 +277,10 @@ def generate_constraints_on_rig(context):
     mch_wheel = pose.bones['MCH-Wheels']
     mch_wheel.rotation_mode = "XYZ"
 
-    for damper_pos in ('Ft', 'Bk'):
-        mch_damper = pose.bones['MCH-Damper.%s' % damper_pos]
-        subtarget = 'MCH-Axis.%s' % damper_pos
-        cns = mch_damper.constraints.new('COPY_LOCATION')
+    for suspension_pos in ('Ft', 'Bk'):
+        mch_suspension = pose.bones['MCH-Suspension.%s' % suspension_pos]
+        subtarget = 'MCH-Axis.%s' % suspension_pos
+        cns = mch_suspension.constraints.new('COPY_LOCATION')
         cns.name = 'Location from %s' % subtarget
         cns.target = ob
         cns.subtarget = subtarget
@@ -288,13 +290,13 @@ def generate_constraints_on_rig(context):
         cns.use_z = True
         cns.owner_space = 'WORLD'
         cns.target_space = 'WORLD'
-        create_constraint_influence_driver(ob, cns, '["damper_factor"]')
+        create_constraint_influence_driver(ob, cns, '["suspension_factor"]')
 
-        if damper_pos == 'Ft':
-            cns = mch_damper.constraints.new('DAMPED_TRACK')
-            cns.name = 'Track damper back'
+        if suspension_pos == 'Ft':
+            cns = mch_suspension.constraints.new('DAMPED_TRACK')
+            cns.name = 'Track suspension back'
             cns.target = ob
-            cns.subtarget = 'MCH-Damper.Bk'
+            cns.subtarget = 'MCH-Suspension.Bk'
             cns.track_axis = 'TRACK_Y'
 
     for axis_pos in ('Ft', 'Bk'):
@@ -332,7 +334,7 @@ def generate_constraints_on_rig(context):
         cns.to_max_y_rot = math.radians(-180)
         cns.owner_space = 'LOCAL'
         cns.target_space = 'LOCAL'
-        create_constraint_influence_driver(ob, cns, '["damper_rolling_factor"]', base_influence = influence)
+        create_constraint_influence_driver(ob, cns, '["suspension_rolling_factor"]', base_influence = influence)
 
     rootCenter = pose.bones['Root.center']
     rootCenter.lock_location = (True, True, True)
@@ -354,11 +356,11 @@ def generate_constraints_on_rig(context):
     drift.rotation_mode = 'ZYX'
     drift.custom_shape = bpy.data.objects['WGT-CarRig.Drift']
 
-    damper = pose.bones['Damper']
-    damper.lock_rotation = (True, True, True)
-    damper.lock_scale = (True, True, True)
-    damper.lock_rotation_w = True
-    damper.custom_shape = bpy.data.objects['WGT-CarRig.Damper']
+    suspension = pose.bones['Suspension']
+    suspension.lock_rotation = (True, True, True)
+    suspension.lock_scale = (True, True, True)
+    suspension.lock_rotation_w = True
+    suspension.custom_shape = bpy.data.objects['WGT-CarRig.Suspension']
 
     steering = pose.bones['Steering']
     steering.lock_location = (False, True, True)
@@ -387,9 +389,9 @@ def generate_constraints_on_rig(context):
 
     mch_body = ob.pose.bones['MCH-Body']
     cns = mch_body.constraints.new('TRANSFORM')
-    cns.name = 'Damper on rollover'
+    cns.name = 'Suspension on rollover'
     cns.target = ob
-    cns.subtarget = 'Damper'
+    cns.subtarget = 'Suspension'
     cns.map_from = 'LOCATION'
     cns.from_min_x = -2
     cns.from_max_x = 2
@@ -406,9 +408,9 @@ def generate_constraints_on_rig(context):
     cns.target_space = 'LOCAL'
 
     cns = mch_body.constraints.new('TRANSFORM')
-    cns.name = 'Damper on vertical'
+    cns.name = 'Suspension on vertical'
     cns.target = ob
-    cns.subtarget = 'Damper'
+    cns.subtarget = 'Suspension'
     cns.map_from = 'LOCATION'
     cns.from_min_z = -0.5
     cns.from_max_z = 0.5
@@ -426,7 +428,7 @@ def generate_constraints_on_rig(context):
 
     create_bone_group(pose, 'Direction', color_set='THEME04', bone_names=('Root', 'Steering', 'Drift'))
     create_bone_group(pose, 'Wheel', color_set='THEME03', bone_names=('Front Wheels', 'Back Wheels'))
-    create_bone_group(pose, 'Damper', color_set='THEME09', bone_names=('Damper', 'WheelBumper.Ft.L', 'WheelBumper.Ft.R', 'WheelBumper.Bk.L', 'WheelBumper.Bk.R'))
+    create_bone_group(pose, 'Suspension', color_set='THEME09', bone_names=('Suspension', 'WheelDamper.Ft.L', 'WheelDamper.Ft.R', 'WheelDamper.Bk.L', 'WheelDamper.Bk.R'))
     create_bone_group(pose, 'GroundSensor', color_set='THEME02', bone_names=('GroundSensor.Ft.L', 'GroundSensor.Ft.R', 'GroundSensor.Bk.L', 'GroundSensor.Bk.R'))
 
 
@@ -454,12 +456,12 @@ def generate_constraints_on_wheel_bones(ob, name_suffix):
     cns.distance = 0
     cns.is_proxy_local = True
 
-    wheel_bumper = pose.bones['WheelBumper.%s' % name_suffix]
-    wheel_bumper.lock_location = (True, True, False)
-    wheel_bumper.lock_rotation = (True, True, True)
-    wheel_bumper.lock_rotation_w = True
-    wheel_bumper.lock_scale = (True, True, True)
-    wheel_bumper.custom_shape = bpy.data.objects['WGT-CarRig.WheelDamper']
+    wheel_damper = pose.bones['WheelDamper.%s' % name_suffix]
+    wheel_damper.lock_location = (True, True, False)
+    wheel_damper.lock_rotation = (True, True, True)
+    wheel_damper.lock_rotation_w = True
+    wheel_damper.lock_scale = (True, True, True)
+    wheel_damper.custom_shape = bpy.data.objects['WGT-CarRig.WheelDamper']
 
     mch_wheel = pose.bones['MCH-Wheel.%s' % name_suffix]
     mch_wheel.rotation_mode = "XYZ"
@@ -554,10 +556,10 @@ class BaseCarRigPanel:
     def draw(self, context):
         if context.object.data['Car Rig']:
             self.layout.prop(context.object, '["wheels_on_y_axis"]', text = "Wheels on Y axis")
-            self.layout.prop(context.object, '["damper_factor"]', text = "Damper fact.")
-            self.layout.prop(context.object, '["damper_rolling_factor"]', text = "Damper rolling fact.")
+            self.layout.prop(context.object, '["suspension_factor"]', text = "Suspension fact.")
+            self.layout.prop(context.object, '["suspension_rolling_factor"]', text = "Suspension rolling fact.")
             self.layout.operator('anim.car_wheels_rotation_bake', 'Bake wheels rotation', 'Automatically generates wheels animation based on Root bone animation.')
-            self.layout.operator('anim.car_steering_wheels_rotation_bake', 'Bake steering wheels', 'Automatically generates wheels animation based on Root bone animation.')
+            self.layout.operator('anim.car_steering_bake', 'Bake steering', 'Automatically steering animation based on Root bone animation.')
         elif context.object.mode in {"POSE", "OBJECT"}:
             self.layout.operator("pose.car_animation_rig_generate", text='Generate')
 
@@ -780,8 +782,8 @@ class BakeWheelRotationOperator(bpy.types.Operator):
             fc_rot.keyframe_points.insert(f, distance)
 
 
-class BakeSteeringWheelRotationOperator(bpy.types.Operator):
-    bl_idname = 'anim.car_steering_wheels_rotation_bake'
+class BakeSteeringOperator(bpy.types.Operator):
+    bl_idname = 'anim.car_steering_bake'
     bl_label = 'Bake car steering wheels rotation'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -941,7 +943,7 @@ def get_widgets():
         'edges': [(2, 1), (3, 0), (1, 3), (0, 4), (5, 2), (4, 6), (6, 5), (9, 8), (10, 7), (8, 10), (7, 11), (12, 9), (11, 13), (13, 12)]
     }
 
-    widgets['Damper'] = {
+    widgets['Suspension'] = {
         'vertices': [(-0.42728525400161743, -0.12928833067417145, 0.11859216541051865), (-0.06909304857254028, 0.2578587830066681, 0.16264206171035767),
                      (-0.13347753882408142, 0.23118986189365387, 0.16264206171035767), (-0.1887657195329666, 0.1887657195329666, 0.16264206171035767),
                      (-0.23118992149829865, 0.13347753882408142, 0.16264206171035767), (-0.2578587830066681, 0.06909307092428207, 0.16264206171035767),
@@ -1065,7 +1067,7 @@ def register():
     bpy.utils.register_class(UICarRigPropertiesPanel)
     bpy.utils.register_class(GenerateCarAnimationRigOperator)
     bpy.utils.register_class(BakeWheelRotationOperator)
-    bpy.utils.register_class(BakeSteeringWheelRotationOperator)
+    bpy.utils.register_class(BakeSteeringOperator)
     bpy.utils.register_class(AddCarDeformationRigOperator)
     bpy.utils.register_class(UICarRigView3DPanel)
 
@@ -1075,7 +1077,7 @@ def unregister():
     bpy.utils.unregister_class(UICarRigPropertiesPanel)
     bpy.utils.unregister_class(GenerateCarAnimationRigOperator)
     bpy.utils.unregister_class(BakeWheelRotationOperator)
-    bpy.utils.unregister_class(BakeSteeringWheelRotationOperator)
+    bpy.utils.unregister_class(BakeSteeringOperator)
     bpy.utils.unregister_class(AddCarDeformationRigOperator)
     bpy.utils.unregister_class(UICarRigView3DPanel)
 
