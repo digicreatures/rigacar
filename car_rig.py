@@ -22,7 +22,7 @@ bl_info = {
     "version": (0, 9),
     "blender": (2, 7, 9),
     "location": "View3D > Add > Armature",
-    "description": "Adds a meta rig for 4 wheels vehicules and provides operators to generate efficient rig and bake wheels animation.",
+    "description": "Adds a deformation rig for 4 wheels vehicules and provides operators to generate efficient animation rig and bake wheels animation.",
     "wiki_url": "",
     "tracker_url": "",
     "category": "Rigging"}
