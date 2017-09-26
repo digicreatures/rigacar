@@ -727,14 +727,13 @@ class BakeWheelRotationOperator(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return (context.object is not None and
+        return ('Car Rig' in context.object.data and
+                context.object.data['Car Rig'] and
                 context.object.animation_data is not None and
-                context.object.animation_data.action is not None and
-                'Car Rig' in context.object.data and
-                context.object.data['Car Rig'])
+                context.object.animation_data.action is not None)
 
     def execute(self, context):
-        self._bake_wheel_rotation(context.object.animation_data.action, context.object.data.bones['Root'], context.object.data.bones['MCH-Wheels'])
+        self._bake_wheel_rotation(context, context.object.data.bones['Root'], context.object.data.bones['MCH-Wheels'])
         context.object['wheels_on_y_axis'] = False
         return {'FINISHED'}
 
@@ -748,13 +747,43 @@ class BakeWheelRotationOperator(bpy.types.Operator):
         fc_root_loc = [action.fcurves.find(fcurve_name , i) for i in range(0, 3)]
         return FCurvesEvaluator(fc_root_loc, default_value= (.0, .0, .0))
 
-    def _evaluate_distance_per_frame(self, action, source_bone):
-        locEvaluator = self._create_location_evaluator(action, source_bone)
-        rotEvaluator = self._create_rotation_evaluator(action, source_bone)
+    def _bake_action(self, context, source_bone):
+        action = context.object.animation_data.action
+        start, end = action.frame_range
 
+        # saving context
+        selected_bones = [b for b in context.object.data.bones if b.select]
+        matrix_basis = context.object.pose.bones[source_bone.name].matrix_basis.copy()
+        mode = context.object.mode
+
+        bpy.ops.object.mode_set(mode='OBJECT')
+        for b in selected_bones:
+            b.select = False
+        source_bone.select = True
+
+        bpy.ops.nla.bake(frame_start=start, frame_end=end, only_selected=True, bake_types={'POSE'}, visual_keying=True)
+        bpy.context.scene.update()
+        baked_action = bpy.context.active_object.animation_data.action
+
+        # restoring context
+        for b in selected_bones:
+            b.select = True
+        context.object.pose.bones[source_bone.name].matrix_basis = matrix_basis
+        bpy.context.active_object.animation_data.action = action
+        bpy.ops.object.mode_set(mode=mode)
+
+        return baked_action
+
+    def _evaluate_distance_per_frame(self, context, source_bone):
+        action = context.object.animation_data.action
         start, end = action.frame_range
         if end - start <= 0:
             return
+
+        baked_action = self._bake_action(context, source_bone)
+
+        locEvaluator = self._create_location_evaluator(baked_action, source_bone)
+        rotEvaluator = self._create_rotation_evaluator(baked_action, source_bone)
 
         source_bone_init_vector = (source_bone.head_local - source_bone.tail_local).normalized()
         prev_pos = mathutils.Vector(locEvaluator.evaluate(start))
@@ -769,16 +798,17 @@ class BakeWheelRotationOperator(bpy.types.Operator):
             yield f, distance
             prev_pos = pos
 
-    def _bake_wheel_rotation(self, action, source_bone, target_bone):
+        bpy.data.actions.remove(baked_action)
+
+    def _bake_wheel_rotation(self, context, source_bone, target_bone):
+        action = context.object.animation_data.action
         fcurve_datapath = 'pose.bones["%s"].rotation_euler' % target_bone.name
         fc_rot = action.fcurves.find(fcurve_datapath, 0)
-
         if fc_rot is not None:
             action.fcurves.remove(fc_rot)
-
         fc_rot = action.fcurves.new(fcurve_datapath, 0, target_bone.name)
 
-        for f, distance in self._evaluate_distance_per_frame(action, source_bone):
+        for f, distance in self._evaluate_distance_per_frame(context, source_bone):
             fc_rot.keyframe_points.insert(f, distance)
 
 
