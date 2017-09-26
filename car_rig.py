@@ -81,9 +81,15 @@ def generate_animation_rig(context):
     body_length = max(body.length, body_width)
 
     root = amt.edit_bones.new('Root')
-    root.head = (body.head.x, body.head.y, 0)
-    root.tail = (body.head.x, body.head.y + body_length, 0)
+    root.head = (pos_front.x, pos_front.y, 0)
+    root.tail = (pos_front.x, pos_front.y + body_length, 0)
     root.use_deform = False
+
+    rootCenter = amt.edit_bones.new('Root.center')
+    rootCenter.head = (body.head.x, body.head.y, 0)
+    rootCenter.tail = (body.head.x, body.head.y + body_length, 0)
+    rootCenter.use_deform = False
+    rootCenter.parent = root
 
     drift = amt.edit_bones.new('Drift')
     drift.head = pos_front
@@ -328,9 +334,18 @@ def generate_constraints_on_rig(context):
         cns.target_space = 'LOCAL'
         create_constraint_influence_driver(ob, cns, '["damper_rolling_factor"]', base_influence = influence)
 
+    rootCenter = pose.bones['Root.center']
+    rootCenter.lock_location = (True, True, True)
+    rootCenter.lock_rotation = (True, True, True)
+    rootCenter.lock_scale = (True, True, True)
+    rootCenter.lock_rotation_w = True
+    rootCenter.custom_shape = bpy.data.objects['WGT-CarRig.Root.center']
+
     root = pose.bones['Root']
     root.lock_scale = (True, True, True)
     root.custom_shape = bpy.data.objects['WGT-CarRig.Root']
+    root.custom_shape_transform = rootCenter
+
 
     drift = pose.bones['Drift']
     drift.lock_location = (True, True, True)
@@ -862,6 +877,11 @@ def get_widgets():
                   (19, 16), (0, 10), (6, 15), (11, 16), (20, 5), (21, 1), (22, 20), (23, 21), (24, 22), (25, 23), (26, 24), (26, 25)]
     }
 
+    widgets['Root.center'] = {
+        'vertices': [],
+        'edges': []
+    }
+
     widgets['GroundSensor'] = {
         'vertices': [(-0.5, -0.822191596031189, 0.0), (-0.32219159603118896, -1.0, 0.0), (-0.4761781692504883, -0.9110957980155945, 0.0),
                      (-0.4110957980155945, -0.9761781692504883, 0.0), (0.32219159603118896, -1.0, 0.0), (0.5, -0.822191596031189, 0.0),
@@ -1032,6 +1052,7 @@ def get_widgets():
                   (87, 89), (88, 86), (89, 91), (90, 88), (91, 93), (92, 90), (93, 95), (94, 92), (95, 97), (96, 94), (100, 98), (98, 99),
                   (99, 101), (101, 100), (104, 102), (102, 103), (103, 105), (105, 104)]
     }
+
     return widgets
 
 
