@@ -33,25 +33,9 @@ import math
 import bpy_extras
 import mathutils
 
-ANIM_BONE_LAYER=0
-GROUND_SENSOR_BONE_LAYER=1
 DEF_BONE_LAYER=30
 MCH_BONE_LAYER=31
 WIDGETS_LAYER = 19
-
-def apply_layer(bone):
-    layers = [False] * 32
-
-    if bone.name.startswith('DEF-'):
-        layers[DEF_BONE_LAYER] = True
-    elif "GroundSensor" in bone.name:
-        layers[GROUND_SENSOR_BONE_LAYER] = True
-    elif bone.name.startswith('MCH-'):
-        layers[MCH_BONE_LAYER] = True
-    else:
-        layers[ANIM_BONE_LAYER] = True
-
-    bone.layers = layers
 
 def create_constraint_influence_driver(ob, cns, driver_data_path, base_influence = 1.0):
     fcurve = cns.driver_add('influence')
@@ -72,7 +56,7 @@ def create_constraint_influence_driver(ob, cns, driver_data_path, base_influence
         fmod.poly_order = 1
         fmod.coefficients = (0, base_influence)
 
-def generate_rig(context):
+def generate_animation_rig(context):
     ob = context.active_object
     ob['wheels_on_y_axis'] = False
     ob['damper_factor'] = .5
@@ -112,10 +96,10 @@ def generate_rig(context):
     drift.use_deform = False
     drift.parent = root
 
-    generate_wheel_bones(amt, 'Ft.L', drift)
-    generate_wheel_bones(amt, 'Ft.R', drift)
-    generate_wheel_bones(amt, 'Bk.L', drift)
-    generate_wheel_bones(amt, 'Bk.R', drift)
+    generate_animation_wheel_bones(amt, 'Ft.L', drift)
+    generate_animation_wheel_bones(amt, 'Ft.R', drift)
+    generate_animation_wheel_bones(amt, 'Bk.L', drift)
+    generate_animation_wheel_bones(amt, 'Bk.R', drift)
 
     wheels = amt.edit_bones.new('Front Wheels')
     wheels.head = wheelFtL.head
@@ -210,10 +194,7 @@ def generate_rig(context):
     steering.use_deform = False
     steering.parent = steeringController
 
-    for b in amt.edit_bones:
-        apply_layer(b)
-
-def generate_wheel_bones(amt, name_suffix, parent_bone):
+def generate_animation_wheel_bones(amt, name_suffix, parent_bone):
     def_wheel_bone = amt.edit_bones['DEF-Wheel.%s' % name_suffix]
 
     ground_sensor = amt.edit_bones.new('GroundSensor.%s' % name_suffix)
@@ -244,7 +225,7 @@ def generate_wheel_bones(amt, name_suffix, parent_bone):
     mch_wheel.parent = wheel_bumper
 
 
-def edit_generated_rig(context):
+def generate_constraints_on_rig(context):
     bpy.ops.object.mode_set(mode='POSE')
     ob = context.object
     ob.draw_type = 'WIRE'
@@ -257,10 +238,10 @@ def edit_generated_rig(context):
             b.lock_scale = (True, True, True)
             b.lock_rotation_w = True
 
-    edit_wheel_bones(ob, 'Ft.L')
-    edit_wheel_bones(ob, 'Ft.R')
-    edit_wheel_bones(ob, 'Bk.L')
-    edit_wheel_bones(ob, 'Bk.R')
+    generate_constraints_on_wheel_bones(ob, 'Ft.L')
+    generate_constraints_on_wheel_bones(ob, 'Ft.R')
+    generate_constraints_on_wheel_bones(ob, 'Bk.L')
+    generate_constraints_on_wheel_bones(ob, 'Bk.R')
 
     wheels = pose.bones['Front Wheels']
     wheels.rotation_mode = "XYZ"
@@ -428,9 +409,9 @@ def edit_generated_rig(context):
     cns.target = ob
     cns.subtarget = 'MCH-Body'
 
-    create_bone_group(pose, 'Damper', color_set='THEME09', bone_names=('Damper', 'WheelBumper.Ft.L', 'WheelBumper.Ft.R', 'WheelBumper.Bk.L', 'WheelBumper.Bk.R'))
     create_bone_group(pose, 'Direction', color_set='THEME04', bone_names=('Root', 'Steering', 'Drift'))
     create_bone_group(pose, 'Wheel', color_set='THEME03', bone_names=('Front Wheels', 'Back Wheels'))
+    create_bone_group(pose, 'Damper', color_set='THEME09', bone_names=('Damper', 'WheelBumper.Ft.L', 'WheelBumper.Ft.R', 'WheelBumper.Bk.L', 'WheelBumper.Bk.R'))
     create_bone_group(pose, 'GroundSensor', color_set='THEME02', bone_names=('GroundSensor.Ft.L', 'GroundSensor.Ft.R', 'GroundSensor.Bk.L', 'GroundSensor.Bk.R'))
 
 
@@ -441,7 +422,7 @@ def create_bone_group(pose, group_name, color_set, bone_names):
         pose.bones[b].bone_group = group
 
 
-def edit_wheel_bones(ob, name_suffix):
+def generate_constraints_on_wheel_bones(ob, name_suffix):
     pose = ob.pose
 
     ground_sensor = pose.bones['GroundSensor.%s' % name_suffix]
@@ -532,6 +513,23 @@ def edit_wheel_bones(ob, name_suffix):
     cns.subtarget = 'MCH-Wheel.%s' % name_suffix
 
 
+def dispatch_bones_to_armature_layers(context):
+    ob = context.object
+    default_visible_layers = [False] * 32
+    for b in ob.data.bones:
+        layers = [False] * 32
+        if b.name.startswith('DEF-'):
+            layers[DEF_BONE_LAYER] = True
+        elif b.name.startswith('MCH-'):
+            layers[MCH_BONE_LAYER] = True
+        else:
+            layer_num = ob.pose.bones[b.name].bone_group_index
+            layers[layer_num] = True
+            default_visible_layers[layer_num] = True
+        b.layers = layers
+
+    ob.data.layers = default_visible_layers
+
 
 class BaseCarRigPanel:
     @classmethod
@@ -561,8 +559,6 @@ class UICarRigView3DPanel(bpy.types.Panel, BaseCarRigPanel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
 
-
-import functools
 
 class AddCarDeformationRigOperator(bpy.types.Operator):
     bl_idname = "object.armature_car_deformation_rig"
@@ -684,8 +680,9 @@ class GenerateCarAnimationRigOperator(bpy.types.Operator):
                 and 'Car Rig' in context.object.data and not context.object.data['Car Rig'])
 
     def execute(self, context):
-        generate_rig(context)
-        edit_generated_rig(context)
+        generate_animation_rig(context)
+        generate_constraints_on_rig(context)
+        dispatch_bones_to_armature_layers(context)
         return {"FINISHED"}
 
 
