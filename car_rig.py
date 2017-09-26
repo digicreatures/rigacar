@@ -618,10 +618,10 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
 
     default_position = {
         'Body': mathutils.Vector((  0,  0, .8)),
-        'Wheel.Ft.L': mathutils.Vector(( .9, -2,  1)),
-        'Wheel.Ft.R': mathutils.Vector((-.9, -2,  1)),
-        'Wheel.Bk.L': mathutils.Vector(( .9,  2,  1)),
-        'Wheel.Bk.R': mathutils.Vector((-.9,  2,  1))
+        'Wheel.Ft.L': mathutils.Vector(( .9, -2,  .5)),
+        'Wheel.Ft.R': mathutils.Vector((-.9, -2,  .5)),
+        'Wheel.Bk.L': mathutils.Vector(( .9,  2,  .5)),
+        'Wheel.Bk.R': mathutils.Vector((-.9,  2,  .5))
     }
 
     def _compute_envelope_distance(self, obj, bound_box_co_index, default_offset):
@@ -644,7 +644,7 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
                 b.tail.y += target_obj.dimensions[1] / 2 if target_obj.dimensions and target_obj.dimensions[0] != 0 else 1
                 b.tail.y += delta_length
                 if b.name == 'DEF-Body':
-                    b.envelope_distance = self._compute_envelope_distance(target_obj, bound_box_co_index = 2, default_offset = 1)
+                    b.envelope_distance = self._compute_envelope_distance(target_obj, bound_box_co_index = 2, default_offset = .5)
                 else:
                     b.envelope_distance = self._compute_envelope_distance(target_obj, bound_box_co_index = 0, default_offset = .25)
 
