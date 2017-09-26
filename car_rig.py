@@ -120,8 +120,8 @@ def generate_rig(context):
     wheels = amt.edit_bones.new('Front Wheels')
     wheels.head = wheelFtL.head
     wheels.tail = wheelFtL.tail
-    wheels.head.x = math.copysign(wheelFtL.envelope_distance * 1.05, wheels.head.x)
-    wheels.tail.x = math.copysign(wheelFtL.envelope_distance * 1.05, wheels.tail.x)
+    wheels.head.x = math.copysign(wheelFtL.envelope_distance + .03, wheels.head.x)
+    wheels.tail.x = math.copysign(wheelFtL.envelope_distance + .03, wheels.tail.x)
     wheels.use_deform = False
     wheels.parent = amt.edit_bones['WheelBumper.Ft.L']
 
@@ -136,8 +136,8 @@ def generate_rig(context):
     wheels = amt.edit_bones.new('Back Wheels')
     wheels.head = wheelBkL.head
     wheels.tail = wheelBkL.tail
-    wheels.head.x = math.copysign(wheelBkL.envelope_distance * 1.05, wheels.head.x)
-    wheels.tail.x = math.copysign(wheelBkL.envelope_distance * 1.05, wheels.tail.x)
+    wheels.head.x = math.copysign(wheelBkL.envelope_distance + .03, wheels.head.x)
+    wheels.tail.x = math.copysign(wheelBkL.envelope_distance + .03, wheels.tail.x)
     wheels.use_deform = False
     wheels.parent = amt.edit_bones['WheelBumper.Bk.L']
 
@@ -229,8 +229,8 @@ def generate_wheel_bones(amt, name_suffix, parent_bone):
     wheel_bumper = amt.edit_bones.new('WheelBumper.%s' % name_suffix)
     wheel_bumper.head = def_wheel_bone.head
     wheel_bumper.tail = def_wheel_bone.tail
-    wheel_bumper.head.x = math.copysign(def_wheel_bone.envelope_distance * 1.2, wheel_bumper.head.x)
-    wheel_bumper.tail.x = math.copysign(def_wheel_bone.envelope_distance * 1.2, wheel_bumper.tail.x)
+    wheel_bumper.head.x = math.copysign(def_wheel_bone.envelope_distance + .2 * def_wheel_bone.length, wheel_bumper.head.x)
+    wheel_bumper.tail.x = math.copysign(def_wheel_bone.envelope_distance + .2 * def_wheel_bone.length, wheel_bumper.tail.x)
     wheel_bumper.head.z *= 1.5
     wheel_bumper.tail.z *= 1.5
     wheel_bumper.use_deform = False
@@ -617,9 +617,10 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
         if obj.bound_box is None:
             return default_offset + abs(obj.location[bound_box_co_index])
 
-        max_x = max([abs(bb[bound_box_co_index]) for bb in obj.bound_box])
+        factor = math.copysign(1, obj.location[bound_box_co_index])
+        max_bb = max([bb[bound_box_co_index] * factor for bb in obj.bound_box])
 
-        return (max_x if max_x > 0 else default_offset) + abs(obj.location[bound_box_co_index])
+        return (max_bb if max_bb > 0 else default_offset) + abs(obj.location[bound_box_co_index])
 
 
     def _create_bone(self, selected_objects, rig, name, delta_pos, delta_length):
