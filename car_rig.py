@@ -725,31 +725,51 @@ class BakeWheelRotationOperator(bpy.types.Operator):
     bl_label = 'Bake car wheels rotation'
     bl_options = {'REGISTER', 'UNDO'}
 
+    frame_start = bpy.props.IntProperty(name='Start Frame', min=1)
+    frame_end = bpy.props.IntProperty(name='End Frame', min=1)
+    visual_keying = bpy.props.BoolProperty(name='Visual Keying', default=True)
+
     @classmethod
     def poll(cls, context):
         return ('Car Rig' in context.object.data and
-                context.object.data['Car Rig'] and
-                context.object.animation_data is not None and
-                context.object.animation_data.action is not None)
+                context.object.data['Car Rig'])
+
+
+    def invoke(self, context, event):
+        if context.object.animation_data is None:
+            context.object.animation_data_create()
+        if context.object.animation_data.action is None:
+            context.object.animation_data.action = bpy.data.actions.new("%sAction" % context.object.name)
+
+        action = context.object.animation_data.action
+        start, end = action.frame_range
+        self.frame_start = start
+        self.frame_end = end
+
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self)
+
 
     def execute(self, context):
         self._bake_wheel_rotation(context, context.object.data.bones['Root'], context.object.data.bones['MCH-Wheels'])
         context.object['wheels_on_y_axis'] = False
         return {'FINISHED'}
 
+
     def _create_rotation_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].rotation_quaternion' % source_bone.name
         fc_root_rot = [action.fcurves.find(fcurve_name , i) for i in range(0, 4)]
         return FCurvesEvaluator(fc_root_rot, default_value= (1.0, .0, .0, .0))
+
 
     def _create_location_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].location' % source_bone.name
         fc_root_loc = [action.fcurves.find(fcurve_name , i) for i in range(0, 3)]
         return FCurvesEvaluator(fc_root_loc, default_value= (.0, .0, .0))
 
+
     def _bake_action(self, context, source_bone):
         action = context.object.animation_data.action
-        start, end = action.frame_range
 
         # saving context
         selected_bones = [b for b in context.object.data.bones if b.select]
@@ -761,7 +781,7 @@ class BakeWheelRotationOperator(bpy.types.Operator):
             b.select = False
         source_bone.select = True
 
-        bpy.ops.nla.bake(frame_start=start, frame_end=end, only_selected=True, bake_types={'POSE'}, visual_keying=True)
+        bpy.ops.nla.bake(frame_start=self.frame_start, frame_end=self.frame_end, only_selected=True, bake_types={'POSE'}, visual_keying=True)
         bpy.context.scene.update()
         baked_action = bpy.context.active_object.animation_data.action
 
@@ -774,21 +794,15 @@ class BakeWheelRotationOperator(bpy.types.Operator):
 
         return baked_action
 
-    def _evaluate_distance_per_frame(self, context, source_bone):
-        action = context.object.animation_data.action
-        start, end = action.frame_range
-        if end - start <= 0:
-            return
 
-        baked_action = self._bake_action(context, source_bone)
-
-        locEvaluator = self._create_location_evaluator(baked_action, source_bone)
-        rotEvaluator = self._create_rotation_evaluator(baked_action, source_bone)
+    def _evaluate_distance_per_frame(self, action, source_bone):
+        locEvaluator = self._create_location_evaluator(action, source_bone)
+        rotEvaluator = self._create_rotation_evaluator(action, source_bone)
 
         source_bone_init_vector = (source_bone.head_local - source_bone.tail_local).normalized()
-        prev_pos = mathutils.Vector(locEvaluator.evaluate(start))
+        prev_pos = mathutils.Vector(locEvaluator.evaluate(self.frame_start))
         distance = 0
-        for f in range(int(start), int(end)+1):
+        for f in range(self.frame_start, self.frame_end + 1):
             pos = mathutils.Vector(locEvaluator.evaluate(f))
             rotation_quaternion = mathutils.Quaternion(rotEvaluator.evaluate(f))
             speed_vector = pos - prev_pos
@@ -798,18 +812,31 @@ class BakeWheelRotationOperator(bpy.types.Operator):
             yield f, distance
             prev_pos = pos
 
-        bpy.data.actions.remove(baked_action)
 
-    def _bake_wheel_rotation(self, context, source_bone, target_bone):
+    def _create_wheel_rotation_fcurve(self, context, target_bone):
         action = context.object.animation_data.action
         fcurve_datapath = 'pose.bones["%s"].rotation_euler' % target_bone.name
         fc_rot = action.fcurves.find(fcurve_datapath, 0)
         if fc_rot is not None:
             action.fcurves.remove(fc_rot)
-        fc_rot = action.fcurves.new(fcurve_datapath, 0, target_bone.name)
+        return action.fcurves.new(fcurve_datapath, 0, target_bone.name)
 
-        for f, distance in self._evaluate_distance_per_frame(context, source_bone):
-            fc_rot.keyframe_points.insert(f, distance)
+
+    def _bake_wheel_rotation(self, context, source_bone, target_bone):
+        if self.frame_end - self.frame_start <= 0:
+            return
+
+        source_action = context.object.animation_data.action
+        if self.visual_keying:
+            source_action = self._bake_action(context, source_bone)
+
+        try:
+            fc_rot = self._create_wheel_rotation_fcurve(context, target_bone)
+            for f, distance in self._evaluate_distance_per_frame(source_action, source_bone):
+                fc_rot.keyframe_points.insert(f, distance)
+        finally:
+            if self.visual_keying:
+                bpy.data.actions.remove(source_action)
 
 
 class BakeSteeringOperator(bpy.types.Operator):
@@ -832,10 +859,12 @@ class BakeSteeringOperator(bpy.types.Operator):
         self._bake_steering_wheel_rotation(context.object.animation_data.action, distance, context.object.data.bones['Root'], context.object.data.bones['MCH-Steering.controller'])
         return {'FINISHED'}
 
+
     def _create_rotation_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].rotation_quaternion' % source_bone.name
         fc_root_rot = [action.fcurves.find(fcurve_name , i) for i in range(0, 4)]
         return FCurvesEvaluator(fc_root_rot, default_value= (1.0, .0, .0, .0))
+
 
     def _evaluate_rotation_per_frame(self, action, source_bone):
         rotEvaluator = self._create_rotation_evaluator(action, source_bone)
@@ -850,6 +879,7 @@ class BakeSteeringOperator(bpy.types.Operator):
             rot_axis, rot_angle = current_rotation_quaternion.rotation_difference(next_rotation_quaternion).to_axis_angle()
             yield f, math.copysign(rot_angle, rot_axis.z)
             current_rotation_quaternion = next_rotation_quaternion
+
 
     def _bake_steering_wheel_rotation(self, action, distance, source_bone, target_bone):
         fcurve_datapath = 'pose.bones["%s"].location' % target_bone.name
