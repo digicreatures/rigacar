@@ -93,8 +93,8 @@ def generate_rig(context):
     pos_front = (wheelFtR.head + wheelFtL.head) / 2
     pos_back = (wheelBkR.head + wheelBkL.head) / 2
     pos_body = body.head
-    body_width = max([abs(w.head.x + w.envelope_distance) for w in (wheelFtR, wheelFtL, wheelBkL, wheelBkR)])
-    body_length = max(body.length, 2 * body_width)
+    body_width = max([w.envelope_distance for w in (wheelFtR, wheelFtL, wheelBkL, wheelBkR)])
+    body_length = max(body.length, body_width)
 
     root = amt.edit_bones.new('Root')
     root.head = (body.head.x, body.head.y, 0)
@@ -106,8 +106,8 @@ def generate_rig(context):
     drift.tail = pos_front
     drift.head.y -= root.length * 0.5
     drift.tail.y -= root.length * 0.8
-    drift.head.z = body.envelope_distance * 1.2
-    drift.tail.z = body.envelope_distance * 1.2
+    drift.head.z = body.envelope_distance * .8
+    drift.tail.z = body.envelope_distance * .8
     drift.roll = math.pi
     drift.use_deform = False
     drift.parent = root
@@ -120,8 +120,8 @@ def generate_rig(context):
     wheels = amt.edit_bones.new('Front Wheels')
     wheels.head = wheelFtL.head
     wheels.tail = wheelFtL.tail
-    wheels.head.x += math.copysign(wheelFtL.envelope_distance * 1.3, wheels.head.x)
-    wheels.tail.x += math.copysign(wheelFtL.envelope_distance * 1.3, wheels.tail.x)
+    wheels.head.x = math.copysign(wheelFtL.envelope_distance * 1.05, wheels.head.x)
+    wheels.tail.x = math.copysign(wheelFtL.envelope_distance * 1.05, wheels.tail.x)
     wheels.use_deform = False
     wheels.parent = amt.edit_bones['WheelBumper.Ft.L']
 
@@ -136,8 +136,8 @@ def generate_rig(context):
     wheels = amt.edit_bones.new('Back Wheels')
     wheels.head = wheelBkL.head
     wheels.tail = wheelBkL.tail
-    wheels.head.x += math.copysign(wheelBkL.envelope_distance * 1.3, wheels.head.x)
-    wheels.tail.x += math.copysign(wheelBkL.envelope_distance * 1.3, wheels.tail.x)
+    wheels.head.x = math.copysign(wheelBkL.envelope_distance * 1.05, wheels.head.x)
+    wheels.tail.x = math.copysign(wheelBkL.envelope_distance * 1.05, wheels.tail.x)
     wheels.use_deform = False
     wheels.parent = amt.edit_bones['WheelBumper.Bk.L']
 
@@ -185,8 +185,8 @@ def generate_rig(context):
     damper.head = body.head
     damper.tail = body.head
     damper.tail.y += body.envelope_distance
-    damper.head.z = body.envelope_distance * 1.5
-    damper.tail.z = body.envelope_distance * 1.5
+    damper.head.z = body.envelope_distance * 1.2
+    damper.tail.z = body.envelope_distance * 1.2
     damper.use_deform = False
     damper.parent = axis
 
@@ -218,7 +218,9 @@ def generate_wheel_bones(amt, name_suffix, parent_bone):
 
     ground_sensor = amt.edit_bones.new('GroundSensor.%s' % name_suffix)
     ground_sensor.head = def_wheel_bone.head
+    ground_sensor.head.x = math.copysign(def_wheel_bone.envelope_distance - def_wheel_bone.length / 2, ground_sensor.head.x)
     ground_sensor.tail = def_wheel_bone.tail
+    ground_sensor.tail.x = math.copysign(def_wheel_bone.envelope_distance - def_wheel_bone.length / 2, ground_sensor.tail.x)
     ground_sensor.head.z = 0
     ground_sensor.tail.z = 0
     ground_sensor.use_deform = False
@@ -227,8 +229,8 @@ def generate_wheel_bones(amt, name_suffix, parent_bone):
     wheel_bumper = amt.edit_bones.new('WheelBumper.%s' % name_suffix)
     wheel_bumper.head = def_wheel_bone.head
     wheel_bumper.tail = def_wheel_bone.tail
-    wheel_bumper.head.x += math.copysign(def_wheel_bone.envelope_distance * 1.5, wheel_bumper.head.x)
-    wheel_bumper.tail.x += math.copysign(def_wheel_bone.envelope_distance * 1.5, wheel_bumper.tail.x)
+    wheel_bumper.head.x = math.copysign(def_wheel_bone.envelope_distance * 1.2, wheel_bumper.head.x)
+    wheel_bumper.tail.x = math.copysign(def_wheel_bone.envelope_distance * 1.2, wheel_bumper.tail.x)
     wheel_bumper.head.z *= 1.5
     wheel_bumper.tail.z *= 1.5
     wheel_bumper.use_deform = False
@@ -560,62 +562,113 @@ class UICarRigView3DPanel(bpy.types.Panel, BaseCarRigPanel):
     bl_region_type = "UI"
 
 
+import functools
+
 class AddCarDeformationRigOperator(bpy.types.Operator):
     bl_idname = "object.armature_car_deformation_rig"
     bl_label = "Add car deformation rig"
     bl_options = {'REGISTER', 'UNDO'}
 
+    body_pos_delta = bpy.props.FloatVectorProperty(name='Body Delta',
+                                                description='Adjust car body location',
+                                                size=3,
+                                                default=(0, 0, 0),
+                                                subtype='TRANSLATION')
+
+    body_size_delta = bpy.props.FloatProperty(name='Body End Delta',
+                                                description='Adjust car body bone length',
+                                                default=.0,
+                                                min=0,
+                                                subtype='DISTANCE')
+
+    front_wheel_pos_delta = bpy.props.FloatVectorProperty(name='Front Wheel Delta',
+                                                description='Adjust front wheels location',
+                                                size=3,
+                                                default=(0, 0, 0),
+                                                subtype='TRANSLATION')
+
+    front_wheel_size_delta = bpy.props.FloatProperty(name='Front Wheel Radius delta',
+                                                description='Adjust front wheels radius',
+                                                default=.0,
+                                                min=0,
+                                                subtype='DISTANCE')
+
+    back_wheel_pos_delta = bpy.props.FloatVectorProperty(name='Back Wheel Delta',
+                                                description='Adjust back wheels location',
+                                                size=3,
+                                                default=(0, 0, 0),
+                                                subtype='TRANSLATION')
+
+    back_wheel_size_delta = bpy.props.FloatProperty(name='Back Wheel Radius Delta',
+                                                description='Adjust back wheels radius',
+                                                default=.0,
+                                                min=0,
+                                                subtype='DISTANCE')
+
+    default_position = {
+        'Body': mathutils.Vector((  0,  0, .8)),
+        'Wheel.Ft.L': mathutils.Vector(( .9, -2,  1)),
+        'Wheel.Ft.R': mathutils.Vector((-.9, -2,  1)),
+        'Wheel.Bk.L': mathutils.Vector(( .9,  2,  1)),
+        'Wheel.Bk.R': mathutils.Vector((-.9,  2,  1))
+    }
+
     def _compute_envelope_distance(self, obj, bound_box_co_index, default_offset):
         if obj.bound_box is None:
-            return default_offset
+            return default_offset + abs(obj.location[bound_box_co_index])
 
         max_x = max([abs(bb[bound_box_co_index]) for bb in obj.bound_box])
 
-        return max_x if max_x > 0 else default_offset
+        return (max_x if max_x > 0 else default_offset) + abs(obj.location[bound_box_co_index])
 
 
-    def _create_bone(self, selected_objects, rig, name, head):
+    def _create_bone(self, selected_objects, rig, name, delta_pos, delta_length):
         b = rig.data.edit_bones.new('DEF-' + name)
-        b.head = head
-        b.tail = b.head
-        b.tail.y += 1.0
-        b.envelope_distance = 0.25 if b.name != 'DEF-Body' else 1
 
         for target_obj in selected_objects:
             if target_obj.name == name:
-                b.head = target_obj.location
+                b.head = target_obj.location + delta_pos
                 b.tail = b.head
                 b.tail.y += target_obj.dimensions[1] / 2 if target_obj.dimensions and target_obj.dimensions[0] != 0 else 1
+                b.tail.y += delta_length
                 if b.name == 'DEF-Body':
                     b.envelope_distance = self._compute_envelope_distance(target_obj, bound_box_co_index = 2, default_offset = 1)
                 else:
                     b.envelope_distance = self._compute_envelope_distance(target_obj, bound_box_co_index = 0, default_offset = .25)
+
                 target_obj.parent = rig
                 target_obj.parent_bone = b.name
                 target_obj.parent_type = 'BONE'
                 target_obj.location += rig.matrix_world.to_translation()
                 target_obj.matrix_parent_inverse = (rig.matrix_world * mathutils.Matrix.Translation(b.tail)).inverted()
-                break
+                return
+
+        b.head = self.default_position[name] + delta_pos
+        b.tail = b.head
+        b.tail.y += 1.0 + delta_length
+        b.envelope_distance = abs(b.head.x) + .5 if b.name != 'DEF-Body' else abs(b.head.z) * 3
+
 
     def execute(self, context):
         """Creates the meta rig with basic bones"""
-
         selected_objects = context.selected_objects
+
         amt = bpy.data.armatures.new('Car Rig Data')
         amt['Car Rig'] = False
+
         obj_data = bpy_extras.object_utils.object_data_add(context, amt, name='Car Rig')
         rig = obj_data.object
 
         bpy.ops.object.mode_set(mode='EDIT')
 
-        self._create_bone(selected_objects, rig, 'Body',      (  0,  0, .8))
-        self._create_bone(selected_objects, rig, 'Wheel.Ft.L', ( .9, -2,  1))
-        self._create_bone(selected_objects, rig, 'Wheel.Ft.R', (-.9, -2,  1))
-        self._create_bone(selected_objects, rig, 'Wheel.Bk.L', ( .9,  2,  1))
-        self._create_bone(selected_objects, rig, 'Wheel.Bk.R', (-.9,  2,  1))
+        self._create_bone(selected_objects, rig, 'Body', delta_pos = self.body_pos_delta, delta_length= self.body_size_delta)
+        self._create_bone(selected_objects, rig, 'Wheel.Ft.L', delta_pos = self.front_wheel_pos_delta, delta_length= self.front_wheel_size_delta)
+        self._create_bone(selected_objects, rig, 'Wheel.Ft.R', delta_pos = self.front_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))), delta_length= self.front_wheel_size_delta)
+        self._create_bone(selected_objects, rig, 'Wheel.Bk.L', delta_pos = self.back_wheel_pos_delta, delta_length= self.back_wheel_size_delta)
+        self._create_bone(selected_objects, rig, 'Wheel.Bk.R', delta_pos = self.back_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))), delta_length= self.back_wheel_size_delta)
 
         bpy.ops.object.mode_set(mode='OBJECT')
-
+        context.scene.update()
         return{'FINISHED'}
 
 
