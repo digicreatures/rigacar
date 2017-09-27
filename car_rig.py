@@ -48,8 +48,8 @@ def create_constraint_influence_driver(ob, cns, driver_data_path, base_influence
 
 
 def generate_animation_rig(context):
-    import rigacar.widgets
-    rigacar.widgets.create()
+    from . import widgets
+    widgets.create()
 
     ob = context.active_object
     ob['wheels_on_y_axis'] = False

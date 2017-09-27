@@ -19,8 +19,8 @@
 # <pep8 compliant>
 
 import bpy
-import rigacar.bake_operators
-import rigacar.car_rig
+from . import bake_operators
+from . import car_rig
 
 
 bl_info = {
@@ -45,10 +45,10 @@ class BaseCarRigPanel:
             self.layout.prop(context.object, '["wheels_on_y_axis"]', text="Wheels on Y axis")
             self.layout.prop(context.object, '["suspension_factor"]', text="Suspension fact.")
             self.layout.prop(context.object, '["suspension_rolling_factor"]', text="Suspension rolling fact.")
-            self.layout.operator(rigacar.bake_operators.BakeWheelRotationOperator.bl_idname, 'Bake wheels rotation', 'Automatically generates wheels animation based on Root bone animation.')
-            self.layout.operator(rigacar.bake_operators.BakeSteeringOperator.bl_idname, 'Bake steering', 'Automatically steering animation based on Root bone animation.')
+            self.layout.operator(bake_operators.BakeWheelRotationOperator.bl_idname, 'Bake wheels rotation', 'Automatically generates wheels animation based on Root bone animation.')
+            self.layout.operator(bake_operators.BakeSteeringOperator.bl_idname, 'Bake steering', 'Automatically steering animation based on Root bone animation.')
         elif context.object.mode in {"POSE", "OBJECT"}:
-            self.layout.operator(rigacar.car_rig.GenerateCarAnimationRigOperator.bl_idname, text='Generate')
+            self.layout.operator(car_rig.GenerateCarAnimationRigOperator.bl_idname, text='Generate')
 
 
 class UICarRigPropertiesPanel(bpy.types.Panel, BaseCarRigPanel):
@@ -65,23 +65,23 @@ class UICarRigView3DPanel(bpy.types.Panel, BaseCarRigPanel):
 
 
 def menu_entries(menu, context):
-    menu.layout.operator(rigacar.car_rig.AddCarDeformationRigOperator.bl_idname, text="Car (deformation rig)", icon='AUTO')
+    menu.layout.operator(car_rig.AddCarDeformationRigOperator.bl_idname, text="Car (deformation rig)", icon='AUTO')
 
 
 def register():
     bpy.types.INFO_MT_armature_add.append(menu_entries)
     bpy.utils.register_class(UICarRigPropertiesPanel)
     bpy.utils.register_class(UICarRigView3DPanel)
-    rigacar.car_rig.register()
-    rigacar.bake_operators.register()
+    car_rig.register()
+    bake_operators.register()
 
 
 def unregister():
     bpy.types.INFO_MT_armature_add.remove(menu_entries)
     bpy.utils.unregister_class(UICarRigPropertiesPanel)
     bpy.utils.unregister_class(UICarRigView3DPanel)
-    rigacar.car_rig.unregister()
-    rigacar.bake_operators.unregister()
+    car_rig.unregister()
+    bake_operators.unregister()
 
 
 if __name__ == "__main__":
