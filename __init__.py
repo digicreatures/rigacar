@@ -34,6 +34,9 @@ bl_info = {
     "tracker_url": "https://github.com/digicreatures/rigacar/issues",
     "category": "Rigging"}
 
+#import importlib
+#importlib.reload(rigacar.bake_operators)
+#importlib.reload(rigacar.car_rig)
 
 class BaseCarRigPanel:
     @classmethod
