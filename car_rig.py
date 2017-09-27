@@ -819,9 +819,9 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
             root_orientation = rotation_quaternion * bone_init_vector
             distance += math.copysign(speed, root_orientation.dot(speed_vector))
             # yields only if speed has significantly changed (avoids unecessary keyframes)
-            if abs(speed - prev_speed) > prev_speed / 100:
+            if abs(speed - prev_speed) > prev_speed / 100 or f == self.frame_end:
+                prev_speed = speed
                 yield f, distance
-            prev_speed = speed
             prev_pos = pos
 
 
