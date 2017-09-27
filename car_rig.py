@@ -837,7 +837,7 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
 
 class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
     bl_idname = 'anim.car_steering_bake'
-    bl_label = 'Bake car steering wheels rotation'
+    bl_label = 'Bake car steering rotation'
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
