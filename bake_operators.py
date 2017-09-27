@@ -61,6 +61,11 @@ class BakingOperator:
 
         return context.window_manager.invoke_props_dialog(self)
 
+    def draw(self, context):
+        self.layout.prop(self, 'frame_start')
+        self.layout.prop(self, 'frame_end')
+        self.layout.prop(self, 'visual_keying')
+
     def _create_rotation_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].rotation_quaternion' % source_bone.name
         fc_root_rot = [action.fcurves.find(fcurve_name, i) for i in range(0, 4)]
@@ -155,7 +160,7 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
 
 class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
     bl_idname = 'anim.car_steering_bake'
-    bl_label = 'Bake car steering rotation'
+    bl_label = 'Bake car steering'
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
