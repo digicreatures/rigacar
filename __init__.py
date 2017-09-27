@@ -29,7 +29,7 @@ bl_info = {
     "location": "View3D > Add > Armature",
     "description": "Adds a deformation rig for 4 wheels vehicules, generates animation rig and bake wheels animation.",
     "wiki_url": "",
-    "tracker_url": "",
+    "tracker_url": "https://github.com/digicreatures/rigacar/issues",
     "category": "Rigging"}
 
 
