@@ -810,14 +810,18 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
         bone_init_vector = (source_bone.head_local - source_bone.tail_local).normalized()
         prev_pos = mathutils.Vector(locEvaluator.evaluate(self.frame_start))
         distance = 0
+        prev_speed = 0
         for f in range(self.frame_start, self.frame_end + 1):
             pos = mathutils.Vector(locEvaluator.evaluate(f))
             rotation_quaternion = mathutils.Quaternion(rotEvaluator.evaluate(f))
             speed_vector = pos - prev_pos
+            speed = speed_vector.magnitude
             root_orientation = rotation_quaternion * bone_init_vector
-            distance += math.copysign(speed_vector.magnitude, root_orientation.dot(speed_vector))
-            # TODO yield only if speed has changed (avoid unecessary keyframes)
-            yield f, distance
+            distance += math.copysign(speed, root_orientation.dot(speed_vector))
+            # yields only if speed has significantly changed (avoids unecessary keyframes)
+            if abs(speed - prev_speed) > prev_speed / 100:
+                yield f, distance
+            prev_speed = speed
             prev_pos = pos
 
 
@@ -829,7 +833,8 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
         try:
             fc_rot = self._create_or_replace_fcurve(context, target_bone, "rotation_euler")
             for f, distance in self._evaluate_distance_per_frame(source_action, source_bone):
-                fc_rot.keyframe_points.insert(f, distance)
+                kf = fc_rot.keyframe_points.insert(f, distance)
+                kf.interpolation = 'LINEAR'
         finally:
             if self.visual_keying:
                 bpy.data.actions.remove(source_action)
