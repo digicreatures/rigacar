@@ -20,6 +20,7 @@ import bpy
 import mathutils
 import math
 
+
 class FCurvesEvaluator:
     """Encapsulates a bunch of FCurves for vector animations."""
 
@@ -47,7 +48,6 @@ class BakingOperator:
         return ('Car Rig' in context.object.data and
                 context.object.data['Car Rig'])
 
-
     def invoke(self, context, event):
         if context.object.animation_data is None:
             context.object.animation_data_create()
@@ -59,18 +59,15 @@ class BakingOperator:
 
         return context.window_manager.invoke_props_dialog(self)
 
-
     def _create_rotation_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].rotation_quaternion' % source_bone.name
-        fc_root_rot = [action.fcurves.find(fcurve_name , i) for i in range(0, 4)]
-        return FCurvesEvaluator(fc_root_rot, default_value= (1.0, .0, .0, .0))
-
+        fc_root_rot = [action.fcurves.find(fcurve_name, i) for i in range(0, 4)]
+        return FCurvesEvaluator(fc_root_rot, default_value=(1.0, .0, .0, .0))
 
     def _create_location_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].location' % source_bone.name
-        fc_root_loc = [action.fcurves.find(fcurve_name , i) for i in range(0, 3)]
-        return FCurvesEvaluator(fc_root_loc, default_value= (.0, .0, .0))
-
+        fc_root_loc = [action.fcurves.find(fcurve_name, i) for i in range(0, 3)]
+        return FCurvesEvaluator(fc_root_loc, default_value=(.0, .0, .0))
 
     def _bake_action(self, context, source_bone):
         action = context.object.animation_data.action
@@ -98,8 +95,7 @@ class BakingOperator:
 
         return baked_action
 
-
-    def _create_or_replace_fcurve(self, context, target_bone, data_path, data_index = 0):
+    def _create_or_replace_fcurve(self, context, target_bone, data_path, data_index=0):
         action = context.object.animation_data.action
         fcurve_datapath = 'pose.bones["%s"].%s' % (target_bone.name, data_path)
         fc_rot = action.fcurves.find(fcurve_datapath, data_index)
@@ -118,7 +114,6 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
             self._bake_wheel_rotation(context, context.object.data.bones['Root'], context.object.data.bones['MCH-Wheels'])
             context.object['wheels_on_y_axis'] = False
         return {'FINISHED'}
-
 
     def _evaluate_distance_per_frame(self, action, source_bone):
         locEvaluator = self._create_location_evaluator(action, source_bone)
@@ -140,7 +135,6 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
                 prev_speed = speed
                 yield f, distance
             prev_pos = pos
-
 
     def _bake_wheel_rotation(self, context, source_bone, target_bone):
         source_action = context.object.animation_data.action
@@ -170,7 +164,6 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
             self._bake_steering_rotation(context, distance, context.object.data.bones['Root'], context.object.data.bones['MCH-Steering.controller'])
         return {'FINISHED'}
 
-
     def _evaluate_rotation_per_frame(self, action, source_bone):
         rotEvaluator = self._create_rotation_evaluator(action, source_bone)
 
@@ -184,7 +177,6 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
             yield f, math.copysign(rot_angle, rot_axis.z * current_bone_orientation.dot(next_bone_orientation))
             current_rotation_quaternion = next_rotation_quaternion
             current_bone_orientation = next_bone_orientation
-
 
     def _bake_steering_rotation(self, context, distance, source_bone, target_bone):
         source_action = context.object.animation_data.action
@@ -200,6 +192,7 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
         finally:
             if self.visual_keying:
                 bpy.data.actions.remove(source_action)
+
 
 def register():
     bpy.utils.register_class(BakeWheelRotationOperator)

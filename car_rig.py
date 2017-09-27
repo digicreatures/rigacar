@@ -21,10 +21,11 @@ import math
 import bpy_extras
 import mathutils
 
-DEF_BONE_LAYER=30
-MCH_BONE_LAYER=31
+DEF_BONE_LAYER = 30
+MCH_BONE_LAYER = 31
 
-def create_constraint_influence_driver(ob, cns, driver_data_path, base_influence = 1.0):
+
+def create_constraint_influence_driver(ob, cns, driver_data_path, base_influence=1.0):
     fcurve = cns.driver_add('influence')
     drv = fcurve.driver
     drv.type = 'AVERAGE'
@@ -42,6 +43,7 @@ def create_constraint_influence_driver(ob, cns, driver_data_path, base_influence
         fmod.mode = 'POLYNOMIAL'
         fmod.poly_order = 1
         fmod.coefficients = (0, base_influence)
+
 
 def generate_animation_rig(context):
     import rigacar.widgets
@@ -322,7 +324,7 @@ def generate_constraints_on_rig(context):
         cns.to_max_y_rot = math.radians(-180)
         cns.owner_space = 'LOCAL'
         cns.target_space = 'LOCAL'
-        create_constraint_influence_driver(ob, cns, '["suspension_rolling_factor"]', base_influence = influence)
+        create_constraint_influence_driver(ob, cns, '["suspension_rolling_factor"]', base_influence=influence)
 
     rootCenter = pose.bones['Root.center']
     rootCenter.lock_location = (True, True, True)
@@ -335,7 +337,6 @@ def generate_constraints_on_rig(context):
     root.lock_scale = (True, True, True)
     root.custom_shape = bpy.data.objects['WGT-CarRig.Root']
     root.custom_shape_transform = rootCenter
-
 
     drift = pose.bones['Drift']
     drift.lock_location = (True, True, True)
@@ -488,11 +489,11 @@ def generate_constraints_on_wheel_bones(ob, name_suffix):
     cns.target = ob
     cns.subtarget = 'Root'
     cns.use_motion_extrapolate = True
-    cns.map_from ='LOCATION'
+    cns.map_from = 'LOCATION'
     cns.from_min_y = - math.pi * abs(mch_wheel.head.z if mch_wheel.head.z != 0 else 1)
     cns.from_max_y = - cns.from_min_y
     cns.map_to_x_from = 'Y'
-    cns.map_to ='ROTATION'
+    cns.map_to = 'ROTATION'
     cns.to_min_x_rot = math.pi
     cns.to_max_x_rot = -math.pi
     cns.owner_space = 'LOCAL'
@@ -542,46 +543,46 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     body_pos_delta = bpy.props.FloatVectorProperty(name='Body Delta',
-                                                description='Adjust car body location',
-                                                size=3,
-                                                default=(0, 0, 0),
-                                                subtype='TRANSLATION')
+                                                   description='Adjust car body location',
+                                                   size=3,
+                                                   default=(0, 0, 0),
+                                                   subtype='TRANSLATION')
 
     body_size_delta = bpy.props.FloatProperty(name='Body End Delta',
-                                                description='Adjust car body bone length',
-                                                default=.0,
-                                                min=0,
-                                                subtype='DISTANCE')
+                                              description='Adjust car body bone length',
+                                              default=.0,
+                                              min=0,
+                                              subtype='DISTANCE')
 
     front_wheel_pos_delta = bpy.props.FloatVectorProperty(name='Front Wheel Delta',
-                                                description='Adjust front wheels location',
-                                                size=3,
-                                                default=(0, 0, 0),
-                                                subtype='TRANSLATION')
+                                                          description='Adjust front wheels location',
+                                                          size=3,
+                                                          default=(0, 0, 0),
+                                                          subtype='TRANSLATION')
 
     front_wheel_size_delta = bpy.props.FloatProperty(name='Front Wheel Radius delta',
-                                                description='Adjust front wheels radius',
-                                                default=.0,
-                                                min=0,
-                                                subtype='DISTANCE')
+                                                     description='Adjust front wheels radius',
+                                                     default=.0,
+                                                     min=0,
+                                                     subtype='DISTANCE')
 
     back_wheel_pos_delta = bpy.props.FloatVectorProperty(name='Back Wheel Delta',
-                                                description='Adjust back wheels location',
-                                                size=3,
-                                                default=(0, 0, 0),
-                                                subtype='TRANSLATION')
+                                                         description='Adjust back wheels location',
+                                                         size=3,
+                                                         default=(0, 0, 0),
+                                                         subtype='TRANSLATION')
 
     back_wheel_size_delta = bpy.props.FloatProperty(name='Back Wheel Radius Delta',
-                                                description='Adjust back wheels radius',
-                                                default=.0,
-                                                min=0,
-                                                subtype='DISTANCE')
+                                                    description='Adjust back wheels radius',
+                                                    default=.0,
+                                                    min=0,
+                                                    subtype='DISTANCE')
 
     default_position = {
-        'Body': mathutils.Vector((  0,  0, .8)),
-        'Wheel.Ft.L': mathutils.Vector(( .9, -2,  .5)),
+        'Body':       mathutils.Vector((0.0,  0,  .8)),
+        'Wheel.Ft.L': mathutils.Vector((0.9, -2,  .5)),
         'Wheel.Ft.R': mathutils.Vector((-.9, -2,  .5)),
-        'Wheel.Bk.L': mathutils.Vector(( .9,  2,  .5)),
+        'Wheel.Bk.L': mathutils.Vector((0.9,  2,  .5)),
         'Wheel.Bk.R': mathutils.Vector((-.9,  2,  .5))
     }
 
@@ -594,7 +595,6 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
 
         return (max_bb if max_bb > 0 else default_offset) + abs(obj.location[bound_box_co_index])
 
-
     def _create_bone(self, selected_objects, rig, name, delta_pos, delta_length):
         b = rig.data.edit_bones.new('DEF-' + name)
 
@@ -605,9 +605,9 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
                 b.tail.y += target_obj.dimensions[1] / 2 if target_obj.dimensions and target_obj.dimensions[0] != 0 else 1
                 b.tail.y += delta_length
                 if b.name == 'DEF-Body':
-                    b.envelope_distance = self._compute_envelope_distance(target_obj, bound_box_co_index = 2, default_offset = .5)
+                    b.envelope_distance = self._compute_envelope_distance(target_obj, bound_box_co_index=2, default_offset=.5)
                 else:
-                    b.envelope_distance = self._compute_envelope_distance(target_obj, bound_box_co_index = 0, default_offset = .25)
+                    b.envelope_distance = self._compute_envelope_distance(target_obj, bound_box_co_index=0, default_offset=.25)
 
                 target_obj.parent = rig
                 target_obj.parent_bone = b.name
@@ -621,7 +621,6 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
         b.tail.y += 1.0 + delta_length
         b.envelope_distance = abs(b.head.x) + .5 if b.name != 'DEF-Body' else abs(b.head.z) * 3
 
-
     def execute(self, context):
         """Creates the meta rig with basic bones"""
         selected_objects = context.selected_objects
@@ -634,11 +633,11 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
 
         bpy.ops.object.mode_set(mode='EDIT')
 
-        self._create_bone(selected_objects, rig, 'Body', delta_pos = self.body_pos_delta, delta_length= self.body_size_delta)
-        self._create_bone(selected_objects, rig, 'Wheel.Ft.L', delta_pos = self.front_wheel_pos_delta, delta_length= self.front_wheel_size_delta)
-        self._create_bone(selected_objects, rig, 'Wheel.Ft.R', delta_pos = self.front_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))), delta_length= self.front_wheel_size_delta)
-        self._create_bone(selected_objects, rig, 'Wheel.Bk.L', delta_pos = self.back_wheel_pos_delta, delta_length= self.back_wheel_size_delta)
-        self._create_bone(selected_objects, rig, 'Wheel.Bk.R', delta_pos = self.back_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))), delta_length= self.back_wheel_size_delta)
+        self._create_bone(selected_objects, rig, 'Body', delta_pos=self.body_pos_delta, delta_length=self.body_size_delta)
+        self._create_bone(selected_objects, rig, 'Wheel.Ft.L', delta_pos=self.front_wheel_pos_delta, delta_length=self.front_wheel_size_delta)
+        self._create_bone(selected_objects, rig, 'Wheel.Ft.R', delta_pos=self.front_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))), delta_length=self.front_wheel_size_delta)
+        self._create_bone(selected_objects, rig, 'Wheel.Bk.L', delta_pos=self.back_wheel_pos_delta, delta_length=self.back_wheel_size_delta)
+        self._create_bone(selected_objects, rig, 'Wheel.Bk.R', delta_pos=self.back_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))), delta_length=self.back_wheel_size_delta)
 
         bpy.ops.object.mode_set(mode='OBJECT')
         context.scene.update()
@@ -652,8 +651,8 @@ class GenerateCarAnimationRigOperator(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return (context.object is not None and context.object.data is not None
-                and 'Car Rig' in context.object.data and not context.object.data['Car Rig'])
+        return (context.object is not None and context.object.data is not None and
+                'Car Rig' in context.object.data and not context.object.data['Car Rig'])
 
     def execute(self, context):
         generate_animation_rig(context)

@@ -16,6 +16,11 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
+import bpy
+import rigacar.bake_operators
+import rigacar.car_rig
+
+
 bl_info = {
     "name": "Generate Car Rig",
     "author": "David Gayerie",
@@ -28,10 +33,6 @@ bl_info = {
     "category": "Rigging"}
 
 
-import bpy
-import rigacar.bake_operators
-import rigacar.car_rig
-
 class BaseCarRigPanel:
     @classmethod
     def poll(cls, context):
@@ -39,9 +40,9 @@ class BaseCarRigPanel:
 
     def draw(self, context):
         if context.object.data['Car Rig']:
-            self.layout.prop(context.object, '["wheels_on_y_axis"]', text = "Wheels on Y axis")
-            self.layout.prop(context.object, '["suspension_factor"]', text = "Suspension fact.")
-            self.layout.prop(context.object, '["suspension_rolling_factor"]', text = "Suspension rolling fact.")
+            self.layout.prop(context.object, '["wheels_on_y_axis"]', text="Wheels on Y axis")
+            self.layout.prop(context.object, '["suspension_factor"]', text="Suspension fact.")
+            self.layout.prop(context.object, '["suspension_rolling_factor"]', text="Suspension rolling fact.")
             self.layout.operator(rigacar.bake_operators.BakeWheelRotationOperator.bl_idname, 'Bake wheels rotation', 'Automatically generates wheels animation based on Root bone animation.')
             self.layout.operator(rigacar.bake_operators.BakeSteeringOperator.bl_idname, 'Bake steering', 'Automatically steering animation based on Root bone animation.')
         elif context.object.mode in {"POSE", "OBJECT"}:
@@ -62,7 +63,7 @@ class UICarRigView3DPanel(bpy.types.Panel, BaseCarRigPanel):
 
 
 def menu_entries(menu, context):
-    menu.layout.operator(rigacar.car_rig.AddCarDeformationRigOperator.bl_idname,text="Car (deformation rig)",icon='AUTO')
+    menu.layout.operator(rigacar.car_rig.AddCarDeformationRigOperator.bl_idname, text="Car (deformation rig)", icon='AUTO')
 
 
 def register():
