@@ -49,7 +49,8 @@ class BakingOperator:
     @classmethod
     def poll(cls, context):
         return ('Car Rig' in context.object.data and
-                context.object.data['Car Rig'])
+                context.object.data['Car Rig'] and
+                context.object.mode in ('POSE', 'OBJECT'))
 
     def invoke(self, context, event):
         if context.object.animation_data is None:
