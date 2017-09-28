@@ -172,18 +172,20 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
         return {'FINISHED'}
 
     def _evaluate_rotation_per_frame(self, action, source_bone):
+        locEvaluator = self._create_location_evaluator(action, source_bone)
         rotEvaluator = self._create_rotation_evaluator(action, source_bone)
 
-        bone_init_vector = (source_bone.head_local - source_bone.tail_local).normalized()
-        current_rotation_quaternion = mathutils.Quaternion(rotEvaluator.evaluate(self.frame_start))
-        current_bone_orientation = current_rotation_quaternion * bone_init_vector
+        init_vector= source_bone.tail - source_bone.head
+        current_pos = mathutils.Vector(locEvaluator.evaluate(self.frame_start))
+        prev_rotation = 0
         for f in range(self.frame_start, self.frame_end + 1):
-            next_rotation_quaternion = mathutils.Quaternion(rotEvaluator.evaluate(f + 25))
-            next_bone_orientation = next_rotation_quaternion * bone_init_vector
-            rot_axis, rot_angle = current_rotation_quaternion.rotation_difference(next_rotation_quaternion).to_axis_angle()
-            yield f, math.copysign(rot_angle, rot_axis.z * current_bone_orientation.dot(next_bone_orientation))
-            current_rotation_quaternion = next_rotation_quaternion
-            current_bone_orientation = next_bone_orientation
+            next_pos = mathutils.Vector(locEvaluator.evaluate(f + 1))
+            tangent_vector = next_pos - current_pos
+            current_vector = mathutils.Quaternion(rotEvaluator.evaluate(f)).inverted() * tangent_vector
+            rotation = current_vector.xy.angle_signed(init_vector.xy, prev_rotation)
+            yield f, rotation
+            current_pos = next_pos
+            prev_rotation = rotation
 
     def _bake_steering_rotation(self, context, distance, source_bone, target_bone):
         source_action = context.object.animation_data.action
@@ -195,7 +197,7 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
 
             for f, rotation_angle in self._evaluate_rotation_per_frame(source_action, source_bone):
                 # TODO use correct ratio and correct bone
-                fc_rot.keyframe_points.insert(f, math.tan(rotation_angle) * 10 * distance)
+                fc_rot.keyframe_points.insert(f, math.tan(rotation_angle) * distance)
         finally:
             if self.visual_keying:
                 bpy.data.actions.remove(source_action)
