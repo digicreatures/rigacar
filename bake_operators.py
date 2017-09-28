@@ -44,6 +44,7 @@ class BakingOperator:
     frame_start = bpy.props.IntProperty(name='Start Frame', min=1)
     frame_end = bpy.props.IntProperty(name='End Frame', min=1)
     visual_keying = bpy.props.BoolProperty(name='Visual Keying', default=True)
+    keyframe_tolerance = bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.1)
 
     @classmethod
     def poll(cls, context):
@@ -65,6 +66,7 @@ class BakingOperator:
         self.layout.prop(self, 'frame_start')
         self.layout.prop(self, 'frame_end')
         self.layout.prop(self, 'visual_keying')
+        self.layout.prop(self, 'keyframe_tolerance')
 
     def _create_rotation_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].rotation_quaternion' % source_bone.name
@@ -128,20 +130,22 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
 
         bone_init_vector = (source_bone.head_local - source_bone.tail_local).normalized()
         prev_pos = mathutils.Vector(locEvaluator.evaluate(self.frame_start))
-        distance = 0
         prev_speed = 0
-        for f in range(self.frame_start, self.frame_end + 1):
+        distance = 0
+        yield self.frame_start, distance
+        for f in range(self.frame_start + 1, self.frame_end):
             pos = mathutils.Vector(locEvaluator.evaluate(f))
-            rotation_quaternion = mathutils.Quaternion(rotEvaluator.evaluate(f))
             speed_vector = pos - prev_pos
-            speed = speed_vector.magnitude
+            rotation_quaternion = mathutils.Quaternion(rotEvaluator.evaluate(f))
             root_orientation = rotation_quaternion * bone_init_vector
-            distance += math.copysign(speed, root_orientation.dot(speed_vector))
+            speed = math.copysign(speed_vector.magnitude, root_orientation.dot(speed_vector))
             # yields only if speed has significantly changed (avoids unecessary keyframes)
-            if abs(speed - prev_speed) > prev_speed / 100 or f == self.frame_end:
+            if abs(speed - prev_speed) > self.keyframe_tolerance / 100:
                 prev_speed = speed
-                yield f, distance
+                yield f - 1, distance
+            distance += speed
             prev_pos = pos
+        yield self.frame_end, distance
 
     def _bake_wheel_rotation(self, context, source_bone, target_bone):
         source_action = context.object.animation_data.action
@@ -175,17 +179,22 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
         locEvaluator = self._create_location_evaluator(action, source_bone)
         rotEvaluator = self._create_rotation_evaluator(action, source_bone)
 
-        init_vector= source_bone.tail - source_bone.head
+        init_vector = source_bone.head - source_bone.tail
         current_pos = mathutils.Vector(locEvaluator.evaluate(self.frame_start))
         prev_rotation = 0
-        for f in range(self.frame_start, self.frame_end + 1):
+        for f in range(self.frame_start, self.frame_end):
             next_pos = mathutils.Vector(locEvaluator.evaluate(f + 1))
-            tangent_vector = next_pos - current_pos
-            current_vector = mathutils.Quaternion(rotEvaluator.evaluate(f)).inverted() * tangent_vector
-            rotation = current_vector.xy.angle_signed(init_vector.xy, prev_rotation)
-            yield f, rotation
+            world_space_tangent_vector = next_pos - current_pos
+            local_space_tangent_vector = mathutils.Quaternion(rotEvaluator.evaluate(f)).inverted() * world_space_tangent_vector
+            current_rotation = local_space_tangent_vector.xy.angle_signed(init_vector.xy, prev_rotation)
+            if abs(prev_rotation - current_rotation) > self.keyframe_tolerance / 100 or f == self.frame_start:
+                if f > 1:
+                    yield f - 1, prev_rotation
+                yield f, current_rotation
+            prev_rotation = current_rotation
             current_pos = next_pos
-            prev_rotation = rotation
+
+        yield self.frame_end, prev_rotation
 
     def _bake_steering_rotation(self, context, distance, source_bone, target_bone):
         source_action = context.object.animation_data.action
@@ -197,7 +206,8 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
 
             for f, rotation_angle in self._evaluate_rotation_per_frame(source_action, source_bone):
                 # TODO use correct ratio and correct bone
-                fc_rot.keyframe_points.insert(f, math.tan(rotation_angle) * distance)
+                kf = fc_rot.keyframe_points.insert(f, math.tan(rotation_angle) * distance)
+                kf.interpolation = 'LINEAR'
         finally:
             if self.visual_keying:
                 bpy.data.actions.remove(source_action)
