@@ -601,7 +601,7 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
         b = rig.data.edit_bones.new('DEF-' + name)
 
         for target_obj in selected_objects:
-            if target_obj.name == name:
+            if target_obj.name.endswith(name):
                 b.head = target_obj.location + delta_pos
                 b.tail = b.head
                 b.tail.y += target_obj.dimensions[1] / 2 if target_obj.dimensions and target_obj.dimensions[0] != 0 else 1
