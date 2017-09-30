@@ -27,6 +27,13 @@ DEF_BONE_LAYER = 30
 MCH_BONE_LAYER = 31
 
 
+def deselect_edit_bones(ob):
+    for b in ob.data.edit_bones:
+        b.select = False
+        b.select_head = False
+        b.select_tail = False
+
+
 def create_constraint_influence_driver(ob, cns, driver_data_path, base_influence=1.0):
     fcurve = cns.driver_add('influence')
     drv = fcurve.driver
@@ -190,6 +197,8 @@ def generate_animation_rig(context):
     steering.tail = steeringController.tail
     steering.use_deform = False
     steering.parent = steeringController
+
+    deselect_edit_bones(ob)
 
     amt['Car Rig'] = True
 
@@ -640,6 +649,8 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
         self._create_bone(selected_objects, rig, 'Wheel.Ft.R', delta_pos=self.front_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))), delta_length=self.front_wheel_size_delta)
         self._create_bone(selected_objects, rig, 'Wheel.Bk.L', delta_pos=self.back_wheel_pos_delta, delta_length=self.back_wheel_size_delta)
         self._create_bone(selected_objects, rig, 'Wheel.Bk.R', delta_pos=self.back_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))), delta_length=self.back_wheel_size_delta)
+
+        deselect_edit_bones(rig)
 
         bpy.ops.object.mode_set(mode='OBJECT')
         context.scene.update()
