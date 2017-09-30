@@ -92,8 +92,7 @@ def generate_animation_rig(context):
     drift = amt.edit_bones.new('Drift')
     drift.head = pos_front
     drift.tail = pos_front
-    drift.head.y -= root.length * 0.5
-    drift.tail.y -= root.length * 0.8
+    drift.tail.y -= 1
     drift.head.z = body.envelope_distance * .8
     drift.tail.z = body.envelope_distance * .8
     drift.roll = math.pi
@@ -181,20 +180,23 @@ def generate_animation_rig(context):
     mchSteering = amt.edit_bones.new('MCH-Steering')
     mchSteering.head = pos_front
     mchSteering.tail = pos_front
-    mchSteering.tail.y += body.length * 0.3
+    mchSteering.tail.y += 2
     mchSteering.use_deform = False
     mchSteering.parent = root
 
     steeringController = amt.edit_bones.new('MCH-Steering.controller')
     steeringController.head = mchSteering.head
-    steeringController.tail = mchSteering.head
-    steeringController.head.y -= 2
+    steeringController.tail = mchSteering.tail
+    steeringController.head.y -= body.length * .5
+    steeringController.tail.y -= body.length * .5
     steeringController.use_deform = False
     steeringController.parent = root
 
     steering = amt.edit_bones.new('Steering')
     steering.head = steeringController.head
     steering.tail = steeringController.tail
+    steering.head.y -= body.length * .5
+    steering.tail.y -= body.length * .5
     steering.use_deform = False
     steering.parent = steeringController
 
