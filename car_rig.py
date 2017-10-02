@@ -75,8 +75,10 @@ def generate_animation_rig(context):
     pos_front = (wheelFtR.head + wheelFtL.head) / 2
     pos_back = (wheelBkR.head + wheelBkL.head) / 2
     pos_body = body.head
-    body_width = max([w.envelope_distance for w in (wheelFtR, wheelFtL, wheelBkL, wheelBkR)])
+    body_width = max([abs(w.head.x) + w.length for w in (wheelFtR, wheelFtL, wheelBkL, wheelBkR)])
     body_length = max(body.length, body_width)
+    body_height = min(body_width, body_length) * 1.5
+    body_height = max(body_height, pos_body.z * 3)
 
     root = amt.edit_bones.new('Root')
     root.head = (pos_front.x, pos_front.y, 0)
@@ -93,8 +95,8 @@ def generate_animation_rig(context):
     drift.head = pos_front
     drift.tail = pos_front
     drift.tail.y -= 1
-    drift.head.z = body.envelope_distance * .8
-    drift.tail.z = body.envelope_distance * .8
+    drift.head.z = body_height * .8
+    drift.tail.z = body_height * .8
     drift.roll = math.pi
     drift.use_deform = False
     drift.parent = root
@@ -107,8 +109,8 @@ def generate_animation_rig(context):
     wheels = amt.edit_bones.new('Front Wheels')
     wheels.head = wheelFtL.head
     wheels.tail = wheelFtL.tail
-    wheels.head.x = math.copysign(wheelFtL.envelope_distance + .03, wheels.head.x)
-    wheels.tail.x = math.copysign(wheelFtL.envelope_distance + .03, wheels.tail.x)
+    wheels.head.x = math.copysign(wheelFtL.head.x + 1.1 * wheelFtL.length, wheels.head.x)
+    wheels.tail.x = math.copysign(wheelFtL.tail.x + 1.1 * wheelFtL.length, wheels.tail.x)
     wheels.use_deform = False
     wheels.parent = amt.edit_bones['WheelDamper.Ft.L']
 
@@ -123,8 +125,8 @@ def generate_animation_rig(context):
     wheels = amt.edit_bones.new('Back Wheels')
     wheels.head = wheelBkL.head
     wheels.tail = wheelBkL.tail
-    wheels.head.x = math.copysign(wheelBkL.envelope_distance + .03, wheels.head.x)
-    wheels.tail.x = math.copysign(wheelBkL.envelope_distance + .03, wheels.tail.x)
+    wheels.head.x = math.copysign(wheelBkL.head.x + 1.1 * wheelBkL.length, wheels.head.x)
+    wheels.tail.x = math.copysign(wheelBkL.tail.x + 1.1 * wheelBkL.length, wheels.tail.x)
     wheels.use_deform = False
     wheels.parent = amt.edit_bones['WheelDamper.Bk.L']
 
@@ -171,9 +173,9 @@ def generate_animation_rig(context):
     suspension = amt.edit_bones.new('Suspension')
     suspension.head = body.head
     suspension.tail = body.head
-    suspension.tail.y += body.envelope_distance
-    suspension.head.z = body.envelope_distance * 1.2
-    suspension.tail.z = body.envelope_distance * 1.2
+    suspension.tail.y += body_width
+    suspension.head.z = body_height * 1.2
+    suspension.tail.z = body_height * 1.2
     suspension.use_deform = False
     suspension.parent = axis
 
@@ -210,9 +212,9 @@ def generate_animation_wheel_bones(amt, name_suffix, parent_bone):
 
     ground_sensor = amt.edit_bones.new('GroundSensor.%s' % name_suffix)
     ground_sensor.head = def_wheel_bone.head
-    ground_sensor.head.x = math.copysign(def_wheel_bone.envelope_distance - def_wheel_bone.length / 2, ground_sensor.head.x)
+    ground_sensor.head.x = math.copysign(abs(def_wheel_bone.head.x) + def_wheel_bone.length * 1.1 / 2, ground_sensor.head.x)
     ground_sensor.tail = def_wheel_bone.tail
-    ground_sensor.tail.x = math.copysign(def_wheel_bone.envelope_distance - def_wheel_bone.length / 2, ground_sensor.tail.x)
+    ground_sensor.tail.x = math.copysign(abs(def_wheel_bone.tail.x) + def_wheel_bone.length * 1.1 / 2, ground_sensor.tail.x)
     ground_sensor.head.z = 0
     ground_sensor.tail.z = 0
     ground_sensor.use_deform = False
@@ -221,8 +223,8 @@ def generate_animation_wheel_bones(amt, name_suffix, parent_bone):
     wheel_damper = amt.edit_bones.new('WheelDamper.%s' % name_suffix)
     wheel_damper.head = def_wheel_bone.head
     wheel_damper.tail = def_wheel_bone.tail
-    wheel_damper.head.x = math.copysign(def_wheel_bone.envelope_distance + .2 * def_wheel_bone.length, wheel_damper.head.x)
-    wheel_damper.tail.x = math.copysign(def_wheel_bone.envelope_distance + .2 * def_wheel_bone.length, wheel_damper.tail.x)
+    wheel_damper.head.x = math.copysign(abs(def_wheel_bone.head.x) + 1.1 * def_wheel_bone.length, wheel_damper.head.x)
+    wheel_damper.tail.x = math.copysign(abs(def_wheel_bone.tail.x) + 1.1 * def_wheel_bone.length, wheel_damper.tail.x)
     wheel_damper.head.z *= 1.5
     wheel_damper.tail.z *= 1.5
     wheel_damper.use_deform = False
@@ -599,15 +601,6 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
         'Wheel.Bk.R': mathutils.Vector((-.9,  2,  .5))
     }
 
-    def _compute_envelope_distance(self, obj, bound_box_co_index, default_offset):
-        if obj.bound_box is None:
-            return default_offset + abs(obj.location[bound_box_co_index])
-
-        factor = math.copysign(1, obj.location[bound_box_co_index])
-        max_bb = max([bb[bound_box_co_index] * factor for bb in obj.bound_box])
-
-        return (max_bb if max_bb > 0 else default_offset) + abs(obj.location[bound_box_co_index])
-
     def _create_bone(self, selected_objects, rig, name, delta_pos, delta_length):
         b = rig.data.edit_bones.new('DEF-' + name)
 
@@ -617,11 +610,6 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
                 b.tail = b.head
                 b.tail.y += target_obj.dimensions[1] / 2 if target_obj.dimensions and target_obj.dimensions[0] != 0 else 1
                 b.tail.y += delta_length
-                if b.name == 'DEF-Body':
-                    b.envelope_distance = self._compute_envelope_distance(target_obj, bound_box_co_index=2, default_offset=.5)
-                else:
-                    b.envelope_distance = self._compute_envelope_distance(target_obj, bound_box_co_index=0, default_offset=.25)
-
                 target_obj.parent = rig
                 target_obj.parent_bone = b.name
                 target_obj.parent_type = 'BONE'
@@ -632,7 +620,6 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
         b.head = self.default_position[name] + delta_pos
         b.tail = b.head
         b.tail.y += 1.0 + delta_length
-        b.envelope_distance = abs(b.head.x) + .5 if b.name != 'DEF-Body' else abs(b.head.z) * 3
 
     def execute(self, context):
         """Creates the meta rig with basic bones"""
