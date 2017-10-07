@@ -44,7 +44,7 @@ class BakingOperator:
     frame_start = bpy.props.IntProperty(name='Start Frame', min=1)
     frame_end = bpy.props.IntProperty(name='End Frame', min=1)
     visual_keying = bpy.props.BoolProperty(name='Visual Keying', default=True)
-    keyframe_tolerance = bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.1)
+    keyframe_tolerance = bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.5)
 
     @classmethod
     def poll(cls, context):
@@ -187,6 +187,9 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
             next_pos = mathutils.Vector(locEvaluator.evaluate(f + 1))
             world_space_tangent_vector = next_pos - current_pos
             local_space_tangent_vector = mathutils.Quaternion(rotEvaluator.evaluate(f)).inverted() * world_space_tangent_vector
+            # FIX : ignores small location variations (probably rounding errors)
+            if local_space_tangent_vector.length < source_bone.length / 1000:
+                continue
             current_rotation = local_space_tangent_vector.xy.angle_signed(init_vector.xy, prev_rotation)
             if abs(prev_rotation - current_rotation) > self.keyframe_tolerance / 100 or f == self.frame_start:
                 if f > 1:
