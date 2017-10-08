@@ -528,7 +528,6 @@ def generate_constraints_on_wheel_bones(ob, name_suffix):
     cns.target_space = 'LOCAL'
 
     def_wheel = pose.bones['DEF-Wheel.%s' % name_suffix]
-    def_wheel.rotation_mode = "XYZ"
     cns = def_wheel.constraints.new('COPY_TRANSFORMS')
     cns.target = ob
     cns.subtarget = 'MCH-Wheel.%s' % name_suffix
