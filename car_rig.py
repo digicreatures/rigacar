@@ -430,9 +430,9 @@ def generate_constraints_on_rig(context):
     cns.target = ob
     cns.subtarget = 'MCH-Body'
 
-    create_bone_group(pose, 'Direction', color_set='THEME04', bone_names=('Root', 'Steering', 'Drift'))
-    create_bone_group(pose, 'Wheel', color_set='THEME03', bone_names=('Front Wheels', 'Back Wheels'))
+    create_bone_group(pose, 'Direction', color_set='THEME04', bone_names=('Root', 'Drift'))
     create_bone_group(pose, 'Suspension', color_set='THEME09', bone_names=('Suspension', 'WheelDamper.Ft.L', 'WheelDamper.Ft.R', 'WheelDamper.Bk.L', 'WheelDamper.Bk.R'))
+    create_bone_group(pose, 'Wheel', color_set='THEME03', bone_names=('Steering', 'Front Wheels', 'Back Wheels'))
     create_bone_group(pose, 'GroundSensor', color_set='THEME02', bone_names=('GroundSensor.Ft.L', 'GroundSensor.Ft.R', 'GroundSensor.Bk.L', 'GroundSensor.Bk.R'))
 
 
