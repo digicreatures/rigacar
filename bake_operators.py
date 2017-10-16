@@ -188,7 +188,7 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
             world_space_tangent_vector = next_pos - current_pos
             local_space_tangent_vector = mathutils.Quaternion(rotEvaluator.evaluate(f)).inverted() * world_space_tangent_vector
             # FIX : ignores small location variations (probably rounding errors)
-            if local_space_tangent_vector.length < source_bone.length / 1000:
+            if local_space_tangent_vector.length < source_bone.length / 50:
                 continue
             current_rotation = local_space_tangent_vector.xy.angle_signed(init_vector.xy, prev_rotation)
             if abs(prev_rotation - current_rotation) > self.keyframe_tolerance / 100 or f == self.frame_start:
