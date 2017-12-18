@@ -618,7 +618,11 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
 
         b.head = self.default_position[name] + delta_pos
         b.tail = b.head
-        b.tail.y += 1.0 + delta_length
+        b.tail.y += delta_length
+        if name == 'Body':
+            b.tail.y += b.tail.z * 4
+        else:
+            b.tail.y += b.tail.z
 
     def execute(self, context):
         """Creates the meta rig with basic bones"""
