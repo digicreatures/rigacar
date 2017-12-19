@@ -85,11 +85,11 @@ def generate_animation_rig(context):
     root.tail = (pos_back.x, pos_back.y + body_length, 0)
     root.use_deform = False
 
-    rootCenter = amt.edit_bones.new('Root.center')
-    rootCenter.head = (body.head.x, body.head.y, 0)
-    rootCenter.tail = (body.head.x, body.head.y + body_length, 0)
-    rootCenter.use_deform = False
-    rootCenter.parent = root
+    shapeRoot = amt.edit_bones.new('SHP-Root')
+    shapeRoot.head = (body.head.x, body.head.y, 0)
+    shapeRoot.tail = (body.head.x, body.head.y + body_length, 0)
+    shapeRoot.use_deform = False
+    shapeRoot.parent = root
 
     drift = amt.edit_bones.new('Drift')
     drift.head = pos_front
@@ -251,6 +251,7 @@ def generate_constraints_on_rig(context):
     ob = context.object
     ob.draw_type = 'WIRE'
     pose = ob.pose
+    amt = ob.data
 
     for b in pose.bones:
         if b.name.startswith('DEF-') or b.name.startswith('MCH-'):
@@ -360,17 +361,17 @@ def generate_constraints_on_rig(context):
         cns.target_space = 'LOCAL'
         create_constraint_influence_driver(ob, cns, '["suspension_rolling_factor"]', base_influence=influence)
 
-    rootCenter = pose.bones['Root.center']
-    rootCenter.lock_location = (True, True, True)
-    rootCenter.lock_rotation = (True, True, True)
-    rootCenter.lock_scale = (True, True, True)
-    rootCenter.lock_rotation_w = True
-    rootCenter.custom_shape = bpy.data.objects['WGT-CarRig.Root.center']
+    shapeRoot = pose.bones['SHP-Root']
+    shapeRoot.lock_location = (True, True, True)
+    shapeRoot.lock_rotation = (True, True, True)
+    shapeRoot.lock_scale = (True, True, True)
+    shapeRoot.lock_rotation_w = True
+    amt.bones['SHP-Root'].hide = True
 
     root = pose.bones['Root']
     root.lock_scale = (True, True, True)
     root.custom_shape = bpy.data.objects['WGT-CarRig.Root']
-    root.custom_shape_transform = rootCenter
+    root.custom_shape_transform = shapeRoot
 
     drift = pose.bones['Drift']
     drift.lock_location = (True, True, True)
@@ -449,7 +450,7 @@ def generate_constraints_on_rig(context):
     cns.target = ob
     cns.subtarget = 'MCH-Body'
 
-    create_bone_group(pose, 'Direction', color_set='THEME04', bone_names=('Root', 'Drift'))
+    create_bone_group(pose, 'Direction', color_set='THEME04', bone_names=('Root', 'Drift', 'SHP-Root'))
     create_bone_group(pose, 'Suspension', color_set='THEME09', bone_names=('Suspension', 'WheelDamper.Ft.L', 'WheelDamper.Ft.R', 'WheelDamper.Bk.L', 'WheelDamper.Bk.R'))
     create_bone_group(pose, 'Wheel', color_set='THEME03', bone_names=('Steering', 'Front Wheels', 'Back Wheels'))
     create_bone_group(pose, 'GroundSensor', color_set='THEME02', bone_names=('GroundSensor.Ft.L', 'GroundSensor.Ft.R', 'GroundSensor.Bk.L', 'GroundSensor.Bk.R'))
