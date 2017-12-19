@@ -94,12 +94,19 @@ def generate_animation_rig(context):
     drift = amt.edit_bones.new('Drift')
     drift.head = pos_front
     drift.tail = pos_front
-    drift.tail.y -= body_length / 4
-    drift.head.z = body_height * .8
-    drift.tail.z = body_height * .8
+    drift.tail.y -= body_length
+    drift.head.z = wheelBkL.head.z
+    drift.tail.z = wheelBkL.head.z
     drift.roll = math.pi
     drift.use_deform = False
     drift.parent = root
+
+    shapeDrift = amt.edit_bones.new('SHP-Drift')
+    shapeDrift.head = (body.tail.x, body.tail.y * 1.05, drift.head.z)
+    shapeDrift.tail = shapeDrift.head
+    shapeDrift.tail.y += 1
+    shapeDrift.use_deform = False
+    shapeDrift.parent = drift
 
     generate_animation_wheel_bones(amt, 'Ft.L', drift)
     generate_animation_wheel_bones(amt, 'Ft.R', drift)
@@ -373,12 +380,20 @@ def generate_constraints_on_rig(context):
     root.custom_shape = bpy.data.objects['WGT-CarRig.Root']
     root.custom_shape_transform = shapeRoot
 
+    shapeDrift = pose.bones['SHP-Drift']
+    shapeDrift.lock_location = (True, True, True)
+    shapeDrift.lock_rotation = (True, True, True)
+    shapeDrift.lock_scale = (True, True, True)
+    shapeDrift.lock_rotation_w = True
+    amt.bones['SHP-Drift'].hide = True
+
     drift = pose.bones['Drift']
     drift.lock_location = (True, True, True)
     drift.lock_rotation = (True, True, False)
     drift.lock_scale = (True, True, True)
     drift.rotation_mode = 'ZYX'
     drift.custom_shape = bpy.data.objects['WGT-CarRig.Drift']
+    drift.custom_shape_transform = shapeDrift
 
     suspension = pose.bones['Suspension']
     suspension.lock_rotation = (True, True, True)
@@ -450,7 +465,7 @@ def generate_constraints_on_rig(context):
     cns.target = ob
     cns.subtarget = 'MCH-Body'
 
-    create_bone_group(pose, 'Direction', color_set='THEME04', bone_names=('Root', 'Drift', 'SHP-Root'))
+    create_bone_group(pose, 'Direction', color_set='THEME04', bone_names=('Root', 'Drift', 'SHP-Root', 'SHP-Drift'))
     create_bone_group(pose, 'Suspension', color_set='THEME09', bone_names=('Suspension', 'WheelDamper.Ft.L', 'WheelDamper.Ft.R', 'WheelDamper.Bk.L', 'WheelDamper.Bk.R'))
     create_bone_group(pose, 'Wheel', color_set='THEME03', bone_names=('Steering', 'Front Wheels', 'Back Wheels'))
     create_bone_group(pose, 'GroundSensor', color_set='THEME02', bone_names=('GroundSensor.Ft.L', 'GroundSensor.Ft.R', 'GroundSensor.Bk.L', 'GroundSensor.Bk.R'))
