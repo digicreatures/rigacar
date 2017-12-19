@@ -119,6 +119,7 @@ def generate_animation_rig(context):
     mch_wheels.tail = wheelFtL.tail
     mch_wheels.head.x /= 2
     mch_wheels.tail.x /= 2
+    mch_wheels.tail.y = mch_wheels.head.y + 1
     mch_wheels.use_deform = False
 
     wheels = amt.edit_bones.new('Back Wheels')
@@ -134,6 +135,7 @@ def generate_animation_rig(context):
     mch_wheels.tail = wheelBkL.tail
     mch_wheels.head.x /= 2
     mch_wheels.tail.x /= 2
+    mch_wheels.tail.y = mch_wheels.head.y + 1
     mch_wheels.use_deform = False
 
     axisFt = amt.edit_bones.new('MCH-Axis.Ft')
@@ -507,9 +509,9 @@ def generate_constraints_on_wheel_bones(ob, name_suffix):
 
     targ = var.targets[0]
     targ.id = ob
+    targ.transform_space = 'TRANSFORM_SPACE'
     targ.bone_target = 'MCH-Wheels.%s' % ('Ft' if name_suffix.startswith('Ft.') else 'Bk')
     targ.transform_type = 'ROT_X'
-    targ.transform_space = "LOCAL_SPACE"
 
     fmod = fcurve.modifiers[0]
     fmod.mode = 'POLYNOMIAL'
