@@ -43,8 +43,7 @@ class FCurvesEvaluator:
 class BakingOperator:
     frame_start = bpy.props.IntProperty(name='Start Frame', min=1)
     frame_end = bpy.props.IntProperty(name='End Frame', min=1)
-    visual_keying = bpy.props.BoolProperty(name='Visual Keying', default=True)
-    keyframe_tolerance = bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.5)
+    keyframe_tolerance = bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.3)
 
     @classmethod
     def poll(cls, context):
@@ -66,7 +65,6 @@ class BakingOperator:
     def draw(self, context):
         self.layout.prop(self, 'frame_start')
         self.layout.prop(self, 'frame_end')
-        self.layout.prop(self, 'visual_keying')
         self.layout.prop(self, 'keyframe_tolerance')
 
     def _create_rotation_euler_evaluator(self, action, source_bone):
@@ -179,14 +177,24 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
 
         init_vector = source_bone.head - source_bone.tail
         current_pos = mathutils.Vector(locEvaluator.evaluate(self.frame_start))
-        prev_rotation = 0
+        prev_pos = current_pos
+        prev_rotation = .0
         for f in range(self.frame_start, self.frame_end - 1):
-            next_pos = mathutils.Vector(locEvaluator.evaluate(f + 10))
+            next_pos = mathutils.Vector(locEvaluator.evaluate(f + 1))
+            speed = (next_pos - prev_pos).length
+            prev_pos = next_pos
+            next_frame = .0
+            if speed > 0.0:
+                next_frame = 1.0 / speed
+            next_pos = mathutils.Vector(locEvaluator.evaluate(f + next_frame))
+
             world_space_tangent_vector = next_pos - current_pos
             local_space_tangent_vector = mathutils.Quaternion(rotEvaluator.evaluate(f)).inverted() * world_space_tangent_vector
+
             # FIX : ignores small location variations (probably rounding errors)
             if local_space_tangent_vector.length < source_bone.length / 50:
                 continue
+
             current_rotation = local_space_tangent_vector.xy.angle_signed(init_vector.xy, prev_rotation)
             if abs(prev_rotation - current_rotation) > self.keyframe_tolerance / 100 or f == self.frame_start:
                 if f > 1:
@@ -199,19 +207,16 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
 
     def _bake_steering_rotation(self, context, distance, source_bone, target_bone):
         source_action = context.object.animation_data.action
-        if self.visual_keying:
-            source_action = self._bake_action(context, source_bone)
+        source_action = self._bake_action(context, source_bone)
 
         try:
             fc_rot = self._create_or_replace_fcurve(context, target_bone, "location")
 
             for f, rotation_angle in self._evaluate_rotation_per_frame(source_action, source_bone):
-                # TODO use correct ratio and correct bone
                 kf = fc_rot.keyframe_points.insert(f, math.tan(rotation_angle) * distance)
                 kf.interpolation = 'LINEAR'
         finally:
-            if self.visual_keying:
-                bpy.data.actions.remove(source_action)
+            bpy.data.actions.remove(source_action)
 
 
 def register():
