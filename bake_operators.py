@@ -184,7 +184,7 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
             speed = (next_pos - prev_pos).length
             prev_pos = next_pos
             next_frame = .0
-            if speed > 0.0:
+            if speed > 0.01:
                 next_frame = 1.0 / speed
             next_pos = mathutils.Vector(locEvaluator.evaluate(f + next_frame))
 
@@ -192,7 +192,7 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
             local_space_tangent_vector = mathutils.Quaternion(rotEvaluator.evaluate(f)).inverted() * world_space_tangent_vector
 
             # FIX : ignores small location variations (probably rounding errors)
-            if local_space_tangent_vector.length < source_bone.length / 50:
+            if local_space_tangent_vector.length < 1 / 100:
                 continue
 
             current_rotation = local_space_tangent_vector.xy.angle_signed(init_vector.xy, prev_rotation)
