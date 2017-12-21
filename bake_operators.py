@@ -69,11 +69,6 @@ class BakingOperator:
         self.layout.prop(self, 'visual_keying')
         self.layout.prop(self, 'keyframe_tolerance')
 
-    def _create_rotation_evaluator(self, action, source_bone):
-        fcurve_name = 'pose.bones["%s"].rotation_quaternion' % source_bone.name
-        fc_root_rot = [action.fcurves.find(fcurve_name, i) for i in range(0, 4)]
-        return FCurvesEvaluator(fc_root_rot, default_value=(1.0, .0, .0, .0))
-
     def _create_rotation_euler_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].rotation_euler' % source_bone.name
         fc_root_rot = [action.fcurves.find(fcurve_name, i) for i in range(0, 3)]
@@ -175,18 +170,18 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
             steering = context.object.data.bones['Steering']
             mch_steering = context.object.data.bones['MCH-Steering']
             distance = (steering.head - mch_steering.head).length
-            self._bake_steering_rotation(context, distance, context.object.data.bones['Root'], context.object.data.bones['MCH-Steering.controller'])
+            self._bake_steering_rotation(context, distance, context.object.data.bones['MCH-Wheels.Ft'], context.object.data.bones['MCH-Steering.controller'])
         return {'FINISHED'}
 
     def _evaluate_rotation_per_frame(self, action, source_bone):
         locEvaluator = self._create_location_evaluator(action, source_bone)
-        rotEvaluator = self._create_rotation_evaluator(action, source_bone)
+        rotEvaluator = self._create_rotation_euler_evaluator(action, source_bone)
 
         init_vector = source_bone.head - source_bone.tail
         current_pos = mathutils.Vector(locEvaluator.evaluate(self.frame_start))
         prev_rotation = 0
-        for f in range(self.frame_start, self.frame_end):
-            next_pos = mathutils.Vector(locEvaluator.evaluate(f + 1))
+        for f in range(self.frame_start, self.frame_end - 1):
+            next_pos = mathutils.Vector(locEvaluator.evaluate(f + 10))
             world_space_tangent_vector = next_pos - current_pos
             local_space_tangent_vector = mathutils.Quaternion(rotEvaluator.evaluate(f)).inverted() * world_space_tangent_vector
             # FIX : ignores small location variations (probably rounding errors)
