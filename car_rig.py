@@ -203,17 +203,15 @@ def generate_animation_rig(context):
 
     steeringController = amt.edit_bones.new('MCH-Steering.controller')
     steeringController.head = mchSteering.head
-    steeringController.tail = mchSteering.tail
-    steeringController.head.y -= body.length * .5
-    steeringController.tail.y -= body.length * .5
+    steeringController.tail = mchSteering.head
+    steeringController.tail.y += 1
     steeringController.use_deform = False
-    steeringController.parent = root
 
     steering = amt.edit_bones.new('Steering')
     steering.head = steeringController.head
     steering.tail = steeringController.tail
-    steering.head.y -= body.length * .5
-    steering.tail.y -= body.length * .5
+    steering.head.y -= body.length
+    steering.tail.y -= body.length
     steering.use_deform = False
     steering.parent = steeringController
 
@@ -407,6 +405,19 @@ def generate_constraints_on_rig(context):
     steering.lock_scale = (True, True, True)
     steering.lock_rotation_w = True
     steering.custom_shape = bpy.data.objects['WGT-CarRig.Steering']
+
+    mch_steering_controller = pose.bones['MCH-Steering.controller']
+    mch_steering_controller.rotation_mode = 'ZYX'
+    cns = mch_steering_controller.constraints.new('CHILD_OF')
+    cns.target = ob
+    cns.subtarget = 'Root'
+    cns.inverse_matrix = ob.data.bones['Root'].matrix_local.inverted()
+    cns.use_location_x = True
+    cns.use_location_y = True
+    cns.use_location_z = True
+    cns.use_rotation_x = True
+    cns.use_rotation_y = True
+    cns.use_rotation_z = True
 
     mch_steering = pose.bones['MCH-Steering']
     cns = mch_steering.constraints.new('DAMPED_TRACK')
