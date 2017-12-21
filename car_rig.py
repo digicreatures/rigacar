@@ -26,6 +26,45 @@ import mathutils
 DEF_BONE_LAYER = 30
 MCH_BONE_LAYER = 31
 
+class CarDimension():
+
+    def compute_position(self, left_bone, right_bone, default_pos):
+        if left_bone is None:
+            if right_bone is not None:
+                pos = right_bone.head
+                pos.x = default_pos.x
+            else:
+                pos = default_pos
+        elif right_bone is None:
+            if left_bone is not None:
+                pos = left_bone.head
+                pos.x = default_pos.x
+            else:
+                pos = default_pos
+        else:
+            pos = (left_bone.head + right_bone.head) / 2
+        return pos
+
+    def __init__(self, armature):
+        wheelFtL = armature.edit_bones.get('DEF-Wheel.Ft.L')
+        wheelFtR = armature.edit_bones.get('DEF-Wheel.Ft.R')
+        wheelBkR = armature.edit_bones.get('DEF-Wheel.Bk.R')
+        wheelBkL = armature.edit_bones.get('DEF-Wheel.Bk.L')
+        body = armature.edit_bones['DEF-Body']
+        
+        self.front = self.compute_position(wheelFtL, wheelFtR, body.head)
+        self.back = self.compute_position(wheelBkL, wheelBkR, body.head)
+        
+        widths = [abs(w.head.x) + w.length for w in (wheelFtR, wheelFtL, wheelBkL, wheelBkR) if w is not None]
+        if len(widths) == 0:
+            self.width = min(1, body.length)
+        else:
+            self.width = max(widths)
+        
+        self.length = max(body.length, self.width)
+        self.height = min(self.width, self.length) * 1.5
+        self.height = max(self.height, body.head.z * 3)
+    
 
 def deselect_edit_bones(ob):
     for b in ob.data.edit_bones:
@@ -65,38 +104,28 @@ def generate_animation_rig(context):
     amt = ob.data
 
     bpy.ops.object.mode_set(mode='EDIT')
+    
+    car_dimension = CarDimension(amt)
 
-    wheelFtR = amt.edit_bones['DEF-Wheel.Ft.R']
-    wheelFtL = amt.edit_bones['DEF-Wheel.Ft.L']
-    wheelBkR = amt.edit_bones['DEF-Wheel.Bk.R']
-    wheelBkL = amt.edit_bones['DEF-Wheel.Bk.L']
     body = amt.edit_bones['DEF-Body']
 
-    pos_front = (wheelFtR.head + wheelFtL.head) / 2
-    pos_back = (wheelBkR.head + wheelBkL.head) / 2
-    pos_body = body.head
-    body_width = max([abs(w.head.x) + w.length for w in (wheelFtR, wheelFtL, wheelBkL, wheelBkR)])
-    body_length = max(body.length, body_width)
-    body_height = min(body_width, body_length) * 1.5
-    body_height = max(body_height, pos_body.z * 3)
-
     root = amt.edit_bones.new('Root')
-    root.head = (pos_back.x, pos_back.y, 0)
-    root.tail = (pos_back.x, pos_back.y + body_length, 0)
+    root.head = (car_dimension.back.x, car_dimension.back.y, 0)
+    root.tail = (car_dimension.back.x, car_dimension.back.y + car_dimension.length, 0)
     root.use_deform = False
 
     shapeRoot = amt.edit_bones.new('SHP-Root')
     shapeRoot.head = (body.head.x, body.head.y, 0)
-    shapeRoot.tail = (body.head.x, body.head.y + body_length, 0)
+    shapeRoot.tail = (body.head.x, body.head.y + car_dimension.length, 0)
     shapeRoot.use_deform = False
     shapeRoot.parent = root
 
     drift = amt.edit_bones.new('Drift')
-    drift.head = pos_front
-    drift.tail = pos_front
-    drift.tail.y -= body_length
-    drift.head.z = wheelBkL.head.z
-    drift.tail.z = wheelBkL.head.z
+    drift.head = car_dimension.front
+    drift.tail = car_dimension.front
+    drift.tail.y -= car_dimension.length
+    drift.head.z = car_dimension.back.z
+    drift.tail.z = car_dimension.back.z
     drift.roll = math.pi
     drift.use_deform = False
     drift.parent = root
@@ -110,65 +139,95 @@ def generate_animation_rig(context):
 
     generate_animation_wheel_bones(amt, 'Ft.L', drift)
     generate_animation_wheel_bones(amt, 'Ft.R', drift)
+
+    wheelFtR = amt.edit_bones.get('DEF-Wheel.Ft.R')
+    wheelFtL = amt.edit_bones.get('DEF-Wheel.Ft.L')
+    
+    if wheelFtR is not None and wheelFtL is not None:
+        wheels = amt.edit_bones.new('Front Wheels')
+        wheels.head = wheelFtL.head
+        wheels.tail = wheelFtL.tail
+        wheels.head.x = math.copysign(wheelFtL.head.x + 1.1 * wheelFtL.length, wheels.head.x)
+        wheels.tail.x = math.copysign(wheelFtL.tail.x + 1.1 * wheelFtL.length, wheels.tail.x)
+        wheels.use_deform = False
+        wheels.parent = amt.edit_bones['WheelDamper.Ft.L']
+
+        mch_wheels = amt.edit_bones.new('MCH-Wheels.Ft')
+        mch_wheels.head = wheelFtL.head
+        mch_wheels.tail = wheelFtL.tail
+        mch_wheels.head.x /= 2
+        mch_wheels.tail.x /= 2
+        mch_wheels.tail.y = mch_wheels.head.y + 1
+        mch_wheels.use_deform = False
+
+        axisFt = amt.edit_bones.new('MCH-Axis.Ft')
+        axisFt.head = wheelFtR.head
+        axisFt.tail = wheelFtL.head
+        axisFt.use_deform = False
+        axisFt.parent = drift
+
+        mchSteering = amt.edit_bones.new('MCH-Steering')
+        mchSteering.head = car_dimension.front
+        mchSteering.tail = car_dimension.front
+        mchSteering.tail.y += car_dimension.length / 2
+        mchSteering.use_deform = False
+        mchSteering.parent = root
+
+        steeringController = amt.edit_bones.new('MCH-Steering.controller')
+        steeringController.head = mchSteering.head
+        steeringController.tail = mchSteering.head
+        steeringController.tail.y += 1
+        steeringController.use_deform = False
+
+        steering = amt.edit_bones.new('Steering')
+        steering.head = steeringController.head
+        steering.tail = steeringController.tail
+        steering.head.y -= body.length
+        steering.tail.y -= body.length
+        steering.use_deform = False
+        steering.parent = steeringController
+
     generate_animation_wheel_bones(amt, 'Bk.L', drift)
     generate_animation_wheel_bones(amt, 'Bk.R', drift)
 
-    wheels = amt.edit_bones.new('Front Wheels')
-    wheels.head = wheelFtL.head
-    wheels.tail = wheelFtL.tail
-    wheels.head.x = math.copysign(wheelFtL.head.x + 1.1 * wheelFtL.length, wheels.head.x)
-    wheels.tail.x = math.copysign(wheelFtL.tail.x + 1.1 * wheelFtL.length, wheels.tail.x)
-    wheels.use_deform = False
-    wheels.parent = amt.edit_bones['WheelDamper.Ft.L']
+    wheelBkR = amt.edit_bones.get('DEF-Wheel.Bk.R')
+    wheelBkL = amt.edit_bones.get('DEF-Wheel.Bk.L')
 
-    mch_wheels = amt.edit_bones.new('MCH-Wheels.Ft')
-    mch_wheels.head = wheelFtL.head
-    mch_wheels.tail = wheelFtL.tail
-    mch_wheels.head.x /= 2
-    mch_wheels.tail.x /= 2
-    mch_wheels.tail.y = mch_wheels.head.y + 1
-    mch_wheels.use_deform = False
+    if wheelBkR is not None and wheelBkL is not None:
+        wheels = amt.edit_bones.new('Back Wheels')
+        wheels.head = wheelBkL.head
+        wheels.tail = wheelBkL.tail
+        wheels.head.x = math.copysign(wheelBkL.head.x + 1.1 * wheelBkL.length, wheels.head.x)
+        wheels.tail.x = math.copysign(wheelBkL.tail.x + 1.1 * wheelBkL.length, wheels.tail.x)
+        wheels.use_deform = False
+        wheels.parent = amt.edit_bones['WheelDamper.Bk.L']
 
-    wheels = amt.edit_bones.new('Back Wheels')
-    wheels.head = wheelBkL.head
-    wheels.tail = wheelBkL.tail
-    wheels.head.x = math.copysign(wheelBkL.head.x + 1.1 * wheelBkL.length, wheels.head.x)
-    wheels.tail.x = math.copysign(wheelBkL.tail.x + 1.1 * wheelBkL.length, wheels.tail.x)
-    wheels.use_deform = False
-    wheels.parent = amt.edit_bones['WheelDamper.Bk.L']
+        mch_wheels = amt.edit_bones.new('MCH-Wheels.Bk')
+        mch_wheels.head = wheelBkL.head
+        mch_wheels.tail = wheelBkL.tail
+        mch_wheels.head.x /= 2
+        mch_wheels.tail.x /= 2
+        mch_wheels.tail.y = mch_wheels.head.y + 1
+        mch_wheels.use_deform = False
 
-    mch_wheels = amt.edit_bones.new('MCH-Wheels.Bk')
-    mch_wheels.head = wheelBkL.head
-    mch_wheels.tail = wheelBkL.tail
-    mch_wheels.head.x /= 2
-    mch_wheels.tail.x /= 2
-    mch_wheels.tail.y = mch_wheels.head.y + 1
-    mch_wheels.use_deform = False
-
-    axisFt = amt.edit_bones.new('MCH-Axis.Ft')
-    axisFt.head = wheelFtR.head
-    axisFt.tail = wheelFtL.head
-    axisFt.use_deform = False
-    axisFt.parent = drift
-
-    axisBk = amt.edit_bones.new('MCH-Axis.Bk')
-    axisBk.head = wheelBkR.head
-    axisBk.tail = wheelBkL.head
-    axisBk.use_deform = False
-    axisBk.parent = drift
+        axisBk = amt.edit_bones.new('MCH-Axis.Bk')
+        axisBk.head = wheelBkR.head
+        axisBk.tail = wheelBkL.head
+        axisBk.use_deform = False
+        axisBk.parent = drift
 
     suspensionBk = amt.edit_bones.new('MCH-Suspension.Bk')
-    suspensionBk.head = pos_back
-    suspensionBk.tail = pos_back
+    suspensionBk.head = car_dimension.back
+    suspensionBk.tail = car_dimension.back
     suspensionBk.tail.y += 2
     suspensionBk.use_deform = False
     suspensionBk.parent = drift
 
     suspensionFt = amt.edit_bones.new('MCH-Suspension.Ft')
-    suspensionFt.head = pos_front
+    suspensionFt.head = car_dimension.front
     align_vector = suspensionBk.head - suspensionFt.head
     align_vector.magnitude = 2
-    suspensionFt.tail = pos_front + align_vector
+    suspensionFt.tail = car_dimension.front + align_vector
     suspensionFt.use_deform = False
     suspensionFt.parent = drift
 
@@ -188,32 +247,11 @@ def generate_animation_rig(context):
     suspension = amt.edit_bones.new('Suspension')
     suspension.head = body.head
     suspension.tail = body.head
-    suspension.tail.y += body_width
-    suspension.head.z = body_height * 1.2
-    suspension.tail.z = body_height * 1.2
+    suspension.tail.y += car_dimension.length / 2
+    suspension.head.z = car_dimension.height * 1.2
+    suspension.tail.z = car_dimension.height * 1.2
     suspension.use_deform = False
     suspension.parent = axis
-
-    mchSteering = amt.edit_bones.new('MCH-Steering')
-    mchSteering.head = pos_front
-    mchSteering.tail = pos_front
-    mchSteering.tail.y += body_width
-    mchSteering.use_deform = False
-    mchSteering.parent = root
-
-    steeringController = amt.edit_bones.new('MCH-Steering.controller')
-    steeringController.head = mchSteering.head
-    steeringController.tail = mchSteering.head
-    steeringController.tail.y += 1
-    steeringController.use_deform = False
-
-    steering = amt.edit_bones.new('Steering')
-    steering.head = steeringController.head
-    steering.tail = steeringController.tail
-    steering.head.y -= body.length
-    steering.tail.y -= body.length
-    steering.use_deform = False
-    steering.parent = steeringController
 
     deselect_edit_bones(ob)
 
@@ -221,7 +259,10 @@ def generate_animation_rig(context):
 
 
 def generate_animation_wheel_bones(amt, name_suffix, parent_bone):
-    def_wheel_bone = amt.edit_bones['DEF-Wheel.%s' % name_suffix]
+    def_wheel_bone = amt.edit_bones.get('DEF-Wheel.%s' % name_suffix)
+
+    if def_wheel_bone is None:
+        return
 
     ground_sensor = amt.edit_bones.new('GroundSensor.%s' % name_suffix)
     ground_sensor.head = def_wheel_bone.head
@@ -270,101 +311,108 @@ def generate_constraints_on_rig(context):
     generate_constraints_on_wheel_bones(ob, 'Bk.L')
     generate_constraints_on_wheel_bones(ob, 'Bk.R')
 
-    wheels = pose.bones['Front Wheels']
-    wheels.rotation_mode = "XYZ"
-    wheels.lock_location = (True, True, True)
-    wheels.lock_rotation = (False, True, True)
-    wheels.lock_scale = (True, True, True)
-    wheels.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
-    cns = wheels.constraints.new('COPY_ROTATION')
-    cns.name = 'Steering rotation'
-    cns.target = ob
-    cns.subtarget = 'MCH-Steering'
-    cns.use_x = False
-    cns.use_y = False
-    cns.use_z = True
-    cns.owner_space = 'LOCAL'
-    cns.target_space = 'LOCAL'
-
-    wheels = pose.bones['Back Wheels']
-    wheels.rotation_mode = "XYZ"
-    wheels.lock_location = (True, True, True)
-    wheels.lock_rotation = (False, True, True)
-    wheels.lock_scale = (True, True, True)
-    wheels.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
-    
-    for mch_wheels_pos in ('Ft', 'Bk'):
-        mch_wheels = pose.bones['MCH-Wheels.%s' % mch_wheels_pos]
-        mch_wheels.rotation_mode = "XYZ"
-        cns = mch_wheels.constraints.new('CHILD_OF')
+    wheels = pose.bones.get('Front Wheels')
+    if wheels is not None:
+        wheels.rotation_mode = "XYZ"
+        wheels.lock_location = (True, True, True)
+        wheels.lock_rotation = (False, True, True)
+        wheels.lock_scale = (True, True, True)
+        wheels.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
+        cns = wheels.constraints.new('COPY_ROTATION')
+        cns.name = 'Steering rotation'
         cns.target = ob
-        cns.subtarget = 'Root'
-        cns.inverse_matrix = ob.data.bones['Root'].matrix_local.inverted()
-        cns.use_location_x = True
-        cns.use_location_y = True
-        cns.use_location_z = True
-        cns.use_rotation_x = True
-        cns.use_rotation_y = True
-        cns.use_rotation_z = True
-
-    for suspension_pos in ('Ft', 'Bk'):
-        mch_suspension = pose.bones['MCH-Suspension.%s' % suspension_pos]
-        subtarget = 'MCH-Axis.%s' % suspension_pos
-        cns = mch_suspension.constraints.new('COPY_LOCATION')
-        cns.name = 'Location from %s' % subtarget
-        cns.target = ob
-        cns.subtarget = subtarget
-        cns.head_tail = .5
+        cns.subtarget = 'MCH-Steering'
         cns.use_x = False
         cns.use_y = False
         cns.use_z = True
-        cns.owner_space = 'WORLD'
-        cns.target_space = 'WORLD'
-        create_constraint_influence_driver(ob, cns, '["suspension_factor"]')
-
-        if suspension_pos == 'Ft':
-            cns = mch_suspension.constraints.new('DAMPED_TRACK')
-            cns.name = 'Track suspension back'
-            cns.target = ob
-            cns.subtarget = 'MCH-Suspension.Bk'
-            cns.track_axis = 'TRACK_Y'
-
-    for axis_pos in ('Ft', 'Bk'):
-        mch_axis = pose.bones['MCH-Axis.%s' % axis_pos]
-        cns = mch_axis.constraints.new('COPY_LOCATION')
-        cns.name = 'Copy location from right wheel'
-        cns.target = ob
-        cns.subtarget = 'MCH-Wheel.%s.R' % axis_pos
-        cns.use_x = True
-        cns.use_y = True
-        cns.use_z = True
-        cns.owner_space = 'WORLD'
-        cns.target_space = 'WORLD'
-
-        mch_axis = pose.bones['MCH-Axis.%s' % axis_pos]
-        cns = mch_axis.constraints.new('DAMPED_TRACK')
-        cns.name = 'Track Left Wheel'
-        cns.target = ob
-        cns.subtarget = 'MCH-Wheel.%s.L' % axis_pos
-        cns.track_axis = 'TRACK_Y'
-
-    mch_axis = pose.bones['MCH-Axis']
-    for axis_pos, influence in (('Ft', 1), ('Bk', .5)):
-        subtarget = 'MCH-Axis.%s' % axis_pos
-        cns = mch_axis.constraints.new('TRANSFORM')
-        cns.name = 'Rotation from %s' % subtarget
-        cns.target = ob
-        cns.subtarget = subtarget
-        cns.map_from = 'ROTATION'
-        cns.from_min_x_rot = math.radians(-180)
-        cns.from_max_x_rot = math.radians(180)
-        cns.map_to_y_from = 'X'
-        cns.map_to = 'ROTATION'
-        cns.to_min_y_rot = math.radians(180)
-        cns.to_max_y_rot = math.radians(-180)
         cns.owner_space = 'LOCAL'
         cns.target_space = 'LOCAL'
-        create_constraint_influence_driver(ob, cns, '["suspension_rolling_factor"]', base_influence=influence)
+
+    wheels = pose.bones.get('Back Wheels')
+    if wheels is not None:
+        wheels.rotation_mode = "XYZ"
+        wheels.lock_location = (True, True, True)
+        wheels.lock_rotation = (False, True, True)
+        wheels.lock_scale = (True, True, True)
+        wheels.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
+    
+    for mch_wheels_pos in ('Ft', 'Bk'):
+        mch_wheels = pose.bones.get('MCH-Wheels.%s' % mch_wheels_pos)
+        if mch_wheels is not None:
+            mch_wheels.rotation_mode = "XYZ"
+            cns = mch_wheels.constraints.new('CHILD_OF')
+            cns.target = ob
+            cns.subtarget = 'Root'
+            cns.inverse_matrix = ob.data.bones['Root'].matrix_local.inverted()
+            cns.use_location_x = True
+            cns.use_location_y = True
+            cns.use_location_z = True
+            cns.use_rotation_x = True
+            cns.use_rotation_y = True
+            cns.use_rotation_z = True
+
+    for suspension_pos in ('Ft', 'Bk'):
+        subtarget = 'MCH-Axis.%s' % suspension_pos
+        if subtarget in pose.bones:
+            mch_suspension = pose.bones['MCH-Suspension.%s' % suspension_pos]
+            cns = mch_suspension.constraints.new('COPY_LOCATION')
+            cns.name = 'Location from %s' % subtarget
+            cns.target = ob
+            cns.subtarget = subtarget
+            cns.head_tail = .5
+            cns.use_x = False
+            cns.use_y = False
+            cns.use_z = True
+            cns.owner_space = 'WORLD'
+            cns.target_space = 'WORLD'
+            create_constraint_influence_driver(ob, cns, '["suspension_factor"]')
+
+            if suspension_pos == 'Ft':
+                cns = mch_suspension.constraints.new('DAMPED_TRACK')
+                cns.name = 'Track suspension back'
+                cns.target = ob
+                cns.subtarget = 'MCH-Suspension.Bk'
+                cns.track_axis = 'TRACK_Y'
+
+    for axis_pos in ('Ft', 'Bk'):
+        mch_axis = pose.bones.get('MCH-Axis.%s' % axis_pos)
+        if mch_axis is not None:
+            cns = mch_axis.constraints.new('COPY_LOCATION')
+            cns.name = 'Copy location from right wheel'
+            cns.target = ob
+            cns.subtarget = 'MCH-Wheel.%s.R' % axis_pos
+            cns.use_x = True
+            cns.use_y = True
+            cns.use_z = True
+            cns.owner_space = 'WORLD'
+            cns.target_space = 'WORLD'
+
+            mch_axis = pose.bones['MCH-Axis.%s' % axis_pos]
+            cns = mch_axis.constraints.new('DAMPED_TRACK')
+            cns.name = 'Track Left Wheel'
+            cns.target = ob
+            cns.subtarget = 'MCH-Wheel.%s.L' % axis_pos
+            cns.track_axis = 'TRACK_Y'
+
+    mch_axis = pose.bones.get('MCH-Axis')
+    if mch_axis is not None:
+        for axis_pos, influence in (('Ft', 1), ('Bk', .5)):
+            subtarget = 'MCH-Axis.%s' % axis_pos
+            if subtarget in pose.bones:
+                cns = mch_axis.constraints.new('TRANSFORM')
+                cns.name = 'Rotation from %s' % subtarget
+                cns.target = ob
+                cns.subtarget = subtarget
+                cns.map_from = 'ROTATION'
+                cns.from_min_x_rot = math.radians(-180)
+                cns.from_max_x_rot = math.radians(180)
+                cns.map_to_y_from = 'X'
+                cns.map_to = 'ROTATION'
+                cns.to_min_y_rot = math.radians(180)
+                cns.to_max_y_rot = math.radians(-180)
+                cns.owner_space = 'LOCAL'
+                cns.target_space = 'LOCAL'
+                create_constraint_influence_driver(ob, cns, '["suspension_rolling_factor"]', base_influence=influence)
 
     shapeRoot = pose.bones['SHP-Root']
     shapeRoot.lock_location = (True, True, True)
@@ -399,43 +447,44 @@ def generate_constraints_on_rig(context):
     suspension.lock_rotation_w = True
     suspension.custom_shape = bpy.data.objects['WGT-CarRig.Suspension']
 
-    steering = pose.bones['Steering']
-    steering.lock_location = (False, True, True)
-    steering.lock_rotation = (True, True, True)
-    steering.lock_scale = (True, True, True)
-    steering.lock_rotation_w = True
-    steering.custom_shape = bpy.data.objects['WGT-CarRig.Steering']
+    steering = pose.bones.get('Steering')
+    if steering is not None:
+        steering.lock_location = (False, True, True)
+        steering.lock_rotation = (True, True, True)
+        steering.lock_scale = (True, True, True)
+        steering.lock_rotation_w = True
+        steering.custom_shape = bpy.data.objects['WGT-CarRig.Steering']
 
-    mch_steering_controller = pose.bones['MCH-Steering.controller']
-    mch_steering_controller.rotation_mode = 'ZYX'
-    cns = mch_steering_controller.constraints.new('CHILD_OF')
-    cns.target = ob
-    cns.subtarget = 'Root'
-    cns.inverse_matrix = ob.data.bones['Root'].matrix_local.inverted()
-    cns.use_location_x = True
-    cns.use_location_y = True
-    cns.use_location_z = True
-    cns.use_rotation_x = True
-    cns.use_rotation_y = True
-    cns.use_rotation_z = True
+        mch_steering_controller = pose.bones['MCH-Steering.controller']
+        mch_steering_controller.rotation_mode = 'ZYX'
+        cns = mch_steering_controller.constraints.new('CHILD_OF')
+        cns.target = ob
+        cns.subtarget = 'Root'
+        cns.inverse_matrix = ob.data.bones['Root'].matrix_local.inverted()
+        cns.use_location_x = True
+        cns.use_location_y = True
+        cns.use_location_z = True
+        cns.use_rotation_x = True
+        cns.use_rotation_y = True
+        cns.use_rotation_z = True
 
-    mch_steering = pose.bones['MCH-Steering']
-    cns = mch_steering.constraints.new('DAMPED_TRACK')
-    cns.name = 'Track steering bone'
-    cns.target = ob
-    cns.subtarget = 'Steering'
-    cns.track_axis = 'TRACK_NEGATIVE_Y'
+        mch_steering = pose.bones['MCH-Steering']
+        cns = mch_steering.constraints.new('DAMPED_TRACK')
+        cns.name = 'Track steering bone'
+        cns.target = ob
+        cns.subtarget = 'Steering'
+        cns.track_axis = 'TRACK_NEGATIVE_Y'
 
-    cns = mch_steering.constraints.new('COPY_ROTATION')
-    cns.name = 'Drift counter animation'
-    cns.target = ob
-    cns.subtarget = 'Drift'
-    cns.use_x = False
-    cns.use_y = False
-    cns.use_z = True
-    cns.use_offset = True
-    cns.owner_space = 'LOCAL'
-    cns.target_space = 'LOCAL'
+        cns = mch_steering.constraints.new('COPY_ROTATION')
+        cns.name = 'Drift counter animation'
+        cns.target = ob
+        cns.subtarget = 'Drift'
+        cns.use_x = False
+        cns.use_y = False
+        cns.use_z = True
+        cns.use_offset = True
+        cns.owner_space = 'LOCAL'
+        cns.target_space = 'LOCAL'
 
     mch_body = ob.pose.bones['MCH-Body']
     cns = mch_body.constraints.new('TRANSFORM')
@@ -485,12 +534,22 @@ def generate_constraints_on_rig(context):
 def create_bone_group(pose, group_name, color_set, bone_names):
     group = pose.bone_groups.new(group_name)
     group.color_set = color_set
-    for b in bone_names:
-        pose.bones[b].bone_group = group
+    for bone_name in bone_names:
+        bone = pose.bones.get(bone_name)
+        if bone is not None:
+            bone.bone_group = group
 
 
 def generate_constraints_on_wheel_bones(ob, name_suffix):
     pose = ob.pose
+
+    def_wheel = pose.bones.get('DEF-Wheel.%s' % name_suffix)
+    if def_wheel is None:
+        return
+
+    cns = def_wheel.constraints.new('COPY_TRANSFORMS')
+    cns.target = ob
+    cns.subtarget = 'MCH-Wheel.%s' % name_suffix
 
     ground_sensor = pose.bones['GroundSensor.%s' % name_suffix]
     ground_sensor.lock_location = (True, True, False)
@@ -572,11 +631,6 @@ def generate_constraints_on_wheel_bones(ob, name_suffix):
     cns.use_offset = True
     cns.owner_space = 'LOCAL'
     cns.target_space = 'LOCAL'
-
-    def_wheel = pose.bones['DEF-Wheel.%s' % name_suffix]
-    cns = def_wheel.constraints.new('COPY_TRANSFORMS')
-    cns.target = ob
-    cns.subtarget = 'MCH-Wheel.%s' % name_suffix
 
 
 def dispatch_bones_to_armature_layers(context):
@@ -706,6 +760,10 @@ class GenerateCarAnimationRigOperator(bpy.types.Operator):
                 'Car Rig' in context.object.data and not context.object.data['Car Rig'])
 
     def execute(self, context):
+        if 'DEF-Body' not in context.object.data.bones:
+            self.report({'ERROR'}, 'No bone named DEF-Body. This is not a valid armature!')
+            return {"CANCELLED"}
+
         generate_animation_rig(context)
         generate_constraints_on_rig(context)
         dispatch_bones_to_armature_layers(context)

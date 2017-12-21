@@ -119,8 +119,10 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
 
     def execute(self, context):
         if self.frame_end > self.frame_start:
-            self._bake_wheel_rotation(context, context.object.data.bones['MCH-Wheels.Ft'])
-            self._bake_wheel_rotation(context, context.object.data.bones['MCH-Wheels.Bk'])
+            if 'MCH-Wheels.Ft' in context.object.data.bones:
+                self._bake_wheel_rotation(context, context.object.data.bones['MCH-Wheels.Ft'])
+            if 'MCH-Wheels.Bk' in context.object.data.bones:
+                self._bake_wheel_rotation(context, context.object.data.bones['MCH-Wheels.Bk'])
             context.object['wheels_on_y_axis'] = False
         return {'FINISHED'}
 
@@ -165,10 +167,11 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
 
     def execute(self, context):
         if self.frame_end > self.frame_start:
-            steering = context.object.data.bones['Steering']
-            mch_steering_controller = context.object.data.bones['MCH-Steering.controller']
-            distance = (steering.head - mch_steering_controller.head).length
-            self._bake_steering_rotation(context, distance, mch_steering_controller)
+            if 'Steering' in context.object.data.bones and 'MCH-Steering.controller' in context.object.data.bones:
+                steering = context.object.data.bones['Steering']
+                mch_steering_controller = context.object.data.bones['MCH-Steering.controller']
+                distance = (steering.head - mch_steering_controller.head).length
+                self._bake_steering_rotation(context, distance, mch_steering_controller)
         return {'FINISHED'}
 
     def _compute_next_pos(self, frame, locEvaluator):
