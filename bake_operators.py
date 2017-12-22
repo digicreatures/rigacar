@@ -43,7 +43,7 @@ class FCurvesEvaluator:
 class BakingOperator:
     frame_start = bpy.props.IntProperty(name='Start Frame', min=1)
     frame_end = bpy.props.IntProperty(name='End Frame', min=1)
-    keyframe_tolerance = bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.5)
+    keyframe_tolerance = bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.1)
 
     @classmethod
     def poll(cls, context):
