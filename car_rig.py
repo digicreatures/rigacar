@@ -61,7 +61,13 @@ class CarDimension():
         else:
             self.width = max(widths)
         
-        self.length = max(body.length, self.width)
+        if wheelFtL is not None or wheelFtR is not None:
+            self.length = max(body.length, self.width)
+            self.center = body.head
+        else:
+            self.length = max(body.length * .6, self.width)
+            self.center = body.head.lerp(body.tail, .5)
+        
         self.height = min(self.width, self.length) * 1.5
         self.height = max(self.height, body.head.z * 3)
     
@@ -115,8 +121,8 @@ def generate_animation_rig(context):
     root.use_deform = False
 
     shapeRoot = amt.edit_bones.new('SHP-Root')
-    shapeRoot.head = (body.head.x, body.head.y, 0)
-    shapeRoot.tail = (body.head.x, body.head.y + car_dimension.length, 0)
+    shapeRoot.head = (car_dimension.center.x, car_dimension.center.y, 0)
+    shapeRoot.tail = (car_dimension.center.x, car_dimension.center.y + car_dimension.length, 0)
     shapeRoot.use_deform = False
     shapeRoot.parent = root
 
@@ -131,7 +137,7 @@ def generate_animation_rig(context):
     drift.parent = root
 
     shapeDrift = amt.edit_bones.new('SHP-Drift')
-    shapeDrift.head = (body.tail.x, body.tail.y * 1.05, drift.head.z)
+    shapeDrift.head = (car_dimension.center.x, car_dimension.center.y + car_dimension.length * 1.05, drift.head.z)
     shapeDrift.tail = shapeDrift.head
     shapeDrift.tail.y += 1
     shapeDrift.use_deform = False
@@ -182,8 +188,8 @@ def generate_animation_rig(context):
         steering = amt.edit_bones.new('Steering')
         steering.head = steeringController.head
         steering.tail = steeringController.tail
-        steering.head.y -= body.length
-        steering.tail.y -= body.length
+        steering.head.y -= car_dimension.length
+        steering.tail.y -= car_dimension.length
         steering.use_deform = False
         steering.parent = steeringController
 
@@ -245,8 +251,8 @@ def generate_animation_rig(context):
     mchBody.parent = axis
 
     suspension = amt.edit_bones.new('Suspension')
-    suspension.head = body.head
-    suspension.tail = body.head
+    suspension.head = car_dimension.center
+    suspension.tail = car_dimension.center
     suspension.tail.y += car_dimension.length / 2
     suspension.head.z = car_dimension.height * 1.2
     suspension.tail.z = car_dimension.height * 1.2
