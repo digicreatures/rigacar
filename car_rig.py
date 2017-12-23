@@ -150,7 +150,7 @@ def generate_animation_rig(context):
         wheels.head.x = math.copysign(wheelFtL.head.x + 1.1 * wheelFtL.length, wheels.head.x)
         wheels.tail.x = math.copysign(wheelFtL.tail.x + 1.1 * wheelFtL.length, wheels.tail.x)
         wheels.use_deform = False
-        wheels.parent = amt.edit_bones['WheelDamper.Ft.L']
+        wheels.parent = amt.edit_bones['GroundSensor.Ft.L']
 
         mch_wheels = amt.edit_bones.new('MCH-Wheels.Ft')
         mch_wheels.head = wheelFtL.head
@@ -200,7 +200,7 @@ def generate_animation_rig(context):
         wheels.head.x = math.copysign(wheelBkL.head.x + 1.1 * wheelBkL.length, wheels.head.x)
         wheels.tail.x = math.copysign(wheelBkL.tail.x + 1.1 * wheelBkL.length, wheels.tail.x)
         wheels.use_deform = False
-        wheels.parent = amt.edit_bones['WheelDamper.Bk.L']
+        wheels.parent = amt.edit_bones['GroundSensor.Bk.L']
 
         mch_wheels = amt.edit_bones.new('MCH-Wheels.Bk')
         mch_wheels.head = wheelBkL.head
@@ -284,12 +284,19 @@ def generate_animation_wheel_bones(amt, name_suffix, parent_bone):
     wheel_damper.use_deform = False
     wheel_damper.parent = ground_sensor
 
+    mch_wheel_damper = amt.edit_bones.new('MCH-WheelDamper.%s' % name_suffix)
+    mch_wheel_damper.head = def_wheel_bone.head
+    mch_wheel_damper.tail = def_wheel_bone.tail
+    mch_wheel_damper.tail.y += 1
+    mch_wheel_damper.use_deform = False
+    mch_wheel_damper.parent = wheel_damper
+
     mch_wheel = amt.edit_bones.new('MCH-Wheel.%s' % name_suffix)
     mch_wheel.head = def_wheel_bone.head
     mch_wheel.tail = def_wheel_bone.tail
-    mch_wheel.tail.y += 1
+    mch_wheel.tail.y += .5
     mch_wheel.use_deform = False
-    mch_wheel.parent = wheel_damper
+    mch_wheel.parent = ground_sensor
 
 
 def generate_constraints_on_rig(context):
@@ -311,31 +318,15 @@ def generate_constraints_on_rig(context):
     generate_constraints_on_wheel_bones(ob, 'Bk.L')
     generate_constraints_on_wheel_bones(ob, 'Bk.R')
 
-    wheels = pose.bones.get('Front Wheels')
-    if wheels is not None:
-        wheels.rotation_mode = "XYZ"
-        wheels.lock_location = (True, True, True)
-        wheels.lock_rotation = (False, True, True)
-        wheels.lock_scale = (True, True, True)
-        wheels.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
-        cns = wheels.constraints.new('COPY_ROTATION')
-        cns.name = 'Steering rotation'
-        cns.target = ob
-        cns.subtarget = 'MCH-Steering'
-        cns.use_x = False
-        cns.use_y = False
-        cns.use_z = True
-        cns.owner_space = 'LOCAL'
-        cns.target_space = 'LOCAL'
-
-    wheels = pose.bones.get('Back Wheels')
-    if wheels is not None:
-        wheels.rotation_mode = "XYZ"
-        wheels.lock_location = (True, True, True)
-        wheels.lock_rotation = (False, True, True)
-        wheels.lock_scale = (True, True, True)
-        wheels.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
-    
+    for wheels_pos in ('Front', 'Back'):
+        wheels = pose.bones.get('%s Wheels' % wheels_pos)
+        if wheels is not None:
+            wheels.rotation_mode = "XYZ"
+            wheels.lock_location = (True, True, True)
+            wheels.lock_rotation = (False, True, True)
+            wheels.lock_scale = (True, True, True)
+            wheels.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
+  
     for mch_wheels_pos in ('Ft', 'Bk'):
         mch_wheels = pose.bones.get('MCH-Wheels.%s' % mch_wheels_pos)
         if mch_wheels is not None:
@@ -380,7 +371,7 @@ def generate_constraints_on_rig(context):
             cns = mch_axis.constraints.new('COPY_LOCATION')
             cns.name = 'Copy location from right wheel'
             cns.target = ob
-            cns.subtarget = 'MCH-Wheel.%s.R' % axis_pos
+            cns.subtarget = 'MCH-WheelDamper.%s.R' % axis_pos
             cns.use_x = True
             cns.use_y = True
             cns.use_z = True
@@ -391,7 +382,7 @@ def generate_constraints_on_rig(context):
             cns = mch_axis.constraints.new('DAMPED_TRACK')
             cns.name = 'Track Left Wheel'
             cns.target = ob
-            cns.subtarget = 'MCH-Wheel.%s.L' % axis_pos
+            cns.subtarget = 'MCH-WheelDamper.%s.L' % axis_pos
             cns.track_axis = 'TRACK_Y'
 
     mch_axis = pose.bones.get('MCH-Axis')
@@ -557,6 +548,18 @@ def generate_constraints_on_wheel_bones(ob, name_suffix):
     ground_sensor.lock_rotation_w = True
     ground_sensor.lock_scale = (True, True, True)
     ground_sensor.custom_shape = bpy.data.objects['WGT-CarRig.GroundSensor']
+
+    if name_suffix.startswith('Ft.'):
+        cns = ground_sensor.constraints.new('COPY_ROTATION')
+        cns.name = 'Steering rotation'
+        cns.target = ob
+        cns.subtarget = 'MCH-Steering'
+        cns.use_x = False
+        cns.use_y = False
+        cns.use_z = True
+        cns.owner_space = 'LOCAL'
+        cns.target_space = 'LOCAL'
+
     cns = ground_sensor.constraints.new('SHRINKWRAP')
     cns.name = 'Ground projection'
     cns.shrinkwrap_type = 'PROJECT'
@@ -574,17 +577,6 @@ def generate_constraints_on_wheel_bones(ob, name_suffix):
 
     mch_wheel = pose.bones['MCH-Wheel.%s' % name_suffix]
     mch_wheel.rotation_mode = "XYZ"
-
-    if name_suffix.startswith('Ft.'):
-        cns = mch_wheel.constraints.new('COPY_ROTATION')
-        cns.name = 'Steering rotation'
-        cns.target = ob
-        cns.subtarget = 'MCH-Steering'
-        cns.use_x = False
-        cns.use_y = False
-        cns.use_z = True
-        cns.owner_space = 'LOCAL'
-        cns.target_space = 'LOCAL'
 
     fcurve = mch_wheel.driver_add('rotation_euler', 0)
     drv = fcurve.driver
