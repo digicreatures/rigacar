@@ -40,6 +40,24 @@ class FCurvesEvaluator:
         return result
 
 
+class VectorFCurvesEvaluator:
+
+    def __init__(self, fcurves_evaluator):
+        self.fcurves_evaluator = fcurves_evaluator
+
+    def evaluate(self, f):
+        return mathutils.Vector(self.fcurves_evaluator.evaluate(f))
+
+
+class EulerToQuaternionFCurvesEvaluator:
+
+    def __init__(self, fcurves_evaluator):
+        self.fcurves_evaluator = fcurves_evaluator
+
+    def evaluate(self, f):
+        return mathutils.Euler(self.fcurves_evaluator.evaluate(f)).to_quaternion()
+
+
 class BakingOperator:
     frame_start = bpy.props.IntProperty(name='Start Frame', min=1)
     frame_end = bpy.props.IntProperty(name='End Frame', min=1)
@@ -67,15 +85,15 @@ class BakingOperator:
         self.layout.prop(self, 'frame_end')
         self.layout.prop(self, 'keyframe_tolerance')
 
-    def _create_rotation_euler_evaluator(self, action, source_bone):
+    def _create_rotation_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].rotation_euler' % source_bone.name
         fc_root_rot = [action.fcurves.find(fcurve_name, i) for i in range(0, 3)]
-        return FCurvesEvaluator(fc_root_rot, default_value=(.0, .0, .0))
+        return EulerToQuaternionFCurvesEvaluator(FCurvesEvaluator(fc_root_rot, default_value=(.0, .0, .0)))
 
     def _create_location_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].location' % source_bone.name
         fc_root_loc = [action.fcurves.find(fcurve_name, i) for i in range(0, 3)]
-        return FCurvesEvaluator(fc_root_loc, default_value=(.0, .0, .0))
+        return VectorFCurvesEvaluator(FCurvesEvaluator(fc_root_loc, default_value=(.0, .0, .0)))
 
     def _bake_action(self, context, source_bone):
         action = context.object.animation_data.action
@@ -128,17 +146,17 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
 
     def _evaluate_distance_per_frame(self, action, bone):
         locEvaluator = self._create_location_evaluator(action, bone)
-        rotEvaluator = self._create_rotation_euler_evaluator(action, bone)
+        rotEvaluator = self._create_rotation_evaluator(action, bone)
 
         bone_init_vector = (bone.head_local - bone.tail_local).normalized()
-        prev_pos = mathutils.Vector(locEvaluator.evaluate(self.frame_start))
+        prev_pos = locEvaluator.evaluate(self.frame_start)
         prev_speed = 0
         distance = 0
         yield self.frame_start, distance
         for f in range(self.frame_start + 1, self.frame_end):
             pos = mathutils.Vector(locEvaluator.evaluate(f))
             speed_vector = pos - prev_pos
-            rotation_quaternion = mathutils.Quaternion(rotEvaluator.evaluate(f))
+            rotation_quaternion = rotEvaluator.evaluate(f)
             bone_orientation = rotation_quaternion * bone_init_vector
             speed = math.copysign(speed_vector.magnitude, bone_orientation.dot(speed_vector))
             # yields only if speed has significantly changed (avoids unecessary keyframes)
@@ -177,33 +195,33 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
     def _compute_next_pos(self, frame, locEvaluator):
         pos = mathutils.Vector(locEvaluator.evaluate(frame))
         next_frame = frame + 1
-        next_pos = mathutils.Vector(locEvaluator.evaluate(next_frame))
+        next_pos = locEvaluator.evaluate(next_frame)
         tangent_vector = next_pos - pos
         while tangent_vector.length < 1:
             if next_frame >= self.frame_end:
                 break
             next_frame = next_frame + 1
-            next_pos = mathutils.Vector(locEvaluator.evaluate(next_frame))
+            next_pos = locEvaluator.evaluate(next_frame)
             tangent_vector = next_pos - pos
 
-        # simple linear interpolation           
-        if tangent_vector.length > 0 :
+        # simple linear interpolation
+        if tangent_vector.length > 0:
             next_frame = frame + (next_frame - frame) / tangent_vector.length
-        
+
         return mathutils.Vector(locEvaluator.evaluate(next_frame))
 
     def _evaluate_rotation_per_frame(self, action, bone):
         locEvaluator = self._create_location_evaluator(action, bone)
-        rotEvaluator = self._create_rotation_euler_evaluator(action, bone)
+        rotEvaluator = self._create_rotation_evaluator(action, bone)
 
         init_vector = bone.head - bone.tail
-        current_pos = mathutils.Vector(locEvaluator.evaluate(self.frame_start))
+        current_pos = locEvaluator.evaluate(self.frame_start)
         prev_rotation = .0
         for f in range(self.frame_start, self.frame_end - 1):
             next_pos = self._compute_next_pos(f, locEvaluator)
 
             world_space_tangent_vector = next_pos - current_pos
-            local_space_tangent_vector = mathutils.Quaternion(rotEvaluator.evaluate(f)).inverted() * world_space_tangent_vector
+            local_space_tangent_vector = rotEvaluator.evaluate(f).inverted() * world_space_tangent_vector
 
             current_rotation = local_space_tangent_vector.xy.angle_signed(init_vector.xy, prev_rotation)
             if abs(prev_rotation - current_rotation) > self.keyframe_tolerance / 100 or f == self.frame_start:

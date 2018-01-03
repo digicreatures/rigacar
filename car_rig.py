@@ -26,6 +26,7 @@ import mathutils
 DEF_BONE_LAYER = 30
 MCH_BONE_LAYER = 31
 
+
 class CarDimension():
 
     def compute_position(self, left_bone, right_bone, default_pos):
@@ -51,26 +52,26 @@ class CarDimension():
         wheelBkR = armature.edit_bones.get('DEF-Wheel.Bk.R')
         wheelBkL = armature.edit_bones.get('DEF-Wheel.Bk.L')
         body = armature.edit_bones['DEF-Body']
-        
+
         self.front = self.compute_position(wheelFtL, wheelFtR, body.head)
         self.back = self.compute_position(wheelBkL, wheelBkR, body.head)
-        
+
         widths = [abs(w.head.x) + w.length for w in (wheelFtR, wheelFtL, wheelBkL, wheelBkR) if w is not None]
         if len(widths) == 0:
             self.width = min(1, body.length)
         else:
             self.width = max(widths)
-        
+
         if wheelFtL is not None or wheelFtR is not None:
             self.length = max(body.length, self.width)
             self.center = body.head
         else:
             self.length = max(body.length * .6, self.width)
             self.center = body.head.lerp(body.tail, .5)
-        
+
         self.height = min(self.width, self.length) * 1.5
         self.height = max(self.height, body.head.z * 3)
-    
+
 
 def deselect_edit_bones(ob):
     for b in ob.data.edit_bones:
@@ -110,7 +111,7 @@ def generate_animation_rig(context):
     amt = ob.data
 
     bpy.ops.object.mode_set(mode='EDIT')
-    
+
     car_dimension = CarDimension(amt)
 
     body = amt.edit_bones['DEF-Body']
@@ -148,7 +149,7 @@ def generate_animation_rig(context):
 
     wheelFtR = amt.edit_bones.get('DEF-Wheel.Ft.R')
     wheelFtL = amt.edit_bones.get('DEF-Wheel.Ft.L')
-    
+
     if wheelFtR is not None and wheelFtL is not None:
         wheels = amt.edit_bones.new('Front Wheels')
         wheels.head = wheelFtL.head
@@ -332,7 +333,7 @@ def generate_constraints_on_rig(context):
             wheels.lock_rotation = (False, True, True)
             wheels.lock_scale = (True, True, True)
             wheels.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
-  
+
     for mch_wheels_pos in ('Ft', 'Bk'):
         mch_wheels = pose.bones.get('MCH-Wheels.%s' % mch_wheels_pos)
         if mch_wheels is not None:
