@@ -30,32 +30,18 @@ MCH_BONE_LAYER = 31
 
 class CarDimension():
 
-    def compute_position(self, left_bone, right_bone, default_pos):
-        if left_bone is None:
-            if right_bone is not None:
-                pos = right_bone.head
-                pos.x = default_pos.x
-            else:
-                pos = default_pos
-        elif right_bone is None:
-            if left_bone is not None:
-                pos = left_bone.head
-                pos.x = default_pos.x
-            else:
-                pos = default_pos
-        else:
-            pos = (left_bone.head + right_bone.head) / 2
-        return pos
-
     def __init__(self, armature):
+        self.nb_front_wheels = self._count_wheels(armature, 'Ft')
+        self.nb_back_wheels = self._count_wheels(armature, 'Bk')
+
         wheelFtL = armature.edit_bones.get('DEF-Wheel.Ft.L')
         wheelFtR = armature.edit_bones.get('DEF-Wheel.Ft.R')
         wheelBkR = armature.edit_bones.get('DEF-Wheel.Bk.R')
         wheelBkL = armature.edit_bones.get('DEF-Wheel.Bk.L')
         body = armature.edit_bones['DEF-Body']
 
-        self.front = self.compute_position(wheelFtL, wheelFtR, body.head)
-        self.back = self.compute_position(wheelBkL, wheelBkR, body.head)
+        self.front = self._compute_position(wheelFtL, wheelFtR, body.head)
+        self.back = self._compute_position(wheelBkL, wheelBkR, body.head)
 
         widths = [abs(w.head.x) + w.length for w in (wheelFtR, wheelFtL, wheelBkL, wheelBkR) if w is not None]
         if len(widths) == 0:
@@ -72,6 +58,43 @@ class CarDimension():
 
         self.height = min(self.width, self.length) * 1.5
         self.height = max(self.height, body.head.z * 3)
+
+    @property
+    def has_front_wheels(self):
+        return self.nb_front_wheels > 0
+
+    @property
+    def has_back_wheels(self):
+        return self.nb_back_wheels > 0
+
+    def _compute_position(self, left_bone, right_bone, default_pos):
+        if left_bone is None:
+            if right_bone is not None:
+                pos = right_bone.head
+                pos.x = default_pos.x
+            else:
+                pos = default_pos
+        elif right_bone is None:
+            if left_bone is not None:
+                pos = left_bone.head
+                pos.x = default_pos.x
+            else:
+                pos = default_pos
+        else:
+            pos = (left_bone.head + right_bone.head) / 2
+        return pos
+
+    def _count_wheels(self, armature, position):
+        nb_wheels = 0
+        if armature.edit_bones.get('DEF-Wheel.%s.L' % position) is not None or \
+           armature.edit_bones.get('DEF-Wheel.%s.R' % position) is not None:
+            nb_wheels = 1
+            for i in itertools.count(1):
+                if armature.edit_bones.get('DEF-Wheel.%s.L.%03d' % (position, i)) is None and \
+                   armature.edit_bones.get('DEF-Wheel.%s.R.%03d' % (position, i)) is None:
+                    break
+                nb_wheels += 1
+        return nb_wheels
 
 
 def deselect_edit_bones(ob):
@@ -145,19 +168,17 @@ def generate_animation_rig(context):
     shapeDrift.use_deform = False
     shapeDrift.parent = drift
 
-    generate_animation_wheel_bones(amt, 'Ft.L', drift)
-    generate_animation_wheel_bones(amt, 'Ft.R', drift)
+    if car_dimension.has_front_wheels:
+        generate_animation_wheel_bones(amt, 'Ft.L', drift)
+        generate_animation_wheel_bones(amt, 'Ft.R', drift)
 
-    for i in itertools.count(1):
-        if amt.edit_bones.get('DEF-Wheel.Ft.L.%03d' % i) is None :
-            break
-        generate_animation_wheel_bones(amt, 'Ft.L.%03d' % i, drift, with_damper=False)
-        generate_animation_wheel_bones(amt, 'Ft.R.%03d' % i, drift, with_damper=False)
-    
-    wheelFtR = amt.edit_bones.get('DEF-Wheel.Ft.R')
-    wheelFtL = amt.edit_bones.get('DEF-Wheel.Ft.L')
-    
-    if wheelFtR is not None and wheelFtL is not None:
+        for i in range(1, car_dimension.nb_front_wheels):
+            generate_animation_wheel_bones(amt, 'Ft.L.%03d' % i, drift, with_damper=False)
+            generate_animation_wheel_bones(amt, 'Ft.R.%03d' % i, drift, with_damper=False)
+
+        wheelFtR = amt.edit_bones.get('DEF-Wheel.Ft.R')
+        wheelFtL = amt.edit_bones.get('DEF-Wheel.Ft.L')
+
         wheels = amt.edit_bones.new('Front Wheels')
         wheels.head = wheelFtL.head
         wheels.tail = wheelFtL.tail
@@ -201,19 +222,17 @@ def generate_animation_rig(context):
         steering.use_deform = False
         steering.parent = steeringController
 
-    generate_animation_wheel_bones(amt, 'Bk.L', drift)
-    generate_animation_wheel_bones(amt, 'Bk.R', drift)
-    
-    for i in itertools.count(1):
-        if amt.edit_bones.get('DEF-Wheel.Bk.L.%03d' % i) is None :
-            break
-        generate_animation_wheel_bones(amt, 'Bk.L.%03d' % i, drift, with_damper=False)
-        generate_animation_wheel_bones(amt, 'Bk.R.%03d' % i, drift, with_damper=False)
-    
-    wheelBkR = amt.edit_bones.get('DEF-Wheel.Bk.R')
-    wheelBkL = amt.edit_bones.get('DEF-Wheel.Bk.L')
+    if car_dimension.has_back_wheels:
+        generate_animation_wheel_bones(amt, 'Bk.L', drift)
+        generate_animation_wheel_bones(amt, 'Bk.R', drift)
 
-    if wheelBkR is not None and wheelBkL is not None:
+        for i in range(1, car_dimension.nb_back_wheels):
+            generate_animation_wheel_bones(amt, 'Bk.L.%03d' % i, drift, with_damper=False)
+            generate_animation_wheel_bones(amt, 'Bk.R.%03d' % i, drift, with_damper=False)
+
+        wheelBkR = amt.edit_bones.get('DEF-Wheel.Bk.R')
+        wheelBkL = amt.edit_bones.get('DEF-Wheel.Bk.L')
+
         wheels = amt.edit_bones.new('Back Wheels')
         wheels.head = wheelBkL.head
         wheels.tail = wheelBkL.tail
@@ -300,7 +319,7 @@ def generate_animation_wheel_bones(amt, name_suffix, parent_bone, with_damper=Tr
     mch_wheel.tail.y += .5
     mch_wheel.use_deform = False
     mch_wheel.parent = ground_sensor
-    
+
     if with_damper:
         wheel_damper = amt.edit_bones.new('WheelDamper.%s' % name_suffix)
         wheel_damper.head = def_wheel_bone.head
@@ -649,7 +668,7 @@ def generate_constraints_on_wheel_bones(ob, name_suffix):
     cns.use_offset = True
     cns.owner_space = 'LOCAL'
     cns.target_space = 'LOCAL'
-    
+
     wheel_damper = pose.bones.get('WheelDamper.%s' % name_suffix)
     if wheel_damper is not None:
         wheel_damper.lock_location = (True, True, False)
