@@ -721,11 +721,21 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
                                               default=.0,
                                               subtype='DISTANCE')
 
+    nb_front_wheels_pairs = bpy.props.IntProperty(name='Front Wheels Pairs',
+                                                  description='Number of front wheels pairs',
+                                                  default=1,
+                                                  min=0)
+
     front_wheel_pos_delta = bpy.props.FloatVectorProperty(name='Front Wheel Delta',
                                                           description='Adjust front wheels location',
                                                           size=3,
                                                           default=(0, 0, 0),
                                                           subtype='TRANSLATION')
+
+    nb_back_wheels_pairs = bpy.props.IntProperty(name='Back Wheels Pairs',
+                                                  description='Number of back wheels pairs',
+                                                  default=1,
+                                                  min=0)
 
     back_wheel_pos_delta = bpy.props.FloatVectorProperty(name='Back Wheel Delta',
                                                          description='Adjust back wheels location',
@@ -740,6 +750,32 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
         'Wheel.Bk.L': mathutils.Vector((0.9,  2,  .5)),
         'Wheel.Bk.R': mathutils.Vector((-.9,  2,  .5))
     }
+
+    def execute(self, context):
+        """Creates the meta rig with basic bones"""
+        selected_objects = context.selected_objects
+
+        amt = bpy.data.armatures.new('Car Rig Data')
+        amt['Car Rig'] = False
+
+        obj_data = bpy_extras.object_utils.object_data_add(context, amt, name='Car Rig')
+        rig = obj_data.object
+
+        bpy.ops.object.mode_set(mode='EDIT')
+
+        self._create_bone(selected_objects, rig, 'Body', delta_pos=self.body_pos_delta, delta_length=self.body_size_delta)
+
+        self._create_wheel_bones(selected_objects, rig, 'Wheel.Ft.L', self.nb_front_wheels_pairs, self.front_wheel_pos_delta)
+        self._create_wheel_bones(selected_objects, rig, 'Wheel.Ft.R', self.nb_front_wheels_pairs, self.front_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))))
+
+        self._create_wheel_bones(selected_objects, rig, 'Wheel.Bk.L', self.nb_back_wheels_pairs, self.back_wheel_pos_delta)
+        self._create_wheel_bones(selected_objects, rig, 'Wheel.Bk.R', self.nb_back_wheels_pairs, self.back_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))))
+
+        deselect_edit_bones(rig)
+
+        bpy.ops.object.mode_set(mode='OBJECT')
+        context.scene.update()
+        return{'FINISHED'}
 
     def _create_bone(self, selected_objects, rig, name, delta_pos, delta_length = 0):
         b = rig.data.edit_bones.new('DEF-' + name)
@@ -758,7 +794,7 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
                 target_obj.parent_type = 'BONE'
                 target_obj.location += rig.matrix_world.to_translation()
                 target_obj.matrix_parent_inverse = (rig.matrix_world * mathutils.Matrix.Translation(b.tail)).inverted()
-                return
+                return b
 
         b.head = self.default_position[name] + delta_pos
         b.tail = b.head
@@ -767,30 +803,20 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
             b.tail.y += b.tail.z * 4
         else:
             b.tail.y += b.tail.z
+        return b
 
-    def execute(self, context):
-        """Creates the meta rig with basic bones"""
-        selected_objects = context.selected_objects
-
-        amt = bpy.data.armatures.new('Car Rig Data')
-        amt['Car Rig'] = False
-
-        obj_data = bpy_extras.object_utils.object_data_add(context, amt, name='Car Rig')
-        rig = obj_data.object
-
-        bpy.ops.object.mode_set(mode='EDIT')
-
-        self._create_bone(selected_objects, rig, 'Body', delta_pos=self.body_pos_delta, delta_length=self.body_size_delta)
-        self._create_bone(selected_objects, rig, 'Wheel.Ft.L', delta_pos=self.front_wheel_pos_delta)
-        self._create_bone(selected_objects, rig, 'Wheel.Ft.R', delta_pos=self.front_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))))
-        self._create_bone(selected_objects, rig, 'Wheel.Bk.L', delta_pos=self.back_wheel_pos_delta)
-        self._create_bone(selected_objects, rig, 'Wheel.Bk.R', delta_pos=self.back_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))))
-
-        deselect_edit_bones(rig)
-
-        bpy.ops.object.mode_set(mode='OBJECT')
-        context.scene.update()
-        return{'FINISHED'}
+    def _create_wheel_bones(self, selected_objects, rig, base_wheel_name, nb_wheels, delta_pos):
+        if nb_wheels == 0:
+            return
+        previous_wheel = self._create_bone(selected_objects, rig, base_wheel_name, delta_pos)
+        previous_wheel_default_pos = self.default_position[base_wheel_name]
+        for i in range(1, nb_wheels):
+            wheel_position = previous_wheel_default_pos.copy()
+            wheel_position.y += abs(previous_wheel.head.z * 2.2)
+            wheel_name = '%s.%03d' % (base_wheel_name, i)
+            self.default_position[wheel_name] = wheel_position
+            previous_wheel = self._create_bone(selected_objects, rig, wheel_name, delta_pos)
+            previous_wheel_default_pos = wheel_position
 
 
 class GenerateCarAnimationRigOperator(bpy.types.Operator):
