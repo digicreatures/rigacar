@@ -22,6 +22,7 @@ import bpy
 import math
 import bpy_extras
 import mathutils
+import itertools
 
 DEF_BONE_LAYER = 30
 MCH_BONE_LAYER = 31
@@ -147,9 +148,15 @@ def generate_animation_rig(context):
     generate_animation_wheel_bones(amt, 'Ft.L', drift)
     generate_animation_wheel_bones(amt, 'Ft.R', drift)
 
+    for i in itertools.count(1):
+        if amt.edit_bones.get('DEF-Wheel.Ft.L.%03d' % i) is None :
+            break
+        generate_animation_wheel_bones(amt, 'Ft.L.%03d' % i, drift, with_damper=False)
+        generate_animation_wheel_bones(amt, 'Ft.R.%03d' % i, drift, with_damper=False)
+    
     wheelFtR = amt.edit_bones.get('DEF-Wheel.Ft.R')
     wheelFtL = amt.edit_bones.get('DEF-Wheel.Ft.L')
-
+    
     if wheelFtR is not None and wheelFtL is not None:
         wheels = amt.edit_bones.new('Front Wheels')
         wheels.head = wheelFtL.head
@@ -196,7 +203,13 @@ def generate_animation_rig(context):
 
     generate_animation_wheel_bones(amt, 'Bk.L', drift)
     generate_animation_wheel_bones(amt, 'Bk.R', drift)
-
+    
+    for i in itertools.count(1):
+        if amt.edit_bones.get('DEF-Wheel.Bk.L.%03d' % i) is None :
+            break
+        generate_animation_wheel_bones(amt, 'Bk.L.%03d' % i, drift, with_damper=False)
+        generate_animation_wheel_bones(amt, 'Bk.R.%03d' % i, drift, with_damper=False)
+    
     wheelBkR = amt.edit_bones.get('DEF-Wheel.Bk.R')
     wheelBkL = amt.edit_bones.get('DEF-Wheel.Bk.L')
 
@@ -265,7 +278,7 @@ def generate_animation_rig(context):
     amt['Car Rig'] = True
 
 
-def generate_animation_wheel_bones(amt, name_suffix, parent_bone):
+def generate_animation_wheel_bones(amt, name_suffix, parent_bone, with_damper=True):
     def_wheel_bone = amt.edit_bones.get('DEF-Wheel.%s' % name_suffix)
 
     if def_wheel_bone is None:
@@ -281,29 +294,30 @@ def generate_animation_wheel_bones(amt, name_suffix, parent_bone):
     ground_sensor.use_deform = False
     ground_sensor.parent = parent_bone
 
-    wheel_damper = amt.edit_bones.new('WheelDamper.%s' % name_suffix)
-    wheel_damper.head = def_wheel_bone.head
-    wheel_damper.tail = def_wheel_bone.tail
-    wheel_damper.head.x = math.copysign(abs(def_wheel_bone.head.x) + 1.1 * def_wheel_bone.length, wheel_damper.head.x)
-    wheel_damper.tail.x = math.copysign(abs(def_wheel_bone.tail.x) + 1.1 * def_wheel_bone.length, wheel_damper.tail.x)
-    wheel_damper.head.z *= 1.5
-    wheel_damper.tail.z *= 1.5
-    wheel_damper.use_deform = False
-    wheel_damper.parent = ground_sensor
-
-    mch_wheel_damper = amt.edit_bones.new('MCH-WheelDamper.%s' % name_suffix)
-    mch_wheel_damper.head = def_wheel_bone.head
-    mch_wheel_damper.tail = def_wheel_bone.tail
-    mch_wheel_damper.tail.y += 1
-    mch_wheel_damper.use_deform = False
-    mch_wheel_damper.parent = wheel_damper
-
     mch_wheel = amt.edit_bones.new('MCH-Wheel.%s' % name_suffix)
     mch_wheel.head = def_wheel_bone.head
     mch_wheel.tail = def_wheel_bone.tail
     mch_wheel.tail.y += .5
     mch_wheel.use_deform = False
     mch_wheel.parent = ground_sensor
+    
+    if with_damper:
+        wheel_damper = amt.edit_bones.new('WheelDamper.%s' % name_suffix)
+        wheel_damper.head = def_wheel_bone.head
+        wheel_damper.tail = def_wheel_bone.tail
+        wheel_damper.head.x = math.copysign(abs(def_wheel_bone.head.x) + 1.1 * def_wheel_bone.length, wheel_damper.head.x)
+        wheel_damper.tail.x = math.copysign(abs(def_wheel_bone.tail.x) + 1.1 * def_wheel_bone.length, wheel_damper.tail.x)
+        wheel_damper.head.z *= 1.5
+        wheel_damper.tail.z *= 1.5
+        wheel_damper.use_deform = False
+        wheel_damper.parent = ground_sensor
+
+        mch_wheel_damper = amt.edit_bones.new('MCH-WheelDamper.%s' % name_suffix)
+        mch_wheel_damper.head = def_wheel_bone.head
+        mch_wheel_damper.tail = def_wheel_bone.tail
+        mch_wheel_damper.tail.y += 1
+        mch_wheel_damper.use_deform = False
+        mch_wheel_damper.parent = wheel_damper
 
 
 def generate_constraints_on_rig(context):
@@ -324,6 +338,18 @@ def generate_constraints_on_rig(context):
     generate_constraints_on_wheel_bones(ob, 'Ft.R')
     generate_constraints_on_wheel_bones(ob, 'Bk.L')
     generate_constraints_on_wheel_bones(ob, 'Bk.R')
+
+    for i in itertools.count(1):
+        if pose.bones.get('DEF-Wheel.Ft.L.%03d' % i) is None :
+            break
+        generate_constraints_on_wheel_bones(ob, 'Ft.L.%03d' % i)
+        generate_constraints_on_wheel_bones(ob, 'Ft.R.%03d' % i)
+
+    for i in itertools.count(1):
+        if pose.bones.get('DEF-Wheel.Bk.L.%03d' % i) is None :
+            break
+        generate_constraints_on_wheel_bones(ob, 'Bk.L.%03d' % i)
+        generate_constraints_on_wheel_bones(ob, 'Bk.R.%03d' % i)
 
     for wheels_pos in ('Front', 'Back'):
         wheels = pose.bones.get('%s Wheels' % wheels_pos)
@@ -575,13 +601,6 @@ def generate_constraints_on_wheel_bones(ob, name_suffix):
     cns.distance = 0
     cns.is_proxy_local = True
 
-    wheel_damper = pose.bones['WheelDamper.%s' % name_suffix]
-    wheel_damper.lock_location = (True, True, False)
-    wheel_damper.lock_rotation = (True, True, True)
-    wheel_damper.lock_rotation_w = True
-    wheel_damper.lock_scale = (True, True, True)
-    wheel_damper.custom_shape = bpy.data.objects['WGT-CarRig.WheelDamper']
-
     mch_wheel = pose.bones['MCH-Wheel.%s' % name_suffix]
     mch_wheel.rotation_mode = "XYZ"
 
@@ -630,6 +649,14 @@ def generate_constraints_on_wheel_bones(ob, name_suffix):
     cns.use_offset = True
     cns.owner_space = 'LOCAL'
     cns.target_space = 'LOCAL'
+    
+    wheel_damper = pose.bones.get('WheelDamper.%s' % name_suffix)
+    if wheel_damper is not None:
+        wheel_damper.lock_location = (True, True, False)
+        wheel_damper.lock_rotation = (True, True, True)
+        wheel_damper.lock_rotation_w = True
+        wheel_damper.lock_scale = (True, True, True)
+        wheel_damper.custom_shape = bpy.data.objects['WGT-CarRig.WheelDamper']
 
 
 def dispatch_bones_to_armature_layers(context):
