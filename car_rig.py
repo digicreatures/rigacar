@@ -719,7 +719,6 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
     body_size_delta = bpy.props.FloatProperty(name='Body End Delta',
                                               description='Adjust car body bone length',
                                               default=.0,
-                                              min=0,
                                               subtype='DISTANCE')
 
     front_wheel_pos_delta = bpy.props.FloatVectorProperty(name='Front Wheel Delta',
@@ -728,23 +727,11 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
                                                           default=(0, 0, 0),
                                                           subtype='TRANSLATION')
 
-    front_wheel_size_delta = bpy.props.FloatProperty(name='Front Wheel Radius delta',
-                                                     description='Adjust front wheels radius',
-                                                     default=.0,
-                                                     min=0,
-                                                     subtype='DISTANCE')
-
     back_wheel_pos_delta = bpy.props.FloatVectorProperty(name='Back Wheel Delta',
                                                          description='Adjust back wheels location',
                                                          size=3,
                                                          default=(0, 0, 0),
                                                          subtype='TRANSLATION')
-
-    back_wheel_size_delta = bpy.props.FloatProperty(name='Back Wheel Radius Delta',
-                                                    description='Adjust back wheels radius',
-                                                    default=.0,
-                                                    min=0,
-                                                    subtype='DISTANCE')
 
     default_position = {
         'Body':       mathutils.Vector((0.0,  0,  .8)),
@@ -754,7 +741,7 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
         'Wheel.Bk.R': mathutils.Vector((-.9,  2,  .5))
     }
 
-    def _create_bone(self, selected_objects, rig, name, delta_pos, delta_length):
+    def _create_bone(self, selected_objects, rig, name, delta_pos, delta_length = 0):
         b = rig.data.edit_bones.new('DEF-' + name)
 
         for target_obj in selected_objects:
@@ -794,10 +781,10 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='EDIT')
 
         self._create_bone(selected_objects, rig, 'Body', delta_pos=self.body_pos_delta, delta_length=self.body_size_delta)
-        self._create_bone(selected_objects, rig, 'Wheel.Ft.L', delta_pos=self.front_wheel_pos_delta, delta_length=self.front_wheel_size_delta)
-        self._create_bone(selected_objects, rig, 'Wheel.Ft.R', delta_pos=self.front_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))), delta_length=self.front_wheel_size_delta)
-        self._create_bone(selected_objects, rig, 'Wheel.Bk.L', delta_pos=self.back_wheel_pos_delta, delta_length=self.back_wheel_size_delta)
-        self._create_bone(selected_objects, rig, 'Wheel.Bk.R', delta_pos=self.back_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))), delta_length=self.back_wheel_size_delta)
+        self._create_bone(selected_objects, rig, 'Wheel.Ft.L', delta_pos=self.front_wheel_pos_delta)
+        self._create_bone(selected_objects, rig, 'Wheel.Ft.R', delta_pos=self.front_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))))
+        self._create_bone(selected_objects, rig, 'Wheel.Bk.L', delta_pos=self.back_wheel_pos_delta)
+        self._create_bone(selected_objects, rig, 'Wheel.Bk.R', delta_pos=self.back_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))))
 
         deselect_edit_bones(rig)
 
