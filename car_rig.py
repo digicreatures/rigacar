@@ -149,6 +149,7 @@ class CarDimension():
                 nb_wheels += 1
         return nb_wheels
 
+
 class ArmatureGenerator(object):
 
     def __init__(self, ob):
@@ -733,9 +734,9 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
                                                           subtype='TRANSLATION')
 
     nb_back_wheels_pairs = bpy.props.IntProperty(name='Back Wheels Pairs',
-                                                  description='Number of back wheels pairs',
-                                                  default=1,
-                                                  min=0)
+                                                 description='Number of back wheels pairs',
+                                                 default=1,
+                                                 min=0)
 
     back_wheel_pos_delta = bpy.props.FloatVectorProperty(name='Back Wheel Delta',
                                                          description='Adjust back wheels location',
@@ -743,13 +744,50 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
                                                          default=(0, 0, 0),
                                                          subtype='TRANSLATION')
 
-    default_position = {
-        'Body':       mathutils.Vector((0.0,  0,  .8)),
-        'Wheel.Ft.L': mathutils.Vector((0.9, -2,  .5)),
-        'Wheel.Ft.R': mathutils.Vector((-.9, -2,  .5)),
-        'Wheel.Bk.L': mathutils.Vector((0.9,  2,  .5)),
-        'Wheel.Bk.R': mathutils.Vector((-.9,  2,  .5))
-    }
+    def invoke(self, context, event):
+        self.bones_position = {
+            'Body':       mathutils.Vector((0.0,  0,  .8)),
+            'Wheel.Ft.L': mathutils.Vector((0.9, -2,  .5)),
+            'Wheel.Ft.R': mathutils.Vector((-.9, -2,  .5)),
+            'Wheel.Bk.L': mathutils.Vector((0.9,  2,  .5)),
+            'Wheel.Bk.R': mathutils.Vector((-.9,  2,  .5))
+        }
+        self.target_objects_name = {}
+
+        has_body_target = self._find_target_object(context, 'Body')
+
+        nb_wheels_ft_l = self._find_target_object_for_wheels(context, 'Wheel.Ft.L')
+        nb_wheels_ft_r = self._find_target_object_for_wheels(context, 'Wheel.Ft.R')
+        nb_wheels_bk_l = self._find_target_object_for_wheels(context, 'Wheel.Bk.L')
+        nb_wheels_bk_r = self._find_target_object_for_wheels(context, 'Wheel.Bk.R')
+
+        self.nb_front_wheels_pairs = max(nb_wheels_ft_l, nb_wheels_ft_r)
+        self.nb_back_wheels_pairs = max(nb_wheels_bk_l, nb_wheels_bk_r)
+
+        # if no target object has been found for body, we assume it may have no
+        # target object for front and back wheels either.
+        if not has_body_target:
+            self.nb_front_wheels_pairs = max(1, self.nb_front_wheels_pairs)
+            self.nb_back_wheels_pairs = max(1, self.nb_back_wheels_pairs)
+
+        return self.execute(context)
+
+    def _find_target_object_for_wheels(self, context, suffix_name):
+        if not self._find_target_object(context, suffix_name):
+            return 0
+
+        for i in itertools.count(1):
+            name = "%s.%03d" % (suffix_name, i)
+            if not self._find_target_object(context, name):
+                return i
+
+    def _find_target_object(self, context, name):
+        for obj in context.selected_objects:
+            if obj.name.endswith(name):
+                self.target_objects_name[name] = obj.name
+                self.bones_position[name] = obj.location.copy()
+                return True
+        return False
 
     def execute(self, context):
         """Creates the meta rig with basic bones"""
@@ -774,49 +812,48 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
         deselect_edit_bones(rig)
 
         bpy.ops.object.mode_set(mode='OBJECT')
-        context.scene.update()
+
         return{'FINISHED'}
 
-    def _create_bone(self, selected_objects, rig, name, delta_pos, delta_length = 0):
+    def _create_bone(self, selected_objects, rig, name, delta_pos, delta_length=0):
         b = rig.data.edit_bones.new('DEF-' + name)
 
-        for target_obj in selected_objects:
-            if target_obj.name.endswith(name):
-                b.head = target_obj.location + delta_pos
-                b.tail = b.head
-                if name == 'Body':
-                    b.tail.y += target_obj.dimensions[1] / 2 if target_obj.dimensions and target_obj.dimensions[0] != 0 else 1
-                else:
-                    b.tail.y += abs(b.tail.z) if b.tail.z != 0 else 1
-                b.tail.y += delta_length
-                target_obj.parent = rig
-                target_obj.parent_bone = b.name
-                target_obj.parent_type = 'BONE'
-                target_obj.location += rig.matrix_world.to_translation()
-                target_obj.matrix_parent_inverse = (rig.matrix_world * mathutils.Matrix.Translation(b.tail)).inverted()
-                return b
-
-        b.head = self.default_position[name] + delta_pos
+        b.head = self.bones_position[name] + delta_pos
         b.tail = b.head
         b.tail.y += delta_length
         if name == 'Body':
             b.tail.y += b.tail.z * 4
         else:
             b.tail.y += b.tail.z
+
+        target_obj_name = self.target_objects_name.get(name)
+        if target_obj_name is not None and target_obj_name in bpy.context.scene.objects:
+            target_obj = bpy.context.scene.objects[target_obj_name]
+            if name == 'Body':
+                b.tail = b.head
+                b.tail.y += target_obj.dimensions[1] / 2 if target_obj.dimensions and target_obj.dimensions[0] != 0 else 1
+                b.tail.y += delta_length
+            target_obj.parent = rig
+            target_obj.parent_bone = b.name
+            target_obj.parent_type = 'BONE'
+            target_obj.location += rig.matrix_world.to_translation()
+            target_obj.matrix_parent_inverse = (rig.matrix_world * mathutils.Matrix.Translation(b.tail)).inverted()
+
         return b
 
     def _create_wheel_bones(self, selected_objects, rig, base_wheel_name, nb_wheels, delta_pos):
         if nb_wheels == 0:
             return
         previous_wheel = self._create_bone(selected_objects, rig, base_wheel_name, delta_pos)
-        previous_wheel_default_pos = self.default_position[base_wheel_name]
+        previous_wheel_default_pos = self.bones_position[base_wheel_name]
         for i in range(1, nb_wheels):
-            wheel_position = previous_wheel_default_pos.copy()
-            wheel_position.y += abs(previous_wheel.head.z * 2.2)
             wheel_name = '%s.%03d' % (base_wheel_name, i)
-            self.default_position[wheel_name] = wheel_position
+            if wheel_name not in self.bones_position:
+                wheel_position = previous_wheel_default_pos.copy()
+                wheel_position.y += abs(previous_wheel.head.z * 2.2)
+                self.bones_position[wheel_name] = wheel_position
             previous_wheel = self._create_bone(selected_objects, rig, wheel_name, delta_pos)
-            previous_wheel_default_pos = wheel_position
+            previous_wheel_default_pos = self.bones_position[wheel_name]
 
 
 class GenerateCarAnimationRigOperator(bpy.types.Operator):
