@@ -49,7 +49,7 @@ class BaseCarRigPanel:
         if context.object.data['Car Rig']:
             self.layout.operator(bake_operators.BakeWheelRotationOperator.bl_idname, 'Bake wheels rotation', 'Automatically generates wheels animation based on Root bone animation.')
             self.layout.operator(bake_operators.BakeSteeringOperator.bl_idname, 'Bake steering', 'Automatically steering animation based on Root bone animation.')
-
+            self.layout.separator()
             self.layout.prop(context.object, '["wheels_on_y_axis"]', text="Wheels on Y axis")
             self.layout.prop(context.object, '["suspension_factor"]', text="Suspension fact.")
             self.layout.prop(context.object, '["suspension_rolling_factor"]', text="Suspension rolling fact.")
@@ -58,13 +58,20 @@ class BaseCarRigPanel:
                 ground_sensors_name = [b.name for b in bpy.context.selected_pose_bones if b.name.startswith('GroundSensor.') or b.name == 'Root']
                 for name in ground_sensors_name:
                     ground_projection_constraint = context.object.pose.bones[name].constraints.get('Ground projection')
+                    self.layout.separator()
                     if ground_projection_constraint is not None:
                         self.layout.label("%s:" % name)
                         self.layout.prop(ground_projection_constraint, 'target', text='Ground')
-                        self.layout.prop(ground_projection_constraint, 'shrinkwrap_type')
-                        if ground_projection_constraint.shrinkwrap_type == 'PROJECT':
-                            self.layout.prop(ground_projection_constraint, 'project_limit')
-                        self.layout.prop(ground_projection_constraint, 'influence')
+                        if ground_projection_constraint.target is not None:
+                            self.layout.prop(ground_projection_constraint, 'shrinkwrap_type')
+                            if ground_projection_constraint.shrinkwrap_type == 'PROJECT':
+                                self.layout.prop(ground_projection_constraint, 'project_limit')
+                            self.layout.prop(ground_projection_constraint, 'influence')
+                    ground_projection_limit_constraint = context.object.pose.bones[name].constraints.get('Ground projection limitation')
+                    if ground_projection_limit_constraint is not None:
+                        row = self.layout.row()
+                        row.prop(ground_projection_limit_constraint, 'min_z', text='min Z')
+                        row.prop(ground_projection_limit_constraint, 'max_z', text='max Z')
 
         elif context.object.mode in {"POSE", "OBJECT"}:
             self.layout.operator(car_rig.GenerateCarAnimationRigOperator.bl_idname, text='Generate')

@@ -409,7 +409,6 @@ class ArmatureGenerator(object):
         cns.project_axis_space = 'LOCAL'
         cns.project_axis = 'NEG_Z'
         cns.distance = 0
-        cns.is_proxy_local = True
 
         mch_axis = pose.bones.get('MCH-Axis')
         if mch_axis is not None:
@@ -645,7 +644,23 @@ class ArmatureGenerator(object):
         cns.project_axis_space = 'LOCAL'
         cns.project_axis = 'NEG_Z'
         cns.distance = 0
-        cns.is_proxy_local = True
+
+        cns = ground_sensor.constraints.new('LIMIT_LOCATION')
+        cns.name = 'Ground projection limitation'
+        cns.use_transform_limit = False
+        cns.owner_space = 'LOCAL'
+        cns.use_max_x = True
+        cns.use_min_x = True
+        cns.min_x = 0
+        cns.max_x = 0
+        cns.use_max_y = True
+        cns.use_min_y = True
+        cns.min_y = 0
+        cns.max_y = 0
+        cns.use_max_z = True
+        cns.use_min_z = True
+        cns.min_z = -.2
+        cns.max_z = .2
 
         mch_wheel = pose.bones['MCH-Wheel.%s' % name_suffix]
         mch_wheel.rotation_mode = "XYZ"
