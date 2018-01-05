@@ -187,8 +187,8 @@ class ArmatureGenerator(object):
         root.use_deform = False
 
         shapeRoot = amt.edit_bones.new('SHP-Root')
-        shapeRoot.head = (self.dimension.center.x, self.dimension.center.y, 0)
-        shapeRoot.tail = (self.dimension.center.x, self.dimension.center.y + self.dimension.length, 0)
+        shapeRoot.head = (self.dimension.center.x, self.dimension.center.y, 0.01)
+        shapeRoot.tail = (self.dimension.center.x, self.dimension.center.y + self.dimension.length, 0.01)
         shapeRoot.use_deform = False
         shapeRoot.parent = root
 
@@ -401,6 +401,15 @@ class ArmatureGenerator(object):
 
         self.generate_constraints_on_axle_bones('Ft')
         self.generate_constraints_on_axle_bones('Bk')
+
+        root = pose.bones['Root']
+        cns = root.constraints.new('SHRINKWRAP')
+        cns.name = 'Ground projection'
+        cns.shrinkwrap_type = 'PROJECT'
+        cns.project_axis_space = 'LOCAL'
+        cns.project_axis = 'NEG_Z'
+        cns.distance = 0
+        cns.is_proxy_local = True
 
         mch_axis = pose.bones.get('MCH-Axis')
         if mch_axis is not None:
