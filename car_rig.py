@@ -336,7 +336,7 @@ class ArmatureGenerator(object):
         suspension.use_deform = False
         suspension.parent = axis
 
-    def generate_animation_wheel_bones(self, name_suffix, parent_bone, with_damper=True):
+    def generate_animation_wheel_bones(self, name_suffix, parent_bone):
         amt = self.ob.data
 
         def_wheel_bone = amt.edit_bones.get('DEF-Wheel.%s' % name_suffix)
