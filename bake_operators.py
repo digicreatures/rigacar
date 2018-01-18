@@ -29,8 +29,10 @@ def name_range(prefix):
     for i in itertools.count(1):
         yield '%s.%03d' % (prefix, i)
 
+
 def bone_range(bones, name_prefix):
     return map(lambda n: bones[n], itertools.takewhile(lambda n: n in bones, name_range(name_prefix)))
+
 
 class FCurvesEvaluator:
     """Encapsulates a bunch of FCurves for vector animations."""
@@ -134,6 +136,19 @@ class BakingOperator:
 
         return baked_action
 
+    def _clear_property_fcurve(self, context, property_name):
+        fcurve_datapath = '["%s"]' % property_name
+        action = context.object.animation_data.action
+        fc_rot = action.fcurves.find(fcurve_datapath)
+        if fc_rot is not None:
+            action.fcurves.remove(fc_rot)
+        context.object[property_name] = .0
+
+    def _create_property_fcurve(self, context, property_name):
+        action = context.object.animation_data.action
+        fcurve_datapath = '["%s"]' % property_name
+        return action.fcurves.new(fcurve_datapath, 0, 'Wheels rotation')
+
     def _create_or_replace_fcurve(self, context, target_bone, data_path, data_index=0):
         action = context.object.animation_data.action
         fcurve_datapath = 'pose.bones["%s"].%s' % (target_bone.name, data_path)
@@ -150,13 +165,13 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
 
     def execute(self, context):
         bones = context.object.data.bones
-        wheel_bones = tuple(bone_range(bones, 'MCH-Wheel.controller.Ft.L'))
-        wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.controller.Ft.R'))
-        wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.controller.Bk.L'))
-        wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.controller.Bk.R'))
+        wheel_bones = tuple(bone_range(bones, 'MCH-Wheel.rotation.Ft.L'))
+        wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.rotation.Ft.R'))
+        wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.rotation.Bk.L'))
+        wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.rotation.Bk.R'))
 
-        for wheel_bone in wheel_bones:
-            self._create_or_replace_fcurve(context, wheel_bone, "rotation_euler")
+        for property_name in map(lambda wheel_bone: wheel_bone.name.replace('MCH-', ''), wheel_bones):
+            self._clear_property_fcurve(context, property_name)
 
         baked_action = self._bake_action(context, *wheel_bones)
 
@@ -178,13 +193,13 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
         distance = 0
         yield self.frame_start, distance
         for f in range(self.frame_start + 1, self.frame_end):
-            pos = mathutils.Vector(locEvaluator.evaluate(f))
+            pos = locEvaluator.evaluate(f)
             speed_vector = pos - prev_pos
             rotation_quaternion = rotEvaluator.evaluate(f)
             bone_orientation = rotation_quaternion * bone_init_vector
             speed = math.copysign(speed_vector.magnitude, bone_orientation.dot(speed_vector))
             # yields only if speed has significantly changed (avoids unecessary keyframes)
-            if abs(speed - prev_speed) > self.keyframe_tolerance / 100:
+            if abs(speed - prev_speed) > self.keyframe_tolerance / 10:
                 prev_speed = speed
                 yield f - 1, distance
             distance += speed
@@ -192,7 +207,8 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
         yield self.frame_end, distance
 
     def _bake_wheel_rotation(self, context, baked_action, bone):
-        fc_rot = self._create_or_replace_fcurve(context, bone, "rotation_euler")
+        fc_rot = self._create_property_fcurve(context, bone.name.replace('MCH-', ''))
+
         for f, distance in self._evaluate_distance_per_frame(baked_action, bone):
             kf = fc_rot.keyframe_points.insert(f, distance)
             kf.interpolation = 'LINEAR'
@@ -213,7 +229,7 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
         return {'FINISHED'}
 
     def _compute_next_pos(self, frame, locEvaluator):
-        pos = mathutils.Vector(locEvaluator.evaluate(frame))
+        pos = locEvaluator.evaluate(frame)
         next_frame = frame + 1
         next_pos = locEvaluator.evaluate(next_frame)
         tangent_vector = next_pos - pos

@@ -54,6 +54,20 @@ def create_constraint_influence_driver(ob, cns, driver_data_path, base_influence
         fmod.coefficients = (0, base_influence)
 
 
+def create_rotation_euler_x_driver(ob, bone, driver_data_path):
+    fcurve = bone.driver_add('rotation_euler', 0)
+    drv = fcurve.driver
+    drv.type = 'AVERAGE'
+    var = drv.variables.new()
+    var.name = 'rotationAngle'
+    var.type = 'SINGLE_PROP'
+
+    targ = var.targets[0]
+    targ.id_type = 'OBJECT'
+    targ.id = ob
+    targ.data_path = driver_data_path
+
+
 def create_bone_group(pose, group_name, color_set, bone_names):
     group = pose.bone_groups.new(group_name)
     group.color_set = color_set
@@ -381,10 +395,11 @@ class ArmatureGenerator(object):
         mch_wheel.use_deform = False
         mch_wheel.parent = ground_sensor
 
-        mch_wheel = amt.edit_bones.new('MCH-Wheel.controller.%s' % name_suffix)
-        mch_wheel.head = def_wheel_bone.head
-        mch_wheel.tail = def_wheel_bone.tail
-        mch_wheel.use_deform = False
+        self.ob['Wheel.rotation.%s' % name_suffix] = .0
+        mch_wheel_rotation = amt.edit_bones.new('MCH-Wheel.rotation.%s' % name_suffix)
+        mch_wheel_rotation.head = def_wheel_bone.head
+        mch_wheel_rotation.tail = def_wheel_bone.tail
+        mch_wheel_rotation.use_deform = False
 
     def generate_wheel_damper(self, position, side_position, parent_bone):
         amt = self.ob.data
@@ -703,7 +718,7 @@ class ArmatureGenerator(object):
         cns = mch_wheel.constraints.new('COPY_ROTATION')
         cns.name = 'Bake animation wheels'
         cns.target = self.ob
-        cns.subtarget = 'MCH-Wheel.controller.%s' % name_suffix
+        cns.subtarget = 'MCH-Wheel.rotation.%s' % name_suffix
         cns.use_x = True
         cns.use_y = False
         cns.use_z = False
@@ -739,9 +754,9 @@ class ArmatureGenerator(object):
         cns.owner_space = 'LOCAL'
         cns.target_space = 'LOCAL'
 
-        mch_wheel_controller = pose.bones['MCH-Wheel.controller.%s' % name_suffix]
-        mch_wheel_controller.rotation_mode = "XYZ"
-        cns = mch_wheel_controller.constraints.new('CHILD_OF')
+        mch_wheel_rotation = pose.bones['MCH-Wheel.rotation.%s' % name_suffix]
+        mch_wheel_rotation.rotation_mode = "XYZ"
+        cns = mch_wheel_rotation.constraints.new('CHILD_OF')
         cns.target = self.ob
         cns.subtarget = 'Root'
         cns.inverse_matrix = amt.bones['Root'].matrix_local.inverted()
@@ -751,6 +766,7 @@ class ArmatureGenerator(object):
         cns.use_rotation_x = True
         cns.use_rotation_y = True
         cns.use_rotation_z = True
+        create_rotation_euler_x_driver(self.ob, mch_wheel_rotation, '["Wheel.rotation.%s"]' % name_suffix)
 
 
     def generate_constraints_on_wheel_damper(self, name_suffix, nb_wheels):
