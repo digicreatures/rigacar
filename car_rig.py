@@ -531,7 +531,7 @@ class ArmatureGenerator(object):
         drift.lock_rotation = (True, True, False)
         drift.lock_scale = (True, True, True)
         drift.rotation_mode = 'ZYX'
-        drift.custom_shape = bpy.data.objects['WGT-CarRig.Drift']
+        drift.custom_shape = bpy.data.objects['WGT-CarRig.DriftHandle']
         drift.custom_shape_transform = shapeDrift
 
         suspension = pose.bones['Suspension']
