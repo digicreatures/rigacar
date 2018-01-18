@@ -21,7 +21,16 @@
 import bpy
 import mathutils
 import math
+import itertools
 
+
+def name_range(prefix):
+    yield prefix
+    for i in itertools.count(1):
+        yield '%s.%03d' % (prefix, i)
+
+def bone_range(bones, name_prefix):
+    return map(lambda n: bones[n], itertools.takewhile(lambda n: n in bones, name_range(name_prefix)))
 
 class FCurvesEvaluator:
     """Encapsulates a bunch of FCurves for vector animations."""
@@ -95,27 +104,31 @@ class BakingOperator:
         fc_root_loc = [action.fcurves.find(fcurve_name, i) for i in range(0, 3)]
         return VectorFCurvesEvaluator(FCurvesEvaluator(fc_root_loc, default_value=(.0, .0, .0)))
 
-    def _bake_action(self, context, source_bone):
+    def _bake_action(self, context, *source_bones):
         action = context.object.animation_data.action
 
         # saving context
         selected_bones = [b for b in context.object.data.bones if b.select]
-        matrix_basis = context.object.pose.bones[source_bone.name].matrix_basis.copy()
         mode = context.object.mode
-
-        bpy.ops.object.mode_set(mode='OBJECT')
         for b in selected_bones:
             b.select = False
-        source_bone.select = True
+
+        bpy.ops.object.mode_set(mode='OBJECT')
+        source_bones_matrix_basis = []
+        for source_bone in source_bones:
+            source_bones_matrix_basis.append(context.object.pose.bones[source_bone.name].matrix_basis.copy())
+            source_bone.select = True
 
         bpy.ops.nla.bake(frame_start=self.frame_start, frame_end=self.frame_end, only_selected=True, bake_types={'POSE'}, visual_keying=True)
         bpy.context.scene.update()
         baked_action = bpy.context.active_object.animation_data.action
 
         # restoring context
+        for source_bone, matrix_basis in zip(source_bones, source_bones_matrix_basis):
+            context.object.pose.bones[source_bone.name].matrix_basis = matrix_basis
+            source_bone.select = False
         for b in selected_bones:
             b.select = True
-        context.object.pose.bones[source_bone.name].matrix_basis = matrix_basis
         bpy.context.active_object.animation_data.action = action
         bpy.ops.object.mode_set(mode=mode)
 
@@ -136,12 +149,23 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        if self.frame_end > self.frame_start:
-            if 'MCH-Wheels.Ft' in context.object.data.bones:
-                self._bake_wheel_rotation(context, context.object.data.bones['MCH-Wheels.Ft'])
-            if 'MCH-Wheels.Bk' in context.object.data.bones:
-                self._bake_wheel_rotation(context, context.object.data.bones['MCH-Wheels.Bk'])
-            context.object['wheels_on_y_axis'] = False
+        bones = context.object.data.bones
+        wheel_bones = tuple(bone_range(bones, 'MCH-Wheel.controller.Ft.L'))
+        wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.controller.Ft.R'))
+        wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.controller.Bk.L'))
+        wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.controller.Bk.R'))
+
+        for wheel_bone in wheel_bones:
+            self._create_or_replace_fcurve(context, wheel_bone, "rotation_euler")
+
+        baked_action = self._bake_action(context, *wheel_bones)
+
+        try:
+            for wheel_bone in wheel_bones:
+                self._bake_wheel_rotation(context, baked_action, wheel_bone)
+        finally:
+            bpy.data.actions.remove(baked_action)
+
         return {'FINISHED'}
 
     def _evaluate_distance_per_frame(self, action, bone):
@@ -167,15 +191,11 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
             prev_pos = pos
         yield self.frame_end, distance
 
-    def _bake_wheel_rotation(self, context, bone):
+    def _bake_wheel_rotation(self, context, baked_action, bone):
         fc_rot = self._create_or_replace_fcurve(context, bone, "rotation_euler")
-        action = self._bake_action(context, bone)
-        try:
-            for f, distance in self._evaluate_distance_per_frame(action, bone):
-                kf = fc_rot.keyframe_points.insert(f, distance)
-                kf.interpolation = 'LINEAR'
-        finally:
-            bpy.data.actions.remove(action)
+        for f, distance in self._evaluate_distance_per_frame(baked_action, bone):
+            kf = fc_rot.keyframe_points.insert(f, distance)
+            kf.interpolation = 'LINEAR'
 
 
 class BakeSteeringOperator(bpy.types.Operator, BakingOperator):

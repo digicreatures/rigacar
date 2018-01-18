@@ -22,7 +22,6 @@ import bpy
 import math
 import bpy_extras
 import mathutils
-import itertools
 
 DEF_BONE_LAYER = 30
 MCH_BONE_LAYER = 31
@@ -126,12 +125,12 @@ class CarDimension():
 
     def __init__(self, armature):
         body = armature.edit_bones['DEF-Body']
-        
+
         self.wheels_front_left = WheelDimension(armature, 'Ft', 'L', body.head)
         self.wheels_front_right = WheelDimension(armature, 'Ft', 'R', body.head)
         self.wheels_back_left = WheelDimension(armature, 'Bk', 'L', body.tail)
         self.wheels_back_right = WheelDimension(armature, 'Bk', 'R', body.tail)
-        
+
         if self.has_wheels:
             self.width = max(self.wheels_front_left.max_width, self.wheels_front_right.max_width, self.wheels_back_left.max_width, self.wheels_back_right.max_width)
         else:
@@ -154,7 +153,7 @@ class CarDimension():
     @property
     def wheels_back_position(self):
         return (self.wheels_back_left.max_position + self.wheels_back_right.max_position) / 2
-        
+
     @property
     def suspension_front_position(self):
         return (self.wheels_front_left.medium_position + self.wheels_front_right.medium_position) / 2
@@ -174,7 +173,7 @@ class CarDimension():
     @property
     def has_back_wheels(self):
         return self.nb_back_wheels > 0
-        
+
     @property
     def nb_front_wheels(self):
         return max(self.wheels_front_left.nb, self.wheels_front_right.nb)
@@ -182,7 +181,7 @@ class CarDimension():
     @property
     def nb_back_wheels(self):
         return max(self.wheels_back_left.nb, self.wheels_back_right.nb)
-        
+
     def wheels(self, position, side_position):
         if position == 'Ft':
             return self.wheels_front_left if side_position == 'L' else self.wheels_front_right
@@ -739,7 +738,7 @@ class ArmatureGenerator(object):
         cns.use_offset = True
         cns.owner_space = 'LOCAL'
         cns.target_space = 'LOCAL'
-        
+
         mch_wheel_controller = pose.bones['MCH-Wheel.controller.%s' % name_suffix]
         mch_wheel_controller.rotation_mode = "XYZ"
         cns = mch_wheel_controller.constraints.new('CHILD_OF')
