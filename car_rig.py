@@ -130,9 +130,9 @@ class WheelDimension():
             if wheel is None:
                 break
             if nb_wheels == 0 or min_wheel.y > wheel.head.y:
-                min_wheel = wheel.head.copy();
+                min_wheel = wheel.head.copy()
             if nb_wheels == 0 or max_wheel.y < wheel.head.y:
-                max_wheel = wheel.head.copy();
+                max_wheel = wheel.head.copy()
             max_width = max(max_width, abs(wheel.head.x))
             nb_wheels += 1
 
@@ -783,7 +783,6 @@ class ArmatureGenerator(object):
         cns.use_rotation_y = True
         cns.use_rotation_z = True
         create_rotation_euler_x_driver(self.ob, mch_wheel_rotation, '["Wheel.rotation.%s"]' % name_suffix)
-
 
     def generate_constraints_on_wheel_damper(self, name_suffix, nb_wheels):
         pose = self.ob.pose
