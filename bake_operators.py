@@ -72,7 +72,7 @@ class EulerToQuaternionFCurvesEvaluator:
 class BakingOperator:
     frame_start = bpy.props.IntProperty(name='Start Frame', min=1)
     frame_end = bpy.props.IntProperty(name='End Frame', min=1)
-    keyframe_tolerance = bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.1)
+    keyframe_tolerance = bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.4)
 
     @classmethod
     def poll(cls, context):
@@ -149,14 +149,6 @@ class BakingOperator:
         fcurve_datapath = '["%s"]' % property_name
         return action.fcurves.new(fcurve_datapath, 0, 'Wheels rotation')
 
-    def _create_or_replace_fcurve(self, context, target_bone, data_path, data_index=0):
-        action = context.object.animation_data.action
-        fcurve_datapath = 'pose.bones["%s"].%s' % (target_bone.name, data_path)
-        fc_rot = action.fcurves.find(fcurve_datapath, data_index)
-        if fc_rot is not None:
-            action.fcurves.remove(fc_rot)
-        return action.fcurves.new(fcurve_datapath, data_index, target_bone.name)
-
 
 class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
     bl_idname = 'anim.car_wheels_rotation_bake'
@@ -219,13 +211,21 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
     bl_label = 'Bake car steering'
     bl_options = {'REGISTER', 'UNDO'}
 
+    rotation_factor = bpy.props.FloatProperty(name='Rotation factor', min=0.1, default=1.0)
+
+    def draw(self, context):
+        self.layout.prop(self, 'frame_start')
+        self.layout.prop(self, 'frame_end')
+        self.layout.prop(self, 'keyframe_tolerance')
+        self.layout.prop(self, 'rotation_factor')
+
     def execute(self, context):
         if self.frame_end > self.frame_start:
-            if 'Steering' in context.object.data.bones and 'MCH-Steering.controller' in context.object.data.bones:
+            if 'Steering' in context.object.data.bones and 'MCH-Steering.rotation' in context.object.data.bones:
                 steering = context.object.data.bones['Steering']
-                mch_steering_controller = context.object.data.bones['MCH-Steering.controller']
-                distance = (steering.head - mch_steering_controller.head).length
-                self._bake_steering_rotation(context, distance, mch_steering_controller)
+                mch_steering_rotation = context.object.data.bones['MCH-Steering.rotation']
+                distance = (steering.head - mch_steering_rotation.head).length
+                self._bake_steering_rotation(context, distance, mch_steering_rotation)
         return {'FINISHED'}
 
     def _compute_next_pos(self, frame, locEvaluator):
@@ -270,13 +270,14 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
         yield self.frame_end, prev_rotation
 
     def _bake_steering_rotation(self, context, distance, bone):
-        fc_rot = self._create_or_replace_fcurve(context, bone, "location")
+        self._clear_property_fcurve(context, 'Steering.rotation')
+        fc_rot = self._create_property_fcurve(context, 'Steering.rotation')
         action = context.object.animation_data.action
         action = self._bake_action(context, bone)
 
         try:
             for f, rotation_angle in self._evaluate_rotation_per_frame(action, bone):
-                kf = fc_rot.keyframe_points.insert(f, math.tan(rotation_angle) * distance)
+                kf = fc_rot.keyframe_points.insert(f, math.tan(rotation_angle * self.rotation_factor) * distance)
                 kf.interpolation = 'LINEAR'
         finally:
             bpy.data.actions.remove(action)

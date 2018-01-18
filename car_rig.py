@@ -68,6 +68,20 @@ def create_rotation_euler_x_driver(ob, bone, driver_data_path):
     targ.data_path = driver_data_path
 
 
+def create_translation_x_driver(ob, bone, driver_data_path):
+    fcurve = bone.driver_add('location', 0)
+    drv = fcurve.driver
+    drv.type = 'AVERAGE'
+    var = drv.variables.new()
+    var.name = 'rotationAngle'
+    var.type = 'SINGLE_PROP'
+
+    targ = var.targets[0]
+    targ.id_type = 'OBJECT'
+    targ.id = ob
+    targ.data_path = driver_data_path
+
+
 def create_bone_group(pose, group_name, color_set, bone_names):
     group = pose.bone_groups.new(group_name)
     group.color_set = color_set
@@ -294,19 +308,19 @@ class ArmatureGenerator(object):
             mchSteering.use_deform = False
             mchSteering.parent = root
 
-            steeringController = amt.edit_bones.new('MCH-Steering.controller')
-            steeringController.head = mchSteering.head
-            steeringController.tail = mchSteering.head
-            steeringController.tail.y += 1
-            steeringController.use_deform = False
+            steeringRotation = amt.edit_bones.new('MCH-Steering.rotation')
+            steeringRotation.head = mchSteering.head
+            steeringRotation.tail = mchSteering.head
+            steeringRotation.tail.y += 1
+            steeringRotation.use_deform = False
 
             steering = amt.edit_bones.new('Steering')
-            steering.head = steeringController.head
-            steering.tail = steeringController.tail
+            steering.head = steeringRotation.head
+            steering.tail = steeringRotation.tail
             steering.head.y -= self.dimension.length
             steering.tail.y -= self.dimension.length
             steering.use_deform = False
-            steering.parent = steeringController
+            steering.parent = steeringRotation
 
         if self.dimension.has_back_wheels:
             for name in name_range('Bk.L', self.dimension.nb_back_wheels):
@@ -534,9 +548,9 @@ class ArmatureGenerator(object):
             steering.lock_rotation_w = True
             steering.custom_shape = bpy.data.objects['WGT-CarRig.Steering']
 
-            mch_steering_controller = pose.bones['MCH-Steering.controller']
-            mch_steering_controller.rotation_mode = 'ZYX'
-            cns = mch_steering_controller.constraints.new('CHILD_OF')
+            mch_steering_rotation = pose.bones['MCH-Steering.rotation']
+            mch_steering_rotation.rotation_mode = 'ZYX'
+            cns = mch_steering_rotation.constraints.new('CHILD_OF')
             cns.target = self.ob
             cns.subtarget = 'Root'
             cns.inverse_matrix = self.ob.data.bones['Root'].matrix_local.inverted()
@@ -546,6 +560,8 @@ class ArmatureGenerator(object):
             cns.use_rotation_x = True
             cns.use_rotation_y = True
             cns.use_rotation_z = True
+            self.ob['Steering.rotation'] = .0
+            create_translation_x_driver(self.ob, mch_steering_rotation, '["Steering.rotation"]')
 
             mch_steering = pose.bones['MCH-Steering']
             cns = mch_steering.constraints.new('DAMPED_TRACK')
