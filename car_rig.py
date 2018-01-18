@@ -630,8 +630,25 @@ class ArmatureGenerator(object):
             wheels.rotation_mode = "XYZ"
             wheels.lock_location = (True, True, True)
             wheels.lock_rotation = (False, True, True)
-            wheels.lock_scale = (True, True, True)
+            wheels.lock_scale = (True, False, False)
             wheels.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
+
+            cns = wheels.constraints.new('LIMIT_SCALE')
+            cns.name = 'Brakes'
+            cns.use_transform_limit = True
+            cns.owner_space = 'LOCAL'
+            cns.use_max_x = True
+            cns.use_min_x = True
+            cns.min_x = 1.0
+            cns.max_x = 1.0
+            cns.use_max_y = True
+            cns.use_min_y = True
+            cns.min_y = .5
+            cns.max_y = 1.0
+            cns.use_max_z = True
+            cns.use_min_z = True
+            cns.min_z = .5
+            cns.max_z = 1.0
 
         subtarget = 'MCH-Axis.%s' % position
         if subtarget in pose.bones:

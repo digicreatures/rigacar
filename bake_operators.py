@@ -106,6 +106,11 @@ class BakingOperator:
         fc_root_loc = [action.fcurves.find(fcurve_name, i) for i in range(0, 3)]
         return VectorFCurvesEvaluator(FCurvesEvaluator(fc_root_loc, default_value=(.0, .0, .0)))
 
+    def _create_scale_evaluator(self, action, source_bone):
+        fcurve_name = 'pose.bones["%s"].scale' % source_bone.name
+        fc_root_loc = [action.fcurves.find(fcurve_name, i) for i in range(0, 3)]
+        return VectorFCurvesEvaluator(FCurvesEvaluator(fc_root_loc, default_value=(1.0, 1.0, 1.0)))
+
     def _bake_action(self, context, *source_bones):
         action = context.object.animation_data.action
 
@@ -161,47 +166,55 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
         wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.rotation.Ft.R'))
         wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.rotation.Bk.L'))
         wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.rotation.Bk.R'))
+        brake_bones = tuple(bones[name] for name in ('Front Wheels', 'Back Wheels') if name in bones)
 
         for property_name in map(lambda wheel_bone: wheel_bone.name.replace('MCH-', ''), wheel_bones):
             self._clear_property_fcurve(context, property_name)
 
-        baked_action = self._bake_action(context, *wheel_bones)
+        baked_action = self._bake_action(context, *wheel_bones + brake_bones)
 
         try:
             for wheel_bone in wheel_bones:
-                self._bake_wheel_rotation(context, baked_action, wheel_bone)
+                brake_name = 'Front Wheels' if wheel_bone.name.startswith('MCH-Wheel.rotation.Ft.') else 'Back Wheels'
+                self._bake_wheel_rotation(context, baked_action, wheel_bone, bones[brake_name])
         finally:
             bpy.data.actions.remove(baked_action)
 
         return {'FINISHED'}
 
-    def _evaluate_distance_per_frame(self, action, bone):
-        locEvaluator = self._create_location_evaluator(action, bone)
-        rotEvaluator = self._create_rotation_evaluator(action, bone)
+    def _evaluate_distance_per_frame(self, action, bone, brake_bone):
+        loc_evaluator = self._create_location_evaluator(action, bone)
+        rot_evaluator = self._create_rotation_evaluator(action, bone)
+        break_evaluator = self._create_scale_evaluator(action, brake_bone)
 
         bone_init_vector = (bone.head_local - bone.tail_local).normalized()
-        prev_pos = locEvaluator.evaluate(self.frame_start)
+        prev_pos = loc_evaluator.evaluate(self.frame_start)
         prev_speed = 0
         distance = 0
         yield self.frame_start, distance
         for f in range(self.frame_start + 1, self.frame_end):
-            pos = locEvaluator.evaluate(f)
+            pos = loc_evaluator.evaluate(f)
             speed_vector = pos - prev_pos
-            rotation_quaternion = rotEvaluator.evaluate(f)
+            speed_vector *= 2 * break_evaluator.evaluate(f).y - 1
+            rotation_quaternion = rot_evaluator.evaluate(f)
             bone_orientation = rotation_quaternion * bone_init_vector
             speed = math.copysign(speed_vector.magnitude, bone_orientation.dot(speed_vector))
-            # yields only if speed has significantly changed (avoids unecessary keyframes)
-            if abs(speed - prev_speed) > self.keyframe_tolerance / 10:
+            drop_keyframe = False
+            if speed == .0:
+                drop_keyframe = prev_speed == speed
+            elif prev_speed != .0:
+                drop_keyframe = abs(1 - prev_speed / speed) < self.keyframe_tolerance / 10
+            if not drop_keyframe:
                 prev_speed = speed
                 yield f - 1, distance
             distance += speed
             prev_pos = pos
         yield self.frame_end, distance
 
-    def _bake_wheel_rotation(self, context, baked_action, bone):
+    def _bake_wheel_rotation(self, context, baked_action, bone, brake_bone):
         fc_rot = self._create_property_fcurve(context, bone.name.replace('MCH-', ''))
 
-        for f, distance in self._evaluate_distance_per_frame(baked_action, bone):
+        for f, distance in self._evaluate_distance_per_frame(baked_action, bone, brake_bone):
             kf = fc_rot.keyframe_points.insert(f, distance)
             kf.interpolation = 'LINEAR'
 
@@ -228,36 +241,36 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
                 self._bake_steering_rotation(context, distance, mch_steering_rotation)
         return {'FINISHED'}
 
-    def _compute_next_pos(self, frame, locEvaluator):
-        pos = locEvaluator.evaluate(frame)
+    def _compute_next_pos(self, frame, loc_evaluator):
+        pos = loc_evaluator.evaluate(frame)
         next_frame = frame + 1
-        next_pos = locEvaluator.evaluate(next_frame)
+        next_pos = loc_evaluator.evaluate(next_frame)
         tangent_vector = next_pos - pos
         while tangent_vector.length < 1:
             if next_frame >= self.frame_end:
                 break
             next_frame = next_frame + 1
-            next_pos = locEvaluator.evaluate(next_frame)
+            next_pos = loc_evaluator.evaluate(next_frame)
             tangent_vector = next_pos - pos
 
         # simple linear interpolation
         if tangent_vector.length > 0:
             next_frame = frame + (next_frame - frame) / tangent_vector.length
 
-        return mathutils.Vector(locEvaluator.evaluate(next_frame))
+        return mathutils.Vector(loc_evaluator.evaluate(next_frame))
 
     def _evaluate_rotation_per_frame(self, action, bone):
-        locEvaluator = self._create_location_evaluator(action, bone)
-        rotEvaluator = self._create_rotation_evaluator(action, bone)
+        loc_evaluator = self._create_location_evaluator(action, bone)
+        rot_evaluator = self._create_rotation_evaluator(action, bone)
 
         init_vector = bone.head - bone.tail
-        current_pos = locEvaluator.evaluate(self.frame_start)
+        current_pos = loc_evaluator.evaluate(self.frame_start)
         prev_rotation = .0
         for f in range(self.frame_start, self.frame_end - 1):
-            next_pos = self._compute_next_pos(f, locEvaluator)
+            next_pos = self._compute_next_pos(f, loc_evaluator)
 
             world_space_tangent_vector = next_pos - current_pos
-            local_space_tangent_vector = rotEvaluator.evaluate(f).inverted() * world_space_tangent_vector
+            local_space_tangent_vector = rot_evaluator.evaluate(f).inverted() * world_space_tangent_vector
 
             current_rotation = local_space_tangent_vector.xy.angle_signed(init_vector.xy, prev_rotation)
             if abs(prev_rotation - current_rotation) > self.keyframe_tolerance / 100 or f == self.frame_start:
