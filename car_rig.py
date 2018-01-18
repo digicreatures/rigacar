@@ -268,14 +268,6 @@ class ArmatureGenerator(object):
             wheels.use_deform = False
             wheels.parent = amt.edit_bones['GroundSensor.Ft.L']
 
-            mch_wheels = amt.edit_bones.new('MCH-Wheels.Ft')
-            mch_wheels.head = wheelFtL.head
-            mch_wheels.tail = wheelFtL.tail
-            mch_wheels.head.x /= 2
-            mch_wheels.tail.x /= 2
-            mch_wheels.tail.y = mch_wheels.head.y + 1
-            mch_wheels.use_deform = False
-
             axisFt = amt.edit_bones.new('MCH-Axis.Ft')
             axisFt.head = wheelFtR.head
             axisFt.tail = wheelFtL.head
@@ -321,14 +313,6 @@ class ArmatureGenerator(object):
             wheels.tail.x = math.copysign(wheelBkL.tail.x + 1.1 * wheelBkL.length, wheels.tail.x)
             wheels.use_deform = False
             wheels.parent = amt.edit_bones['GroundSensor.Bk.L']
-
-            mch_wheels = amt.edit_bones.new('MCH-Wheels.Bk')
-            mch_wheels.head = wheelBkL.head
-            mch_wheels.tail = wheelBkL.tail
-            mch_wheels.head.x /= 2
-            mch_wheels.tail.x /= 2
-            mch_wheels.tail.y = mch_wheels.head.y + 1
-            mch_wheels.use_deform = False
 
             axisBk = amt.edit_bones.new('MCH-Axis.Bk')
             axisBk.head = wheelBkR.head
@@ -397,6 +381,11 @@ class ArmatureGenerator(object):
         mch_wheel.tail.y += .5
         mch_wheel.use_deform = False
         mch_wheel.parent = ground_sensor
+
+        mch_wheel = amt.edit_bones.new('MCH-Wheel.controller.%s' % name_suffix)
+        mch_wheel.head = def_wheel_bone.head
+        mch_wheel.tail = def_wheel_bone.tail
+        mch_wheel.use_deform = False
 
     def generate_wheel_damper(self, position, side_position, parent_bone):
         amt = self.ob.data
@@ -614,20 +603,6 @@ class ArmatureGenerator(object):
             wheels.lock_scale = (True, True, True)
             wheels.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
 
-        mch_wheels = pose.bones.get('MCH-Wheels.%s' % position)
-        if mch_wheels is not None:
-            mch_wheels.rotation_mode = "XYZ"
-            cns = mch_wheels.constraints.new('CHILD_OF')
-            cns.target = self.ob
-            cns.subtarget = 'Root'
-            cns.inverse_matrix = amt.bones['Root'].matrix_local.inverted()
-            cns.use_location_x = True
-            cns.use_location_y = True
-            cns.use_location_z = True
-            cns.use_rotation_x = True
-            cns.use_rotation_y = True
-            cns.use_rotation_z = True
-
         subtarget = 'MCH-Axis.%s' % position
         if subtarget in pose.bones:
             mch_suspension = pose.bones['MCH-Suspension.%s' % position]
@@ -671,6 +646,7 @@ class ArmatureGenerator(object):
 
     def generate_constraints_on_wheel_bones(self, name_suffix):
         pose = self.ob.pose
+        amt = self.ob.data
 
         def_wheel = pose.bones.get('DEF-Wheel.%s' % name_suffix)
         if def_wheel is None:
@@ -725,23 +701,16 @@ class ArmatureGenerator(object):
         mch_wheel = pose.bones['MCH-Wheel.%s' % name_suffix]
         mch_wheel.rotation_mode = "XYZ"
 
-        fcurve = mch_wheel.driver_add('rotation_euler', 0)
-        drv = fcurve.driver
-        drv.type = 'AVERAGE'
-        var = drv.variables.new()
-        var.name = 'x'
-        var.type = 'TRANSFORMS'
-
-        targ = var.targets[0]
-        targ.id = self.ob
-        targ.transform_space = 'TRANSFORM_SPACE'
-        targ.bone_target = 'MCH-Wheels.%s' % ('Ft' if name_suffix.startswith('Ft.') else 'Bk')
-        targ.transform_type = 'ROT_X'
-
-        fmod = fcurve.modifiers[0]
-        fmod.mode = 'POLYNOMIAL'
-        fmod.poly_order = 1
-        fmod.coefficients = (0, abs(1 / (mch_wheel.head.z if mch_wheel.head.z != 0 else 1)))
+        cns = mch_wheel.constraints.new('COPY_ROTATION')
+        cns.name = 'Bake animation wheels'
+        cns.target = self.ob
+        cns.subtarget = 'MCH-Wheel.controller.%s' % name_suffix
+        cns.use_x = True
+        cns.use_y = False
+        cns.use_z = False
+        cns.use_offset = False
+        cns.owner_space = 'POSE'
+        cns.target_space = 'POSE'
 
         cns = mch_wheel.constraints.new('TRANSFORM')
         cns.name = 'Wheel rotation along Y axis'
@@ -770,6 +739,20 @@ class ArmatureGenerator(object):
         cns.use_offset = True
         cns.owner_space = 'LOCAL'
         cns.target_space = 'LOCAL'
+        
+        mch_wheel_controller = pose.bones['MCH-Wheel.controller.%s' % name_suffix]
+        mch_wheel_controller.rotation_mode = "XYZ"
+        cns = mch_wheel_controller.constraints.new('CHILD_OF')
+        cns.target = self.ob
+        cns.subtarget = 'Root'
+        cns.inverse_matrix = amt.bones['Root'].matrix_local.inverted()
+        cns.use_location_x = True
+        cns.use_location_y = True
+        cns.use_location_z = True
+        cns.use_rotation_x = True
+        cns.use_rotation_y = True
+        cns.use_rotation_z = True
+
 
     def generate_constraints_on_wheel_damper(self, name_suffix, nb_wheels):
         pose = self.ob.pose
