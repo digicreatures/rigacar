@@ -1003,10 +1003,12 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
         self._create_wheel_bones(rig, 'Wheel.Bk.L', self.nb_back_wheels_pairs, self.back_wheel_pos_delta)
         self._create_wheel_bones(rig, 'Wheel.Bk.R', self.nb_back_wheels_pairs, self.back_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))))
 
-        front_wheel_brakes_delta_pos = self.front_wheel_pos_delta.copy() + mathutils.Vector((self.front_wheel_brakes_pos_delta, .0, .0))
+        front_wheel_brakes_delta_pos = self.front_wheel_pos_delta.copy()
+        front_wheel_brakes_delta_pos.x = self.front_wheel_brakes_pos_delta
         self._create_wheel_bones(rig, 'WheelBrake.Ft.L', self.nb_front_wheel_brakes_pairs, front_wheel_brakes_delta_pos)
         self._create_wheel_bones(rig, 'WheelBrake.Ft.R', self.nb_front_wheel_brakes_pairs, front_wheel_brakes_delta_pos.reflect(mathutils.Vector((1, 0, 0))))
-        back_wheel_brakes_delta_pos = self.back_wheel_pos_delta.copy() + mathutils.Vector((self.back_wheel_brakes_pos_delta, .0, .0))
+        back_wheel_brakes_delta_pos = self.back_wheel_pos_delta.copy()
+        back_wheel_brakes_delta_pos.x = self.back_wheel_brakes_pos_delta
         self._create_wheel_bones(rig, 'WheelBrake.Bk.L', self.nb_back_wheel_brakes_pairs, back_wheel_brakes_delta_pos)
         self._create_wheel_bones(rig, 'WheelBrake.Bk.R', self.nb_back_wheel_brakes_pairs, back_wheel_brakes_delta_pos.reflect(mathutils.Vector((1, 0, 0))))
 
