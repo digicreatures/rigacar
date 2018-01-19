@@ -187,6 +187,7 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
         rot_evaluator = self._create_rotation_evaluator(action, bone)
         break_evaluator = self._create_scale_evaluator(action, brake_bone)
 
+        radius = bone.length if bone.length > .0 else 1.0
         bone_init_vector = (bone.head_local - bone.tail_local).normalized()
         prev_pos = loc_evaluator.evaluate(self.frame_start)
         prev_speed = 0
@@ -199,6 +200,7 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
             rotation_quaternion = rot_evaluator.evaluate(f)
             bone_orientation = rotation_quaternion * bone_init_vector
             speed = math.copysign(speed_vector.magnitude, bone_orientation.dot(speed_vector))
+            speed /= radius
             drop_keyframe = False
             if speed == .0:
                 drop_keyframe = prev_speed == speed

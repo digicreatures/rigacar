@@ -412,7 +412,8 @@ class ArmatureGenerator(object):
         self.ob['Wheel.rotation.%s' % name_suffix] = .0
         mch_wheel_rotation = amt.edit_bones.new('MCH-Wheel.rotation.%s' % name_suffix)
         mch_wheel_rotation.head = def_wheel_bone.head
-        mch_wheel_rotation.tail = def_wheel_bone.tail
+        mch_wheel_rotation.tail = def_wheel_bone.head
+        mch_wheel_rotation.tail.y += mch_wheel_rotation.tail.z
         mch_wheel_rotation.use_deform = False
 
     def generate_wheel_damper(self, position, side_position, parent_bone):
