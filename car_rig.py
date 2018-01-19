@@ -416,6 +416,15 @@ class ArmatureGenerator(object):
         mch_wheel_rotation.tail.y += mch_wheel_rotation.tail.z
         mch_wheel_rotation.use_deform = False
 
+        def_wheel_brake_bone = amt.edit_bones.get('DEF-WheelBrake.%s' % name_suffix)
+        if def_wheel_brake_bone is not None:
+            mch_wheel = amt.edit_bones.new('MCH-WheelBrake.%s' % name_suffix)
+            mch_wheel.head = def_wheel_brake_bone.head
+            mch_wheel.tail = def_wheel_brake_bone.tail
+            mch_wheel.tail.y += .5
+            mch_wheel.use_deform = False
+            mch_wheel.parent = ground_sensor
+
     def generate_wheel_damper(self, position, side_position, parent_bone):
         amt = self.ob.data
         wheels = self.dimension.wheels(position, side_position)
@@ -704,6 +713,12 @@ class ArmatureGenerator(object):
         cns.target = self.ob
         cns.subtarget = 'MCH-Wheel.%s' % name_suffix
 
+        def_wheel_brake = pose.bones.get('DEF-WheelBrake.%s' % name_suffix)
+        if def_wheel_brake is not None:
+            cns = def_wheel_brake.constraints.new('COPY_TRANSFORMS')
+            cns.target = self.ob
+            cns.subtarget = 'MCH-WheelBrake.%s' % name_suffix
+
         ground_sensor = pose.bones['GroundSensor.%s' % name_suffix]
         ground_sensor.lock_location = (True, True, False)
         ground_sensor.lock_rotation = (True, True, True)
@@ -870,6 +885,15 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
                                                           default=(0, 0, 0),
                                                           subtype='TRANSLATION')
 
+    nb_front_wheel_brakes_pairs = bpy.props.IntProperty(name='Front Wheel Brakes Pairs',
+                                                        description='Number of front wheel brakes pairs',
+                                                        default=0,
+                                                        min=0)
+
+    front_wheel_brakes_pos_delta = bpy.props.FloatProperty(name='Front Wheel Brakes Delta',
+                                                           description='Adjust front wheel brakes',
+                                                           default=0)
+
     nb_back_wheels_pairs = bpy.props.IntProperty(name='Back Wheels Pairs',
                                                  description='Number of back wheels pairs',
                                                  default=1,
@@ -881,13 +905,26 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
                                                          default=(0, 0, 0),
                                                          subtype='TRANSLATION')
 
+    nb_back_wheel_brakes_pairs = bpy.props.IntProperty(name='Back Wheel Brakes Pairs',
+                                                       description='Number of back wheel brakes pairs',
+                                                       default=0,
+                                                       min=0)
+
+    back_wheel_brakes_pos_delta = bpy.props.FloatProperty(name='Back Wheel Brakes Delta',
+                                                          description='Back front wheel brakes',
+                                                          default=0)
+
     def invoke(self, context, event):
         self.bones_position = {
             'Body':       mathutils.Vector((0.0,  0,  .8)),
             'Wheel.Ft.L': mathutils.Vector((0.9, -2,  .5)),
             'Wheel.Ft.R': mathutils.Vector((-.9, -2,  .5)),
             'Wheel.Bk.L': mathutils.Vector((0.9,  2,  .5)),
-            'Wheel.Bk.R': mathutils.Vector((-.9,  2,  .5))
+            'Wheel.Bk.R': mathutils.Vector((-.9,  2,  .5)),
+            'WheelBrake.Ft.L': mathutils.Vector((0.8, -2,  .5)),
+            'WheelBrake.Ft.R': mathutils.Vector((-.8, -2,  .5)),
+            'WheelBrake.Bk.L': mathutils.Vector((0.8,  2,  .5)),
+            'WheelBrake.Bk.R': mathutils.Vector((-.8,  2,  .5))
         }
         self.target_objects_name = {}
 
@@ -898,8 +935,15 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
         nb_wheels_bk_l = self._find_target_object_for_wheels(context, 'Wheel.Bk.L')
         nb_wheels_bk_r = self._find_target_object_for_wheels(context, 'Wheel.Bk.R')
 
+        nb_wheel_brakes_ft_l = self._find_target_object_for_wheels(context, 'WheelBrake.Ft.L')
+        nb_wheel_brakes_ft_r = self._find_target_object_for_wheels(context, 'WheelBrake.Ft.R')
+        nb_wheel_brakes_bk_l = self._find_target_object_for_wheels(context, 'WheelBrake.Bk.L')
+        nb_wheel_brakes_bk_r = self._find_target_object_for_wheels(context, 'WheelBrake.Bk.R')
+
         self.nb_front_wheels_pairs = max(nb_wheels_ft_l, nb_wheels_ft_r)
         self.nb_back_wheels_pairs = max(nb_wheels_bk_l, nb_wheels_bk_r)
+        self.nb_front_wheel_brakes_pairs = max(nb_wheel_brakes_ft_l, nb_wheel_brakes_ft_r)
+        self.nb_back_wheel_brakes_pairs = max(nb_wheel_brakes_bk_l, nb_wheel_brakes_bk_r)
 
         # if no target object has been found for body, we assume it may have no
         # target object for front and back wheels either.
@@ -936,9 +980,15 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
 
         self._create_wheel_bones(rig, 'Wheel.Ft.L', self.nb_front_wheels_pairs, self.front_wheel_pos_delta)
         self._create_wheel_bones(rig, 'Wheel.Ft.R', self.nb_front_wheels_pairs, self.front_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))))
-
         self._create_wheel_bones(rig, 'Wheel.Bk.L', self.nb_back_wheels_pairs, self.back_wheel_pos_delta)
         self._create_wheel_bones(rig, 'Wheel.Bk.R', self.nb_back_wheels_pairs, self.back_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))))
+
+        front_wheel_brakes_delta_pos = self.front_wheel_pos_delta.copy() + mathutils.Vector((self.front_wheel_brakes_pos_delta, .0, .0))
+        self._create_wheel_bones(rig, 'WheelBrake.Ft.L', self.nb_front_wheel_brakes_pairs, front_wheel_brakes_delta_pos)
+        self._create_wheel_bones(rig, 'WheelBrake.Ft.R', self.nb_front_wheel_brakes_pairs, front_wheel_brakes_delta_pos.reflect(mathutils.Vector((1, 0, 0))))
+        back_wheel_brakes_delta_pos = self.back_wheel_pos_delta.copy() + mathutils.Vector((self.back_wheel_brakes_pos_delta, .0, .0))
+        self._create_wheel_bones(rig, 'WheelBrake.Bk.L', self.nb_back_wheel_brakes_pairs, back_wheel_brakes_delta_pos)
+        self._create_wheel_bones(rig, 'WheelBrake.Bk.R', self.nb_back_wheel_brakes_pairs, back_wheel_brakes_delta_pos.reflect(mathutils.Vector((1, 0, 0))))
 
         deselect_edit_bones(rig)
 
