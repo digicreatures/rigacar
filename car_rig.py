@@ -863,56 +863,76 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
     bl_label = "Add car deformation rig"
     bl_options = {'REGISTER', 'UNDO'}
 
-    body_pos_delta = bpy.props.FloatVectorProperty(name='Body Delta',
-                                                   description='Adjust car body location',
+    body_pos_delta = bpy.props.FloatVectorProperty(name='Delta Location',
+                                                   description='Extra translation added to location of the car body',
                                                    size=3,
                                                    default=(0, 0, 0),
                                                    subtype='TRANSLATION')
 
-    body_size_delta = bpy.props.FloatProperty(name='Body End Delta',
-                                              description='Adjust car body bone length',
+    body_size_delta = bpy.props.FloatProperty(name='Delta Length',
+                                              description='Extra length added to the car body',
                                               default=.0,
                                               subtype='DISTANCE')
 
-    nb_front_wheels_pairs = bpy.props.IntProperty(name='Front Wheels Pairs',
+    nb_front_wheels_pairs = bpy.props.IntProperty(name='Pairs',
                                                   description='Number of front wheels pairs',
                                                   default=1,
                                                   min=0)
 
-    front_wheel_pos_delta = bpy.props.FloatVectorProperty(name='Front Wheel Delta',
-                                                          description='Adjust front wheels location',
+    front_wheel_pos_delta = bpy.props.FloatVectorProperty(name='Delta Location',
+                                                          description='Extra translation added to location of the front wheels',
                                                           size=3,
                                                           default=(0, 0, 0),
                                                           subtype='TRANSLATION')
 
-    nb_front_wheel_brakes_pairs = bpy.props.IntProperty(name='Front Wheel Brakes Pairs',
-                                                        description='Number of front wheel brakes pairs',
-                                                        default=0,
-                                                        min=0)
-
-    front_wheel_brakes_pos_delta = bpy.props.FloatProperty(name='Front Wheel Brakes Delta',
-                                                           description='Adjust front wheel brakes',
-                                                           default=0)
-
-    nb_back_wheels_pairs = bpy.props.IntProperty(name='Back Wheels Pairs',
+    nb_back_wheels_pairs = bpy.props.IntProperty(name='Pairs',
                                                  description='Number of back wheels pairs',
                                                  default=1,
                                                  min=0)
 
-    back_wheel_pos_delta = bpy.props.FloatVectorProperty(name='Back Wheel Delta',
-                                                         description='Adjust back wheels location',
+    back_wheel_pos_delta = bpy.props.FloatVectorProperty(name='Delta Location',
+                                                         description='Extra translation added to location of the back wheels',
                                                          size=3,
                                                          default=(0, 0, 0),
                                                          subtype='TRANSLATION')
 
-    nb_back_wheel_brakes_pairs = bpy.props.IntProperty(name='Back Wheel Brakes Pairs',
+    nb_front_wheel_brakes_pairs = bpy.props.IntProperty(name='Front Pairs',
+                                                        description='Number of front wheel brakes pairs',
+                                                        default=0,
+                                                        min=0)
+
+    front_wheel_brakes_pos_delta = bpy.props.FloatProperty(name='Front Delta Location',
+                                                           description='Extra translation added to location of the front brakes',
+                                                           default=0)
+
+    nb_back_wheel_brakes_pairs = bpy.props.IntProperty(name='Back Pairs',
                                                        description='Number of back wheel brakes pairs',
                                                        default=0,
                                                        min=0)
 
-    back_wheel_brakes_pos_delta = bpy.props.FloatProperty(name='Back Wheel Brakes Delta',
-                                                          description='Back front wheel brakes',
+    back_wheel_brakes_pos_delta = bpy.props.FloatProperty(name='Back Delta Location',
+                                                          description='Extra translation added to location of the back brakes',
                                                           default=0)
+
+    def draw(self, context):
+        self.layout.label('Body')
+        layout = self.layout.box()
+        layout.prop(self, 'body_pos_delta')
+        layout.prop(self, 'body_size_delta')
+        self.layout.label('Front wheels')
+        layout = self.layout.box()
+        layout.prop(self, 'nb_front_wheels_pairs')
+        layout.prop(self, 'front_wheel_pos_delta')
+        self.layout.label('Back wheels')
+        layout = self.layout.box()
+        layout.prop(self, 'nb_back_wheels_pairs')
+        layout.prop(self, 'back_wheel_pos_delta')
+        self.layout.label('Brakes')
+        layout = self.layout.box()
+        layout.prop(self, 'nb_front_wheel_brakes_pairs')
+        layout.prop(self, 'front_wheel_brakes_pos_delta')
+        layout.prop(self, 'nb_back_wheel_brakes_pairs')
+        layout.prop(self, 'back_wheel_brakes_pos_delta')
 
     def invoke(self, context, event):
         self.bones_position = {
