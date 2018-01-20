@@ -47,8 +47,8 @@ class BaseCarRigPanel:
 
     def draw(self, context):
         if context.object.data['Car Rig']:
-            self.layout.operator(bake_operators.BakeWheelRotationOperator.bl_idname, 'Bake wheels rotation', 'Automatically generates wheels animation based on Root bone animation.')
-            self.layout.operator(bake_operators.BakeSteeringOperator.bl_idname, 'Bake steering', 'Automatically steering animation based on Root bone animation.')
+            self.layout.operator(bake_operators.BakeWheelRotationOperator.bl_idname, 'Bake wheels rotation')
+            self.layout.operator(bake_operators.BakeSteeringOperator.bl_idname, 'Bake steering')
             self.layout.separator()
             self.layout.prop(context.object, '["wheels_on_y_axis"]', text="Wheels on Y axis")
             self.layout.prop(context.object, '["suspension_factor"]', text="Suspension fact.")

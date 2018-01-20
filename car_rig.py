@@ -861,6 +861,7 @@ class ArmatureGenerator(object):
 class AddCarDeformationRigOperator(bpy.types.Operator):
     bl_idname = "object.armature_car_deformation_rig"
     bl_label = "Add car deformation rig"
+    bl_description = "Creates the base rig for a car."
     bl_options = {'REGISTER', 'UNDO'}
 
     body_pos_delta = bpy.props.FloatVectorProperty(name='Delta Location',
@@ -1057,6 +1058,7 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
 class GenerateCarAnimationRigOperator(bpy.types.Operator):
     bl_idname = "pose.car_animation_rig_generate"
     bl_label = "Generate car animation rig"
+    bl_description = "Creates the complete armature for animating the car."
     bl_options = {'UNDO'}
 
     @classmethod

@@ -158,6 +158,7 @@ class BakingOperator:
 class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
     bl_idname = 'anim.car_wheels_rotation_bake'
     bl_label = 'Bake car wheels rotation'
+    bl_description = 'Automatically generates wheels animation based on Root bone animation.'
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -224,6 +225,7 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
 class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
     bl_idname = 'anim.car_steering_bake'
     bl_label = 'Bake car steering'
+    bl_description = 'Automatically generates steering animation based on Root bone animation.'
     bl_options = {'REGISTER', 'UNDO'}
 
     rotation_factor = bpy.props.FloatProperty(name='Rotation factor', min=0.1, default=1.0)
