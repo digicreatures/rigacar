@@ -113,6 +113,7 @@ class BakingOperator:
 
     def _bake_action(self, context, *source_bones):
         action = context.object.animation_data.action
+        nla_tweak_mode = context.object.animation_data.use_tweak_mode
 
         # saving context
         selected_bones = [b for b in context.object.data.bones if b.select]
@@ -128,7 +129,7 @@ class BakingOperator:
 
         bpy.ops.nla.bake(frame_start=self.frame_start, frame_end=self.frame_end, only_selected=True, bake_types={'POSE'}, visual_keying=True)
         bpy.context.scene.update()
-        baked_action = bpy.context.active_object.animation_data.action
+        baked_action = context.object.animation_data.action
 
         # restoring context
         for source_bone, matrix_basis in zip(source_bones, source_bones_matrix_basis):
@@ -136,8 +137,13 @@ class BakingOperator:
             source_bone.select = False
         for b in selected_bones:
             b.select = True
-        bpy.context.active_object.animation_data.action = action
+
         bpy.ops.object.mode_set(mode=mode)
+
+        if nla_tweak_mode:
+            context.object.animation_data.use_tweak_mode = nla_tweak_mode
+        else:
+            context.object.animation_data.action = action
 
         return baked_action
 
@@ -255,30 +261,29 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
         last_frame = self.frame_start
         for f in range(self.frame_start, self.frame_end - 1):
             next_pos = loc_evaluator.evaluate(f + 1)
+            # TODO better guess the minimun length and remove some wrong rotation
+            if (next_pos - current_pos).length < .02:
+                continue
             world_space_tangent_vector = next_pos - current_pos
             local_space_tangent_vector = rot_evaluator.evaluate(f).inverted() * world_space_tangent_vector
             current_rotation = local_space_tangent_vector.xy.angle_signed(init_vector.xy, prev_rotation)
-            # TODO better guess the minimun length and remove some wrong rotation
-            if (next_pos - current_pos).length < .02:
-                drop_keyframe = True
-            else:
-                drop_keyframe = abs(prev_rotation - current_rotation) < self.keyframe_tolerance / 50
-            if not drop_keyframe or f == self.frame_start:
-                # TODO should also take speed into account
-                anticipation = abs(prev_rotation - current_rotation) * 7
-                if f - last_frame > anticipation:
-                    yield f - anticipation, prev_rotation
-                yield f, current_rotation
-                last_frame = f
-                prev_rotation = current_rotation
-                current_pos = next_pos
+            drop_keyframe = abs(prev_rotation - current_rotation) < self.keyframe_tolerance / 50
+            if drop_keyframe and f > self.frame_start:
+                continue
+            # TODO should also take speed into account
+            anticipation = abs(prev_rotation - current_rotation) * 7
+            if f - last_frame > anticipation:
+                yield f - anticipation, prev_rotation
+            yield f, current_rotation
+            last_frame = f
+            prev_rotation = current_rotation
+            current_pos = next_pos
 
         yield self.frame_end, prev_rotation
 
     def _bake_steering_rotation(self, context, distance, bone):
         self._clear_property_fcurve(context, 'Steering.rotation')
         fc_rot = self._create_property_fcurve(context, 'Steering.rotation')
-        action = context.object.animation_data.action
         action = self._bake_action(context, bone)
 
         try:
