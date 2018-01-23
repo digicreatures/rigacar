@@ -34,6 +34,18 @@ def bone_range(bones, name_prefix):
     return map(lambda n: bones[n], itertools.takewhile(lambda n: n in bones, name_range(name_prefix)))
 
 
+def cursor(cursor_mode):
+    def cursor_decorator(func):
+        def wrapper(self, context, *args, **kwargs):
+            context.window.cursor_modal_set(cursor_mode)
+            try:
+                return func(self, context, *args, **kwargs)
+            finally:
+                context.window.cursor_modal_restore()
+        return wrapper
+    return cursor_decorator
+
+
 class FCurvesEvaluator:
     """Encapsulates a bunch of FCurves for vector animations."""
 
@@ -168,6 +180,11 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        self._bake_wheels_rotation(context)
+        return {'FINISHED'}
+
+    @cursor('WAIT')
+    def _bake_wheels_rotation(self, context):
         bones = context.object.data.bones
         wheel_bones = tuple(bone_range(bones, 'MCH-Wheel.rotation.Ft.L'))
         wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.rotation.Ft.R'))
@@ -186,8 +203,6 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
                 self._bake_wheel_rotation(context, baked_action, wheel_bone, bones[brake_name])
         finally:
             bpy.data.actions.remove(baked_action)
-
-        return {'FINISHED'}
 
     def _evaluate_distance_per_frame(self, action, bone, brake_bone):
         loc_evaluator = self._create_location_evaluator(action, bone)
@@ -281,6 +296,7 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
 
         yield self.frame_end, prev_rotation
 
+    @cursor('WAIT')
     def _bake_steering_rotation(self, context, distance, bone):
         self._clear_property_fcurve(context, 'Steering.rotation')
         fc_rot = self._create_property_fcurve(context, 'Steering.rotation')
