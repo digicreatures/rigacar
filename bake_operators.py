@@ -277,7 +277,7 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
         for f in range(self.frame_start, self.frame_end - 1):
             next_pos = loc_evaluator.evaluate(f + 1)
             # TODO better guess the minimun length and remove some wrong rotation
-            if (next_pos - current_pos).length < .02:
+            if (next_pos - current_pos).length < .0001:
                 continue
             world_space_tangent_vector = next_pos - current_pos
             local_space_tangent_vector = rot_evaluator.evaluate(f).inverted() * world_space_tangent_vector
