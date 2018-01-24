@@ -287,15 +287,15 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
             if drop_keyframe and f > self.frame_start:
                 continue
             # TODO should also take speed into account
-            anticipation = abs(prev_rotation - current_rotation) * 7
-            if f - last_frame > anticipation:
-                yield f - anticipation, prev_rotation
-            yield f, current_rotation
+            anticipation = abs(prev_rotation - current_rotation) * 25
+            if anticipation > 6 and f - last_frame > anticipation:
+                yield f - anticipation, prev_rotation, 'KEYFRAME'
+            yield f, current_rotation, 'JITTER'
             last_frame = f
             prev_rotation = current_rotation
             current_pos = next_pos
 
-        yield self.frame_end, prev_rotation
+        yield self.frame_end, prev_rotation, 'JITTER'
 
     @cursor('WAIT')
     def _bake_steering_rotation(self, context, distance, bone):
@@ -304,9 +304,10 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
         action = self._bake_action(context, bone)
 
         try:
-            for f, rotation_angle in self._evaluate_rotation_per_frame(action, bone):
+            for f, rotation_angle, keyframe_type in self._evaluate_rotation_per_frame(action, bone):
                 kf = fc_rot.keyframe_points.insert(f, math.tan(rotation_angle * self.rotation_factor) * distance)
-                kf.type = 'JITTER'
+                kf.type = keyframe_type
+                kf.interpolation = 'LINEAR'
         finally:
             bpy.data.actions.remove(action)
 
