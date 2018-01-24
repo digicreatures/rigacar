@@ -22,8 +22,10 @@ import bpy
 import math
 import bpy_extras
 import mathutils
+import re
 
-DEF_BONE_LAYER = 30
+DEF_BONE_LAYER = 15
+MCH_BONE_EXTENSION_LAYER = 14
 MCH_BONE_LAYER = 31
 
 
@@ -91,14 +93,25 @@ def create_bone_group(pose, group_name, color_set, bone_names):
             bone.bone_group = group
 
 
+def name_range(prefix, nb=1000):
+    if nb > 0:
+        yield prefix
+        for i in range(1, nb):
+            yield '%s.%03d' % (prefix, i)
+
+
 def dispatch_bones_to_armature_layers(ob):
+    re_mch_bone = re.compile('^MCH-Wheel(Brake)?.(Ft|Bk).[LR](.\d+)?$')
     default_visible_layers = [False] * 32
+
     for b in ob.data.bones:
         layers = [False] * 32
         if b.name.startswith('DEF-'):
             layers[DEF_BONE_LAYER] = True
         elif b.name.startswith('MCH-'):
             layers[MCH_BONE_LAYER] = True
+            if b.name == 'MCH-Body' or re_mch_bone.match(b.name):
+                layers[MCH_BONE_EXTENSION_LAYER] = True
         else:
             layer_num = ob.pose.bones[b.name].bone_group_index
             layers[layer_num] = True
@@ -106,13 +119,6 @@ def dispatch_bones_to_armature_layers(ob):
         b.layers = layers
 
     ob.data.layers = default_visible_layers
-
-
-def name_range(prefix, nb=1000):
-    if nb > 0:
-        yield prefix
-        for i in range(1, nb):
-            yield '%s.%03d' % (prefix, i)
 
 
 class WheelDimension():
