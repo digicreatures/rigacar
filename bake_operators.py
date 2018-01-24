@@ -241,6 +241,7 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
         for f, distance in self._evaluate_distance_per_frame(baked_action, bone, brake_bone):
             kf = fc_rot.keyframe_points.insert(f, distance)
             kf.interpolation = 'LINEAR'
+            kf.type = 'JITTER'
 
 
 class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
@@ -305,7 +306,7 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
         try:
             for f, rotation_angle in self._evaluate_rotation_per_frame(action, bone):
                 kf = fc_rot.keyframe_points.insert(f, math.tan(rotation_angle * self.rotation_factor) * distance)
-                kf.interpolation = 'LINEAR'
+                kf.type = 'JITTER'
         finally:
             bpy.data.actions.remove(action)
 
