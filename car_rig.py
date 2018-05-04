@@ -296,8 +296,9 @@ class ArmatureGenerator(object):
             wheels = amt.edit_bones.new('Front Wheels')
             wheels.head = wheelFtL.head
             wheels.tail = wheelFtL.tail
-            wheels.head.x = math.copysign(wheelFtL.head.x + 1.1 * wheelFtL.length, wheels.head.x)
-            wheels.tail.x = math.copysign(wheelFtL.tail.x + 1.1 * wheelFtL.length, wheels.tail.x)
+            wheels.head.x = math.copysign(wheelFtL.head.x + 1.1 * wheelFtL.head.z, wheels.head.x)
+            wheels.tail.x = math.copysign(wheelFtL.tail.x + 1.1 * wheelFtL.head.z, wheels.tail.x)
+            wheels.tail.y = wheels.head.y + wheels.head.z - (wheels.head.z / 10)
             wheels.use_deform = False
             wheels.parent = amt.edit_bones['GroundSensor.Ft.L']
 
@@ -342,8 +343,9 @@ class ArmatureGenerator(object):
             wheels = amt.edit_bones.new('Back Wheels')
             wheels.head = wheelBkL.head
             wheels.tail = wheelBkL.tail
-            wheels.head.x = math.copysign(wheelBkL.head.x + 1.1 * wheelBkL.length, wheels.head.x)
-            wheels.tail.x = math.copysign(wheelBkL.tail.x + 1.1 * wheelBkL.length, wheels.tail.x)
+            wheels.head.x = math.copysign(wheelBkL.head.x + 1.1 * wheelBkL.head.z, wheels.head.x)
+            wheels.tail.x = math.copysign(wheelBkL.tail.x + 1.1 * wheelBkL.head.z, wheels.tail.x)
+            wheels.tail.y = wheels.head.y + wheels.head.z - (wheels.head.z / 10)
             wheels.use_deform = False
             wheels.parent = amt.edit_bones['GroundSensor.Bk.L']
 
@@ -401,8 +403,8 @@ class ArmatureGenerator(object):
         ground_sensor = amt.edit_bones.new('GroundSensor.%s' % name_suffix)
         ground_sensor.head = def_wheel_bone.head
         ground_sensor.head.x = math.copysign(abs(def_wheel_bone.head.x) + def_wheel_bone.head.z * .4, ground_sensor.head.x)
-        ground_sensor.tail = def_wheel_bone.tail
-        ground_sensor.tail.x = math.copysign(abs(def_wheel_bone.tail.x) + def_wheel_bone.head.z * .4, ground_sensor.tail.x)
+        ground_sensor.tail.x = math.copysign(abs(def_wheel_bone.tail.x) + def_wheel_bone.head.z * .4, ground_sensor.head.x)
+        ground_sensor.tail.y = ground_sensor.head.y + ground_sensor.head.z
         ground_sensor.head.z = 0
         ground_sensor.tail.z = 0
         ground_sensor.use_deform = False
