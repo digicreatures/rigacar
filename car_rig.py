@@ -1284,8 +1284,7 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
         amt = bpy.data.armatures.new('Car Rig Data')
         amt['Car Rig'] = False
 
-        obj_data = bpy_extras.object_utils.object_data_add(context, amt, name='Car Rig')
-        rig = obj_data.object
+        rig = bpy_extras.object_utils.object_data_add(context, amt, name='Car Rig')
 
         bpy.ops.object.mode_set(mode='EDIT')
 
