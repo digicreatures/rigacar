@@ -26,8 +26,8 @@ from . import car_rig
 bl_info = {
     "name": "Rigacar (Generates Car Rig)",
     "author": "David Gayerie",
-    "version": (3, 1),
-    "blender": (2, 76, 0),
+    "version": (3, 0),
+    "blender": (2, 8, 0),
     "location": "View3D > Add > Armature",
     "description": "Adds a deformation rig for vehicules, generates animation rig and bake wheels animation.",
     "wiki_url": "http://digicreatures.net/articles/rigacar.html",
