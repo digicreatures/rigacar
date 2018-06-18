@@ -536,6 +536,7 @@ class ArmatureGenerator(object):
         root.lock_scale = (True, True, True)
         root.custom_shape = bpy.data.objects['WGT-CarRig.Root']
         root.custom_shape_transform = shapeRoot
+        amt.bones[root.name].show_wire = True
 
         shapeDrift = pose.bones['SHP-Drift']
         shapeDrift.lock_location = (True, True, True)
@@ -551,12 +552,14 @@ class ArmatureGenerator(object):
         drift.rotation_mode = 'ZYX'
         drift.custom_shape = bpy.data.objects['WGT-CarRig.DriftHandle']
         drift.custom_shape_transform = shapeDrift
+        amt.bones[drift.name].show_wire = True
 
         suspension = pose.bones['Suspension']
         suspension.lock_rotation = (True, True, True)
         suspension.lock_scale = (True, True, True)
         suspension.lock_rotation_w = True
         suspension.custom_shape = bpy.data.objects['WGT-CarRig.Suspension']
+        amt.bones[suspension.name].show_wire = True
 
         steering = pose.bones.get('Steering')
         if steering is not None:
@@ -565,6 +568,7 @@ class ArmatureGenerator(object):
             steering.lock_scale = (True, True, True)
             steering.lock_rotation_w = True
             steering.custom_shape = bpy.data.objects['WGT-CarRig.Steering']
+            amt.bones[steering.name].show_wire = True
 
             mch_steering_rotation = pose.bones['MCH-Steering.rotation']
             mch_steering_rotation.rotation_mode = 'ZYX'
@@ -650,6 +654,7 @@ class ArmatureGenerator(object):
             wheels.lock_rotation = (False, True, True)
             wheels.lock_scale = (True, False, False)
             wheels.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
+            amt.bones[wheels.name].show_wire = True
 
             cns = wheels.constraints.new('LIMIT_SCALE')
             cns.name = 'Brakes'
@@ -733,6 +738,7 @@ class ArmatureGenerator(object):
         ground_sensor.lock_rotation_w = True
         ground_sensor.lock_scale = (True, True, True)
         ground_sensor.custom_shape = bpy.data.objects['WGT-CarRig.GroundSensor']
+        amt.bones[ground_sensor.name].show_wire = True
 
         if name_suffix.startswith('Ft.'):
             cns = ground_sensor.constraints.new('COPY_ROTATION')
@@ -827,6 +833,7 @@ class ArmatureGenerator(object):
 
     def generate_constraints_on_wheel_damper(self, name_suffix, nb_wheels):
         pose = self.ob.pose
+        amt = self.ob.data
 
         wheel_damper = pose.bones.get('WheelDamper.%s' % name_suffix)
         if wheel_damper is not None:
@@ -835,6 +842,7 @@ class ArmatureGenerator(object):
             wheel_damper.lock_rotation_w = True
             wheel_damper.lock_scale = (True, True, True)
             wheel_damper.custom_shape = bpy.data.objects['WGT-CarRig.WheelDamper']
+            amt.bones[wheel_damper.name].show_wire = True
 
         mch_ground_sensor = pose.bones.get('MCH-GroundSensor.%s' % name_suffix)
         if mch_ground_sensor is not None:
