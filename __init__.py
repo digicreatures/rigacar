@@ -55,7 +55,7 @@ class BaseCarRigPanel:
             self.layout.prop(context.object, '["suspension_rolling_factor"]', text="Suspension rolling fact.")
 
             if bpy.context.selected_pose_bones is not None:
-                ground_sensors_name = [b.name for b in bpy.context.selected_pose_bones if b.name.startswith('GroundSensor.') or b.name == 'Root']
+                ground_sensors_name = [b.name for b in bpy.context.selected_pose_bones if b.name.startswith('GroundSensor.')]
                 for name in ground_sensors_name:
                     ground_projection_constraint = context.object.pose.bones[name].constraints.get('Ground projection')
                     self.layout.separator()

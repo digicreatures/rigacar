@@ -259,11 +259,31 @@ class ArmatureGenerator(object):
         root.tail = (self.dimension.wheels_back_position.x, self.dimension.wheels_back_position.y + self.dimension.length, 0)
         root.use_deform = False
 
+        groundsensor_axle_front = amt.edit_bones.new('GroundSensor.Axle.Ft')
+        groundsensor_axle_front.head = (self.dimension.wheels_front_position.x, self.dimension.wheels_front_position.y, 0)
+        groundsensor_axle_front.tail = (groundsensor_axle_front.head.x, groundsensor_axle_front.head.y + self.dimension.length / 8, 0)
+        groundsensor_axle_front.parent = root
+
+        mch_root_axle_front = amt.edit_bones.new('MCH-Root.Axle.Ft')
+        mch_root_axle_front.head = (self.dimension.wheels_front_position.x, self.dimension.wheels_front_position.y, 0)
+        mch_root_axle_front.tail = (mch_root_axle_front.head.x, mch_root_axle_front.head.y + self.dimension.length / 3, 0)
+        mch_root_axle_front.parent = groundsensor_axle_front
+
+        groundsensor_axle_back = amt.edit_bones.new('GroundSensor.Axle.Bk')
+        groundsensor_axle_back.head = (self.dimension.wheels_back_position.x, self.dimension.wheels_back_position.y, 0)
+        groundsensor_axle_back.tail = (groundsensor_axle_back.head.x, groundsensor_axle_back.head.y + self.dimension.length / 8, 0)
+        groundsensor_axle_back.parent = root
+
+        mch_root_axle_back = amt.edit_bones.new('MCH-Root.Axle.Bk')
+        mch_root_axle_back.head = (self.dimension.wheels_back_position.x, self.dimension.wheels_back_position.y, 0)
+        mch_root_axle_back.tail = (mch_root_axle_back.head.x, mch_root_axle_back.head.y + self.dimension.length / 3, 0)
+        mch_root_axle_back.parent = groundsensor_axle_back
+
         shapeRoot = amt.edit_bones.new('SHP-Root')
         shapeRoot.head = (self.dimension.center.x, self.dimension.center.y, 0.01)
         shapeRoot.tail = (self.dimension.center.x, self.dimension.center.y + self.dimension.length, 0.01)
         shapeRoot.use_deform = False
-        shapeRoot.parent = root
+        shapeRoot.parent = mch_root_axle_back
 
         drift = amt.edit_bones.new('Drift')
         drift.head = self.dimension.wheels_front_position
@@ -273,7 +293,7 @@ class ArmatureGenerator(object):
         drift.tail.z = self.dimension.wheels_back_position.z
         drift.roll = math.pi
         drift.use_deform = False
-        drift.parent = root
+        drift.parent = mch_root_axle_back
 
         shapeDrift = amt.edit_bones.new('SHP-Drift')
         shapeDrift.head = (self.dimension.center.x, self.dimension.center.y + self.dimension.length * 1.05, drift.head.z)
@@ -313,7 +333,7 @@ class ArmatureGenerator(object):
             mchSteering.tail = self.dimension.wheels_front_position
             mchSteering.tail.y += self.dimension.length / 2
             mchSteering.use_deform = False
-            mchSteering.parent = root
+            mchSteering.parent = groundsensor_axle_front
 
             steeringRotation = amt.edit_bones.new('MCH-Steering.rotation')
             steeringRotation.head = mchSteering.head
@@ -497,14 +517,6 @@ class ArmatureGenerator(object):
         self.generate_constraints_on_axle_bones('Ft')
         self.generate_constraints_on_axle_bones('Bk')
 
-        root = pose.bones['Root']
-        cns = root.constraints.new('SHRINKWRAP')
-        cns.name = 'Ground projection'
-        cns.shrinkwrap_type = 'NEAREST_SURFACE'
-        cns.project_axis_space = 'LOCAL'
-        cns.project_axis = 'NEG_Z'
-        cns.distance = 0
-
         mch_axis = pose.bones.get('MCH-Axis')
         if mch_axis is not None:
             for axis_pos, influence in (('Ft', 1), ('Bk', .5)):
@@ -537,6 +549,33 @@ class ArmatureGenerator(object):
         root.custom_shape = bpy.data.objects['WGT-CarRig.Root']
         root.custom_shape_transform = shapeRoot
         amt.bones[root.name].show_wire = True
+
+        for ground_sensor_axle_name in ('GroundSensor.Axle.Ft', 'GroundSensor.Axle.Bk'):
+          groundsensor_axle = pose.bones.get(ground_sensor_axle_name)
+          groundsensor_axle.lock_location = (True, True, False)
+          groundsensor_axle.lock_rotation = (True, True, True)
+          groundsensor_axle.lock_scale = (True, True, True)
+          groundsensor_axle.custom_shape = bpy.data.objects['WGT-CarRig.GroundSensor.Axle']
+          groundsensor_axle.lock_rotation_w = True
+          amt.bones[groundsensor_axle.name].show_wire = True
+          self.generate_ground_projection_constraint(groundsensor_axle)
+
+          if groundsensor_axle.name == 'GroundSensor.Axle.Ft':
+            cns = groundsensor_axle.constraints.new('LIMIT_DISTANCE')
+            cns.name = 'Limit distance from Root'
+            cns.limit_mode = 'LIMITDIST_ONSURFACE'
+            cns.target = self.ob
+            cns.subtarget = 'GroundSensor.Axle.Bk'
+            cns.use_transform_limit = True
+
+        mch_root_axle_front = pose.bones.get('MCH-Root.Axle.Ft')
+
+        mch_root_axle_back = pose.bones.get('MCH-Root.Axle.Bk')
+        cns = mch_root_axle_back.constraints.new('DAMPED_TRACK')
+        cns.name = 'Track front axle'
+        cns.target = self.ob
+        cns.subtarget = mch_root_axle_front.name
+        cns.track_axis = 'TRACK_NEGATIVE_Y'
 
         shapeDrift = pose.bones['SHP-Drift']
         shapeDrift.lock_location = (True, True, True)
@@ -572,18 +611,20 @@ class ArmatureGenerator(object):
 
             mch_steering_rotation = pose.bones['MCH-Steering.rotation']
             mch_steering_rotation.rotation_mode = 'ZYX'
-            cns = mch_steering_rotation.constraints.new('CHILD_OF')
-            cns.target = self.ob
-            cns.subtarget = 'Root'
-            cns.inverse_matrix = self.ob.data.bones['Root'].matrix_local.inverted()
-            cns.use_location_x = True
-            cns.use_location_y = True
-            cns.use_location_z = True
-            cns.use_rotation_x = True
-            cns.use_rotation_y = True
-            cns.use_rotation_z = True
+            self.generate_childof_constraint(mch_steering_rotation, mch_root_axle_front)
             self.ob['Steering.rotation'] = .0
             create_translation_x_driver(self.ob, mch_steering_rotation, '["Steering.rotation"]')
+            cns = mch_steering_rotation.constraints.new('COPY_ROTATION')
+            cns.name = 'Copy back axle rotation'
+            cns.target = self.ob
+            cns.subtarget = mch_root_axle_back.name
+            cns.use_x = True
+            cns.use_y = False
+            cns.use_z = False
+            cns.use_offset = True
+            cns.owner_space = 'LOCAL'
+            cns.target_space = 'LOCAL'
+
 
             mch_steering = pose.bones['MCH-Steering']
             cns = mch_steering.constraints.new('DAMPED_TRACK')
@@ -641,6 +682,27 @@ class ArmatureGenerator(object):
         cns = body.constraints.new('COPY_TRANSFORMS')
         cns.target = self.ob
         cns.subtarget = 'MCH-Body'
+
+    def generate_ground_projection_constraint(self, bone):
+        cns = bone.constraints.new('SHRINKWRAP')
+        cns.name = 'Ground projection'
+        cns.shrinkwrap_type = 'NEAREST_SURFACE'
+        cns.project_axis_space = 'LOCAL'
+        cns.project_axis = 'NEG_Z'
+        cns.distance = 0
+
+    def generate_childof_constraint(self, child, parent):
+        cns = child.constraints.new('CHILD_OF')
+        cns.target = self.ob
+        cns.subtarget = parent.name
+        cns.inverse_matrix = self.ob.data.bones[parent.name].matrix_local.inverted()
+        cns.use_location_x = True
+        cns.use_location_y = True
+        cns.use_location_z = True
+        cns.use_rotation_x = True
+        cns.use_rotation_y = True
+        cns.use_rotation_z = True
+        return cns
 
     def generate_constraints_on_axle_bones(self, position):
         pos_name = 'Front' if position == 'Ft' else 'Back'
@@ -751,12 +813,7 @@ class ArmatureGenerator(object):
             cns.owner_space = 'LOCAL'
             cns.target_space = 'LOCAL'
 
-        cns = ground_sensor.constraints.new('SHRINKWRAP')
-        cns.name = 'Ground projection'
-        cns.shrinkwrap_type = 'NEAREST_SURFACE'
-        cns.project_axis_space = 'LOCAL'
-        cns.project_axis = 'NEG_Z'
-        cns.distance = 0
+        self.generate_ground_projection_constraint(ground_sensor)
 
         cns = ground_sensor.constraints.new('LIMIT_LOCATION')
         cns.name = 'Ground projection limitation'
@@ -819,16 +876,7 @@ class ArmatureGenerator(object):
 
         mch_wheel_rotation = pose.bones['MCH-Wheel.rotation.%s' % name_suffix]
         mch_wheel_rotation.rotation_mode = "XYZ"
-        cns = mch_wheel_rotation.constraints.new('CHILD_OF')
-        cns.target = self.ob
-        cns.subtarget = 'Root'
-        cns.inverse_matrix = amt.bones['Root'].matrix_local.inverted()
-        cns.use_location_x = True
-        cns.use_location_y = True
-        cns.use_location_z = True
-        cns.use_rotation_x = True
-        cns.use_rotation_y = True
-        cns.use_rotation_z = True
+        self.generate_childof_constraint(mch_wheel_rotation, pose.bones.get("MCH-Root.Axle.%s" % ('Ft' if name_suffix.startswith('Ft.') else 'Bk')))
         create_rotation_euler_x_driver(self.ob, mch_wheel_rotation, '["Wheel.rotation.%s"]' % name_suffix)
 
     def generate_constraints_on_wheel_damper(self, name_suffix, nb_wheels):
@@ -871,6 +919,7 @@ class ArmatureGenerator(object):
         ground_sensor_names += tuple(name_range('GroundSensor.Ft.R', self.dimension.nb_front_wheels))
         ground_sensor_names += tuple(name_range('GroundSensor.Bk.L', self.dimension.nb_back_wheels))
         ground_sensor_names += tuple(name_range('GroundSensor.Bk.R', self.dimension.nb_back_wheels))
+        ground_sensor_names += ('GroundSensor.Axle.Ft', 'GroundSensor.Axle.Bk')
         create_bone_group(pose, 'GroundSensor', color_set='THEME02', bone_names=ground_sensor_names)
 
 
