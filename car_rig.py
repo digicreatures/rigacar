@@ -500,7 +500,7 @@ class ArmatureGenerator(object):
         root = pose.bones['Root']
         cns = root.constraints.new('SHRINKWRAP')
         cns.name = 'Ground projection'
-        cns.shrinkwrap_type = 'PROJECT'
+        cns.shrinkwrap_type = 'NEAREST_SURFACE'
         cns.project_axis_space = 'LOCAL'
         cns.project_axis = 'NEG_Z'
         cns.distance = 0
@@ -753,14 +753,14 @@ class ArmatureGenerator(object):
 
         cns = ground_sensor.constraints.new('SHRINKWRAP')
         cns.name = 'Ground projection'
-        cns.shrinkwrap_type = 'PROJECT'
+        cns.shrinkwrap_type = 'NEAREST_SURFACE'
         cns.project_axis_space = 'LOCAL'
         cns.project_axis = 'NEG_Z'
         cns.distance = 0
 
         cns = ground_sensor.constraints.new('LIMIT_LOCATION')
         cns.name = 'Ground projection limitation'
-        cns.use_transform_limit = False
+        cns.use_transform_limit = True
         cns.owner_space = 'LOCAL'
         cns.use_max_x = True
         cns.use_min_x = True
