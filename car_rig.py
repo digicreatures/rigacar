@@ -440,13 +440,20 @@ class ArmatureGenerator(object):
 
         ground_sensor = amt.edit_bones.new('GroundSensor.%s' % name_suffix)
         ground_sensor.head = def_wheel_bone.head
-        ground_sensor.head.x = math.copysign(abs(def_wheel_bone.head.x) + def_wheel_bone.head.z * .4, ground_sensor.head.x)
-        ground_sensor.tail.x = math.copysign(abs(def_wheel_bone.tail.x) + def_wheel_bone.head.z * .4, ground_sensor.head.x)
+        ground_sensor.tail = def_wheel_bone.tail
         ground_sensor.tail.y = ground_sensor.head.y + ground_sensor.head.z
         ground_sensor.head.z = 0
         ground_sensor.tail.z = 0
         ground_sensor.use_deform = False
         ground_sensor.parent = parent_bone
+
+        shp_ground_sensor = amt.edit_bones.new('SHP-GroundSensor.%s' % name_suffix)
+        shp_ground_sensor.head = ground_sensor.head
+        shp_ground_sensor.tail = ground_sensor.tail
+        shp_ground_sensor.head.x = math.copysign(abs(def_wheel_bone.head.x) + def_wheel_bone.head.z * .4, def_wheel_bone.head.x)
+        shp_ground_sensor.tail.x = math.copysign(abs(def_wheel_bone.tail.x) + def_wheel_bone.head.z * .4, def_wheel_bone.head.x)
+        shp_ground_sensor.use_deform = False
+        shp_ground_sensor.parent = ground_sensor
 
         mch_wheel = amt.edit_bones.new('MCH-Wheel.%s' % name_suffix)
         mch_wheel.head = def_wheel_bone.head
@@ -510,11 +517,13 @@ class ArmatureGenerator(object):
         amt = self.ob.data
 
         for b in pose.bones:
-            if b.name.startswith('DEF-') or b.name.startswith('MCH-'):
+            if b.name.startswith('DEF-') or b.name.startswith('MCH-') or b.name.startswith('SHP-'):
                 b.lock_location = (True, True, True)
                 b.lock_rotation = (True, True, True)
                 b.lock_scale = (True, True, True)
                 b.lock_rotation_w = True
+                if b.name.startswith('SHP-'):
+                    amt.bones[b.name].hide = True
 
         for name in name_range('Ft.L', self.dimension.nb_front_wheels):
             self.generate_constraints_on_wheel_bones(name)
@@ -555,17 +564,10 @@ class ArmatureGenerator(object):
                     cns.target_space = 'LOCAL'
                     create_constraint_influence_driver(self.ob, cns, '["suspension_rolling_factor"]', base_influence=influence)
 
-        shapeRoot = pose.bones['SHP-Root']
-        shapeRoot.lock_location = (True, True, True)
-        shapeRoot.lock_rotation = (True, True, True)
-        shapeRoot.lock_scale = (True, True, True)
-        shapeRoot.lock_rotation_w = True
-        amt.bones['SHP-Root'].hide = True
-
         root = pose.bones['Root']
         root.lock_scale = (True, True, True)
         root.custom_shape = bpy.data.objects['WGT-CarRig.Root']
-        root.custom_shape_transform = shapeRoot
+        root.custom_shape_transform = pose.bones['SHP-Root']
         amt.bones[root.name].show_wire = True
 
         for ground_sensor_axle_name in ('GroundSensor.Axle.Ft', 'GroundSensor.Axle.Bk'):
@@ -596,20 +598,13 @@ class ArmatureGenerator(object):
           cns.subtarget = mch_root_axle_front.name
           cns.track_axis = 'TRACK_NEGATIVE_Y'
 
-        shapeDrift = pose.bones['SHP-Drift']
-        shapeDrift.lock_location = (True, True, True)
-        shapeDrift.lock_rotation = (True, True, True)
-        shapeDrift.lock_scale = (True, True, True)
-        shapeDrift.lock_rotation_w = True
-        amt.bones['SHP-Drift'].hide = True
-
         drift = pose.bones['Drift']
         drift.lock_location = (True, True, True)
         drift.lock_rotation = (True, True, False)
         drift.lock_scale = (True, True, True)
         drift.rotation_mode = 'ZYX'
         drift.custom_shape = bpy.data.objects['WGT-CarRig.DriftHandle']
-        drift.custom_shape_transform = shapeDrift
+        drift.custom_shape_transform = pose.bones['SHP-Drift']
         amt.bones[drift.name].show_wire = True
 
         suspension = pose.bones['Suspension']
@@ -820,6 +815,7 @@ class ArmatureGenerator(object):
         ground_sensor.lock_rotation_w = True
         ground_sensor.lock_scale = (True, True, True)
         ground_sensor.custom_shape = bpy.data.objects['WGT-CarRig.GroundSensor']
+        ground_sensor.custom_shape_transform = pose.bones['SHP-%s' % ground_sensor.name]
         amt.bones[ground_sensor.name].show_wire = True
 
         if name_suffix.startswith('Ft.'):
@@ -940,6 +936,7 @@ class ArmatureGenerator(object):
         ground_sensor_names += tuple(name_range('GroundSensor.Ft.R', self.dimension.nb_front_wheels))
         ground_sensor_names += tuple(name_range('GroundSensor.Bk.L', self.dimension.nb_back_wheels))
         ground_sensor_names += tuple(name_range('GroundSensor.Bk.R', self.dimension.nb_back_wheels))
+        ground_sensor_names += tuple("SHP-%s" % i for i in ground_sensor_names)
         ground_sensor_names += ('GroundSensor.Axle.Ft', 'GroundSensor.Axle.Bk')
         create_bone_group(pose, 'GroundSensor', color_set='THEME02', bone_names=ground_sensor_names)
 
