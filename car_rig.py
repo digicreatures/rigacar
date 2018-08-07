@@ -263,7 +263,23 @@ class ArmatureGenerator(object):
         root.tail = (self.dimension.wheels_back_position.x, self.dimension.wheels_back_position.y + self.dimension.length, 0)
         root.use_deform = False
 
-        root_bone_parent = root
+        shapeRoot = amt.edit_bones.new('SHP-Root')
+        shapeRoot.head = (self.dimension.center.x, self.dimension.center.y, 0.01)
+        shapeRoot.tail = (self.dimension.center.x, self.dimension.center.y + self.dimension.length, 0.01)
+        shapeRoot.use_deform = False
+        shapeRoot.parent = root
+
+        drift = amt.edit_bones.new('Drift')
+        drift.head = self.dimension.wheels_front_position
+        drift.tail = self.dimension.wheels_front_position
+        drift.tail.y -= self.dimension.length
+        drift.head.z = self.dimension.wheels_back_position.z
+        drift.tail.z = self.dimension.wheels_back_position.z
+        drift.roll = math.pi
+        drift.use_deform = False
+        drift.parent = root
+        base_bone_parent = drift
+
         if self.dimension.has_front_wheels:
           groundsensor_axle_front = amt.edit_bones.new('GroundSensor.Axle.Ft')
           groundsensor_axle_front.head = (self.dimension.wheels_front_position.x, self.dimension.wheels_front_position.y, 0)
@@ -274,50 +290,35 @@ class ArmatureGenerator(object):
           mch_root_axle_front.head = (self.dimension.wheels_front_position.x, self.dimension.wheels_front_position.y, 0)
           mch_root_axle_front.tail = (mch_root_axle_front.head.x, mch_root_axle_front.head.y + self.dimension.length / 3, 0)
           mch_root_axle_front.parent = groundsensor_axle_front
-          root_bone_parent = mch_root_axle_front
+          if not self.dimension.has_back_wheels:
+            drift.parent = mch_root_axle_front
 
         if self.dimension.has_back_wheels:
           groundsensor_axle_back = amt.edit_bones.new('GroundSensor.Axle.Bk')
           groundsensor_axle_back.head = (self.dimension.wheels_back_position.x, self.dimension.wheels_back_position.y, 0)
           groundsensor_axle_back.tail = (groundsensor_axle_back.head.x, groundsensor_axle_back.head.y + self.dimension.length / 8, 0)
-          groundsensor_axle_back.parent = root
+          groundsensor_axle_back.parent = drift
 
           mch_root_axle_back = amt.edit_bones.new('MCH-Root.Axle.Bk')
           mch_root_axle_back.head = (self.dimension.wheels_back_position.x, self.dimension.wheels_back_position.y, 0)
           mch_root_axle_back.tail = (mch_root_axle_back.head.x, mch_root_axle_back.head.y + self.dimension.length / 3, 0)
           mch_root_axle_back.parent = groundsensor_axle_back
-          root_bone_parent = mch_root_axle_back
-
-        shapeRoot = amt.edit_bones.new('SHP-Root')
-        shapeRoot.head = (self.dimension.center.x, self.dimension.center.y, 0.01)
-        shapeRoot.tail = (self.dimension.center.x, self.dimension.center.y + self.dimension.length, 0.01)
-        shapeRoot.use_deform = False
-        shapeRoot.parent = root_bone_parent
-
-        drift = amt.edit_bones.new('Drift')
-        drift.head = self.dimension.wheels_front_position
-        drift.tail = self.dimension.wheels_front_position
-        drift.tail.y -= self.dimension.length
-        drift.head.z = self.dimension.wheels_back_position.z
-        drift.tail.z = self.dimension.wheels_back_position.z
-        drift.roll = math.pi
-        drift.use_deform = False
-        drift.parent = root_bone_parent
+          base_bone_parent = mch_root_axle_back
 
         shapeDrift = amt.edit_bones.new('SHP-Drift')
         shapeDrift.head = (self.dimension.center.x, self.dimension.center.y + self.dimension.length * 1.05, drift.head.z)
         shapeDrift.tail = shapeDrift.head
         shapeDrift.tail.y += 1
         shapeDrift.use_deform = False
-        shapeDrift.parent = drift
+        shapeDrift.parent = base_bone_parent
 
         if self.dimension.has_front_wheels:
             for name in name_range('Ft.L', self.dimension.nb_front_wheels):
-                self.generate_animation_wheel_bones(name, drift)
-            self.generate_wheel_damper('Ft', 'L', drift)
+                self.generate_animation_wheel_bones(name, base_bone_parent)
+            self.generate_wheel_damper('Ft', 'L', base_bone_parent)
             for name in name_range('Ft.R', self.dimension.nb_front_wheels):
-                self.generate_animation_wheel_bones(name, drift)
-            self.generate_wheel_damper('Ft', 'R', drift)
+                self.generate_animation_wheel_bones(name, base_bone_parent)
+            self.generate_wheel_damper('Ft', 'R', base_bone_parent)
 
             wheelFtR = amt.edit_bones.get('DEF-Wheel.Ft.R')
             wheelFtL = amt.edit_bones.get('DEF-Wheel.Ft.L')
@@ -335,7 +336,7 @@ class ArmatureGenerator(object):
             axisFt.head = wheelFtR.head
             axisFt.tail = wheelFtL.head
             axisFt.use_deform = False
-            axisFt.parent = drift
+            axisFt.parent = base_bone_parent
 
             mchSteering = amt.edit_bones.new('MCH-Steering')
             mchSteering.head = self.dimension.wheels_front_position
@@ -360,11 +361,11 @@ class ArmatureGenerator(object):
 
         if self.dimension.has_back_wheels:
             for name in name_range('Bk.L', self.dimension.nb_back_wheels):
-                self.generate_animation_wheel_bones(name, drift)
-            self.generate_wheel_damper('Bk', 'L', drift)
+                self.generate_animation_wheel_bones(name, base_bone_parent)
+            self.generate_wheel_damper('Bk', 'L', base_bone_parent)
             for name in name_range('Bk.R', self.dimension.nb_back_wheels):
-                self.generate_animation_wheel_bones(name, drift)
-            self.generate_wheel_damper('Bk', 'R', drift)
+                self.generate_animation_wheel_bones(name, base_bone_parent)
+            self.generate_wheel_damper('Bk', 'R', base_bone_parent)
 
             wheelBkR = amt.edit_bones.get('DEF-Wheel.Bk.R')
             wheelBkL = amt.edit_bones.get('DEF-Wheel.Bk.L')
@@ -382,14 +383,14 @@ class ArmatureGenerator(object):
             axisBk.head = wheelBkR.head
             axisBk.tail = wheelBkL.head
             axisBk.use_deform = False
-            axisBk.parent = drift
+            axisBk.parent = base_bone_parent
 
         suspensionBk = amt.edit_bones.new('MCH-Suspension.Bk')
         suspensionBk.head = self.dimension.suspension_back_position
         suspensionBk.tail = self.dimension.suspension_back_position
         suspensionBk.tail.y += 2
         suspensionBk.use_deform = False
-        suspensionBk.parent = drift
+        suspensionBk.parent = base_bone_parent
 
         suspensionFt = amt.edit_bones.new('MCH-Suspension.Ft')
         suspensionFt.head = self.dimension.suspension_front_position
@@ -397,7 +398,7 @@ class ArmatureGenerator(object):
         align_vector.magnitude = 2
         suspensionFt.tail = self.dimension.suspension_front_position + align_vector
         suspensionFt.use_deform = False
-        suspensionFt.parent = drift
+        suspensionFt.parent = base_bone_parent
 
         axis = amt.edit_bones.new('MCH-Axis')
         axis.head = suspensionFt.head
