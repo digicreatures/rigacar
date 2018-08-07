@@ -24,8 +24,9 @@ import bpy_extras
 import mathutils
 import re
 
-DEF_BONE_LAYER = 15
+CUSTOM_SHAPE_LAYER = 13
 MCH_BONE_EXTENSION_LAYER = 14
+DEF_BONE_LAYER = 15
 MCH_BONE_LAYER = 31
 
 
@@ -117,6 +118,13 @@ def dispatch_bones_to_armature_layers(ob):
             layers[layer_num] = True
             default_visible_layers[layer_num] = True
         b.layers = layers
+
+    for b in ob.pose.bones:
+      if b.custom_shape:
+        if b.custom_shape_transform :
+          ob.data.bones[b.custom_shape_transform.name].layers[CUSTOM_SHAPE_LAYER] = True
+        else:
+          ob.data.bones[b.name].layers[CUSTOM_SHAPE_LAYER] = True
 
     ob.data.layers = default_visible_layers
 
