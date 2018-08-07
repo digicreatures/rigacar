@@ -271,19 +271,20 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
         loc_evaluator = self._create_location_evaluator(action, bone)
         rot_evaluator = self._create_rotation_evaluator(action, bone)
 
+        tolerance = self.keyframe_tolerance * math.pi * .005
         init_vector = bone.head - bone.tail
+        minimum_length = init_vector.magnitude / 10
         current_pos = loc_evaluator.evaluate(self.frame_start)
         prev_rotation = .0
         last_frame = self.frame_start
         for f in range(self.frame_start, self.frame_end - 1):
             next_pos = loc_evaluator.evaluate(f + 1)
-            # TODO better guess the minimun length and remove some wrong rotation
-            if (next_pos - current_pos).length < .0001:
+            if (next_pos - current_pos).length < minimum_length:
                 continue
             world_space_tangent_vector = next_pos - current_pos
             local_space_tangent_vector = rot_evaluator.evaluate(f).inverted() * world_space_tangent_vector
             current_rotation = local_space_tangent_vector.xy.angle_signed(init_vector.xy, prev_rotation)
-            drop_keyframe = abs(prev_rotation - current_rotation) < self.keyframe_tolerance / 50
+            drop_keyframe = abs(prev_rotation - current_rotation) < tolerance
             if drop_keyframe and f > self.frame_start:
                 continue
             # TODO should also take speed into account
@@ -303,9 +304,14 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
         fc_rot = self._create_property_fcurve(context, 'Steering.rotation')
         action = self._bake_action(context, bone)
 
+        previous_point = None
         try:
             for f, rotation_angle, keyframe_type in self._evaluate_rotation_per_frame(action, bone):
-                kf = fc_rot.keyframe_points.insert(f, math.tan(rotation_angle * self.rotation_factor) * distance)
+                current_point = math.tan(rotation_angle * self.rotation_factor) * distance
+                if previous_point is None:
+                    previous_point = current_point
+                kf = fc_rot.keyframe_points.insert(f, (current_point + previous_point) / 2.0)
+                previous_point = current_point
                 kf.type = keyframe_type
                 kf.interpolation = 'LINEAR'
         finally:
