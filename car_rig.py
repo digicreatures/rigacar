@@ -892,8 +892,7 @@ class ArmatureGenerator(object):
 
         mch_wheel_rotation = pose.bones['MCH-Wheel.rotation.%s' % name_suffix]
         mch_wheel_rotation.rotation_mode = "XYZ"
-        parent_bone = pose.bones.get("MCH-Root.Axle.%s" % ('Ft' if name_suffix.startswith('Ft.') else 'Bk'))
-        self.generate_childof_constraint(mch_wheel_rotation, parent_bone if parent_bone else pose.bones['Root'])
+        self.generate_childof_constraint(mch_wheel_rotation, ground_sensor)
         create_rotation_euler_x_driver(self.ob, mch_wheel_rotation, '["Wheel.rotation.%s"]' % name_suffix)
 
     def generate_constraints_on_wheel_damper(self, name_suffix, nb_wheels):
