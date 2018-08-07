@@ -120,11 +120,11 @@ def dispatch_bones_to_armature_layers(ob):
         b.layers = layers
 
     for b in ob.pose.bones:
-      if b.custom_shape:
-        if b.custom_shape_transform :
-          ob.data.bones[b.custom_shape_transform.name].layers[CUSTOM_SHAPE_LAYER] = True
-        else:
-          ob.data.bones[b.name].layers[CUSTOM_SHAPE_LAYER] = True
+        if b.custom_shape:
+            if b.custom_shape_transform:
+                ob.data.bones[b.custom_shape_transform.name].layers[CUSTOM_SHAPE_LAYER] = True
+            else:
+                ob.data.bones[b.name].layers[CUSTOM_SHAPE_LAYER] = True
 
     ob.data.layers = default_visible_layers
 
@@ -289,29 +289,29 @@ class ArmatureGenerator(object):
         base_bone_parent = drift
 
         if self.dimension.has_front_wheels:
-          groundsensor_axle_front = amt.edit_bones.new('GroundSensor.Axle.Ft')
-          groundsensor_axle_front.head = (self.dimension.wheels_front_position.x, self.dimension.wheels_front_position.y, 0)
-          groundsensor_axle_front.tail = (groundsensor_axle_front.head.x, groundsensor_axle_front.head.y + self.dimension.length / 8, 0)
-          groundsensor_axle_front.parent = root
+            groundsensor_axle_front = amt.edit_bones.new('GroundSensor.Axle.Ft')
+            groundsensor_axle_front.head = (self.dimension.wheels_front_position.x, self.dimension.wheels_front_position.y, 0)
+            groundsensor_axle_front.tail = (groundsensor_axle_front.head.x, groundsensor_axle_front.head.y + self.dimension.length / 8, 0)
+            groundsensor_axle_front.parent = root
 
-          mch_root_axle_front = amt.edit_bones.new('MCH-Root.Axle.Ft')
-          mch_root_axle_front.head = (self.dimension.wheels_front_position.x, self.dimension.wheels_front_position.y, 0)
-          mch_root_axle_front.tail = (mch_root_axle_front.head.x, mch_root_axle_front.head.y + self.dimension.length / 3, 0)
-          mch_root_axle_front.parent = groundsensor_axle_front
-          if not self.dimension.has_back_wheels:
-            drift.parent = mch_root_axle_front
+            mch_root_axle_front = amt.edit_bones.new('MCH-Root.Axle.Ft')
+            mch_root_axle_front.head = (self.dimension.wheels_front_position.x, self.dimension.wheels_front_position.y, 0)
+            mch_root_axle_front.tail = (mch_root_axle_front.head.x, mch_root_axle_front.head.y + self.dimension.length / 3, 0)
+            mch_root_axle_front.parent = groundsensor_axle_front
+            if not self.dimension.has_back_wheels:
+                drift.parent = mch_root_axle_front
 
         if self.dimension.has_back_wheels:
-          groundsensor_axle_back = amt.edit_bones.new('GroundSensor.Axle.Bk')
-          groundsensor_axle_back.head = (self.dimension.wheels_back_position.x, self.dimension.wheels_back_position.y, 0)
-          groundsensor_axle_back.tail = (groundsensor_axle_back.head.x, groundsensor_axle_back.head.y + self.dimension.length / 8, 0)
-          groundsensor_axle_back.parent = drift
+            groundsensor_axle_back = amt.edit_bones.new('GroundSensor.Axle.Bk')
+            groundsensor_axle_back.head = (self.dimension.wheels_back_position.x, self.dimension.wheels_back_position.y, 0)
+            groundsensor_axle_back.tail = (groundsensor_axle_back.head.x, groundsensor_axle_back.head.y + self.dimension.length / 8, 0)
+            groundsensor_axle_back.parent = drift
 
-          mch_root_axle_back = amt.edit_bones.new('MCH-Root.Axle.Bk')
-          mch_root_axle_back.head = (self.dimension.wheels_back_position.x, self.dimension.wheels_back_position.y, 0)
-          mch_root_axle_back.tail = (mch_root_axle_back.head.x, mch_root_axle_back.head.y + self.dimension.length / 3, 0)
-          mch_root_axle_back.parent = groundsensor_axle_back
-          base_bone_parent = mch_root_axle_back
+            mch_root_axle_back = amt.edit_bones.new('MCH-Root.Axle.Bk')
+            mch_root_axle_back.head = (self.dimension.wheels_back_position.x, self.dimension.wheels_back_position.y, 0)
+            mch_root_axle_back.tail = (mch_root_axle_back.head.x, mch_root_axle_back.head.y + self.dimension.length / 3, 0)
+            mch_root_axle_back.parent = groundsensor_axle_back
+            base_bone_parent = mch_root_axle_back
 
         shapeDrift = amt.edit_bones.new('SHP-Drift')
         shapeDrift.head = (self.dimension.center.x, self.dimension.center.y + self.dimension.length * 1.05, drift.head.z)
@@ -571,32 +571,32 @@ class ArmatureGenerator(object):
         amt.bones[root.name].show_wire = True
 
         for ground_sensor_axle_name in ('GroundSensor.Axle.Ft', 'GroundSensor.Axle.Bk'):
-          groundsensor_axle = pose.bones.get(ground_sensor_axle_name)
-          if groundsensor_axle:
-            groundsensor_axle.lock_location = (True, True, False)
-            groundsensor_axle.lock_rotation = (True, True, True)
-            groundsensor_axle.lock_scale = (True, True, True)
-            groundsensor_axle.custom_shape = bpy.data.objects['WGT-CarRig.GroundSensor.Axle']
-            groundsensor_axle.lock_rotation_w = True
-            amt.bones[groundsensor_axle.name].show_wire = True
-            self.generate_ground_projection_constraint(groundsensor_axle)
+            groundsensor_axle = pose.bones.get(ground_sensor_axle_name)
+            if groundsensor_axle:
+                groundsensor_axle.lock_location = (True, True, False)
+                groundsensor_axle.lock_rotation = (True, True, True)
+                groundsensor_axle.lock_scale = (True, True, True)
+                groundsensor_axle.custom_shape = bpy.data.objects['WGT-CarRig.GroundSensor.Axle']
+                groundsensor_axle.lock_rotation_w = True
+                amt.bones[groundsensor_axle.name].show_wire = True
+                self.generate_ground_projection_constraint(groundsensor_axle)
 
-            if groundsensor_axle.name == 'GroundSensor.Axle.Ft' and 'GroundSensor.Axle.Bk' in pose.bones:
-              cns = groundsensor_axle.constraints.new('LIMIT_DISTANCE')
-              cns.name = 'Limit distance from Root'
-              cns.limit_mode = 'LIMITDIST_ONSURFACE'
-              cns.target = self.ob
-              cns.subtarget = 'GroundSensor.Axle.Bk'
-              cns.use_transform_limit = True
+                if groundsensor_axle.name == 'GroundSensor.Axle.Ft' and 'GroundSensor.Axle.Bk' in pose.bones:
+                    cns = groundsensor_axle.constraints.new('LIMIT_DISTANCE')
+                    cns.name = 'Limit distance from Root'
+                    cns.limit_mode = 'LIMITDIST_ONSURFACE'
+                    cns.target = self.ob
+                    cns.subtarget = 'GroundSensor.Axle.Bk'
+                    cns.use_transform_limit = True
 
         mch_root_axle_front = pose.bones.get('MCH-Root.Axle.Ft')
         mch_root_axle_back = pose.bones.get('MCH-Root.Axle.Bk')
         if mch_root_axle_front and mch_root_axle_back:
-          cns = mch_root_axle_back.constraints.new('DAMPED_TRACK')
-          cns.name = 'Track front axle'
-          cns.target = self.ob
-          cns.subtarget = mch_root_axle_front.name
-          cns.track_axis = 'TRACK_NEGATIVE_Y'
+            cns = mch_root_axle_back.constraints.new('DAMPED_TRACK')
+            cns.name = 'Track front axle'
+            cns.target = self.ob
+            cns.subtarget = mch_root_axle_front.name
+            cns.track_axis = 'TRACK_NEGATIVE_Y'
 
         drift = pose.bones['Drift']
         drift.lock_location = (True, True, True)
@@ -630,16 +630,16 @@ class ArmatureGenerator(object):
             create_translation_x_driver(self.ob, mch_steering_rotation, '["Steering.rotation"]')
 
             if mch_root_axle_back:
-              cns = mch_steering_rotation.constraints.new('COPY_ROTATION')
-              cns.name = 'Copy back axle rotation'
-              cns.target = self.ob
-              cns.subtarget = mch_root_axle_back.name
-              cns.use_x = True
-              cns.use_y = False
-              cns.use_z = False
-              cns.use_offset = True
-              cns.owner_space = 'LOCAL'
-              cns.target_space = 'LOCAL'
+                cns = mch_steering_rotation.constraints.new('COPY_ROTATION')
+                cns.name = 'Copy back axle rotation'
+                cns.target = self.ob
+                cns.subtarget = mch_root_axle_back.name
+                cns.use_x = True
+                cns.use_y = False
+                cns.use_z = False
+                cns.use_offset = True
+                cns.owner_space = 'LOCAL'
+                cns.target_space = 'LOCAL'
 
             mch_steering = pose.bones['MCH-Steering']
             cns = mch_steering.constraints.new('DAMPED_TRACK')
