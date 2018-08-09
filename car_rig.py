@@ -119,14 +119,17 @@ def dispatch_bones_to_armature_layers(ob):
             default_visible_layers[layer_num] = True
         b.layers = layers
 
+    ob.data.layers = default_visible_layers
+
+    shape_bone_layers = [False] * 32
+    shape_bone_layers[CUSTOM_SHAPE_LAYER] = True
     for b in ob.pose.bones:
         if b.custom_shape:
             if b.custom_shape_transform:
-                ob.data.bones[b.custom_shape_transform.name].layers[CUSTOM_SHAPE_LAYER] = True
+                ob.pose.bones[b.custom_shape_transform.name].custom_shape = b.custom_shape
+                ob.data.bones[b.custom_shape_transform.name].layers = shape_bone_layers
             else:
                 ob.data.bones[b.name].layers[CUSTOM_SHAPE_LAYER] = True
-
-    ob.data.layers = default_visible_layers
 
 
 class WheelDimension():
@@ -316,7 +319,7 @@ class ArmatureGenerator(object):
         shapeDrift = amt.edit_bones.new('SHP-Drift')
         shapeDrift.head = (self.dimension.center.x, self.dimension.center.y + self.dimension.length * 1.05, drift.head.z)
         shapeDrift.tail = shapeDrift.head
-        shapeDrift.tail.y += 1
+        shapeDrift.tail.y += drift.length
         shapeDrift.use_deform = False
         shapeDrift.parent = base_bone_parent
 
@@ -522,8 +525,6 @@ class ArmatureGenerator(object):
                 b.lock_rotation = (True, True, True)
                 b.lock_scale = (True, True, True)
                 b.lock_rotation_w = True
-                if b.name.startswith('SHP-'):
-                    amt.bones[b.name].hide = True
 
         for name in name_range('Ft.L', self.dimension.nb_front_wheels):
             self.generate_constraints_on_wheel_bones(name)
