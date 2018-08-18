@@ -8,4 +8,4 @@ Please read [full documentation](http://digicreatures.net/articles/rigacar.html)
 
 You can also watch the series of videotutorials:
 
-[![IMAGE ALT TEXT](http://img.youtube.com/vi/D3XQxA_-TzY/0.jpg)](https://www.youtube.com/watch?v=D3XQxA_-TzY&list=PLH_mmrv8SfPFiEj93RJt3sBvHCnipI9qK "Rigacar videotutorials")
+[![Rigacar Part 1](http://img.youtube.com/vi/D3XQxA_-TzY/0.jpg)](https://www.youtube.com/watch?v=D3XQxA_-TzY&list=PLH_mmrv8SfPFiEj93RJt3sBvHCnipI9qK "Rigacar videotutorials")
