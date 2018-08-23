@@ -125,7 +125,7 @@ class BakingOperator:
 
     def _bake_action(self, context, *source_bones):
         action = context.object.animation_data.action
-        nla_tweak_mode = context.object.animation_data.use_tweak_mode
+        nla_tweak_mode = context.object.animation_data.use_tweak_mode if hasattr(context.object.animation_data, 'use_tweak_mode') else False
 
         # saving context
         selected_bones = [b for b in context.object.data.bones if b.select]
