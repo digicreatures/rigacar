@@ -71,7 +71,7 @@ class BaseCarRigPanel:
                     ground_projection_constraint = context.object.pose.bones[name].constraints.get('Ground projection')
                     self.layout.separator()
                     if ground_projection_constraint is not None:
-                        self.layout.label("%s:" % name)
+                        self.layout.label(text="%s:" % name)
                         self.layout.prop(ground_projection_constraint, 'target', text='Ground')
                         if ground_projection_constraint.target is not None:
                             self.layout.prop(ground_projection_constraint, 'shrinkwrap_type')
@@ -106,7 +106,7 @@ def menu_entries(menu, context):
 
 
 def register():
-    bpy.types.INFO_MT_armature_add.append(menu_entries)
+    bpy.types.VIEW3D_MT_armature_add.append(menu_entries)
     bpy.utils.register_class(UICarRigPropertiesPanel)
     bpy.utils.register_class(UICarRigView3DPanel)
     car_rig.register()

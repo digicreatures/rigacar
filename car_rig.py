@@ -87,7 +87,7 @@ def create_translation_x_driver(ob, bone, driver_data_path):
 
 
 def create_bone_group(pose, group_name, color_set, bone_names):
-    group = pose.bone_groups.new(group_name)
+    group = pose.bone_groups.new(name=group_name)
     group.color_set = color_set
     for bone_name in bone_names:
         bone = pose.bones.get(bone_name)
@@ -475,7 +475,7 @@ class ArmatureGenerator(object):
 
             bpy.ops.object.mode_set(mode='POSE')
             self.generate_constraints_on_rig()
-            self.ob.draw_type = 'WIRE'
+            self.ob.display_type = 'WIRE'
 
             self.generate_bone_groups()
             dispatch_bones_to_armature_layers(self.ob)
