@@ -1209,18 +1209,23 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
                                                           default=0)
 
     def draw(self, context):
-        self.layout.label('Body')
+        self.layout.label(text='Body')
         layout = self.layout.box()
         layout.prop(self, 'body_pos_delta')
+<<<<<<< HEAD
         self.layout.label('Front wheels')
+=======
+        layout.prop(self, 'body_size_delta')
+        self.layout.label(text='Front wheels')
+>>>>>>> fix named parameters
         layout = self.layout.box()
         layout.prop(self, 'nb_front_wheels_pairs')
         layout.prop(self, 'front_wheel_pos_delta')
-        self.layout.label('Back wheels')
+        self.layout.label(text='Back wheels')
         layout = self.layout.box()
         layout.prop(self, 'nb_back_wheels_pairs')
         layout.prop(self, 'back_wheel_pos_delta')
-        self.layout.label('Brakes')
+        self.layout.label(text='Brakes')
         layout = self.layout.box()
         layout.prop(self, 'nb_front_wheel_brakes_pairs')
         layout.prop(self, 'front_wheel_brakes_pos_delta')
