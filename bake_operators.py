@@ -153,17 +153,17 @@ class BakingOperator(object):
 
     def _create_rotation_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].rotation_euler' % source_bone.name
-        fc_root_rot = [action.fcurves.find(fcurve_name, i) for i in range(0, 3)]
+        fc_root_rot = [action.fcurves.find(fcurve_name, index=i) for i in range(0, 3)]
         return EulerToQuaternionFCurvesEvaluator(FCurvesEvaluator(fc_root_rot, default_value=(.0, .0, .0)))
 
     def _create_location_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].location' % source_bone.name
-        fc_root_loc = [action.fcurves.find(fcurve_name, i) for i in range(0, 3)]
+        fc_root_loc = [action.fcurves.find(fcurve_name, index=i) for i in range(0, 3)]
         return VectorFCurvesEvaluator(FCurvesEvaluator(fc_root_loc, default_value=(.0, .0, .0)))
 
     def _create_scale_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].scale' % source_bone.name
-        fc_root_loc = [action.fcurves.find(fcurve_name, i) for i in range(0, 3)]
+        fc_root_loc = [action.fcurves.find(fcurve_name, index=i) for i in range(0, 3)]
         return VectorFCurvesEvaluator(FCurvesEvaluator(fc_root_loc, default_value=(1.0, 1.0, 1.0)))
 
     def _bake_action(self, context, *source_bones):
