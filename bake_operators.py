@@ -253,7 +253,7 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
             speed_vector = pos - prev_pos
             speed_vector *= 2 * break_evaluator.evaluate(f).y - 1
             rotation_quaternion = rot_evaluator.evaluate(f)
-            bone_orientation = rotation_quaternion * bone_init_vector
+            bone_orientation = rotation_quaternion @ bone_init_vector
             speed = math.copysign(speed_vector.magnitude, bone_orientation.dot(speed_vector))
             speed /= radius
             drop_keyframe = False
@@ -315,7 +315,7 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
             if (next_pos - current_pos).length < minimum_length:
                 continue
             world_space_tangent_vector = next_pos - current_pos
-            local_space_tangent_vector = rot_evaluator.evaluate(f).inverted() * world_space_tangent_vector
+            local_space_tangent_vector = rot_evaluator.evaluate(f).inverted() @ world_space_tangent_vector
             current_rotation = local_space_tangent_vector.xy.angle_signed(init_vector.xy, prev_rotation)
             drop_keyframe = abs(prev_rotation - current_rotation) < tolerance
             if drop_keyframe and f > self.frame_start:
