@@ -46,6 +46,10 @@ else:
 
 class BaseCarRigPanel:
 
+    def __init__(self):
+        self.layout.use_property_split = True
+        self.layout.use_property_decorate = False
+
     @classmethod
     def is_car_rig(cls, context):
         return context.object is not None and context.object.data is not None and 'Car Rig' in context.object.data
@@ -65,15 +69,15 @@ class BaseCarRigPanel:
     def display_rig_props_section(self, context):
         layout = self.layout.column()
         layout.prop(context.object, '["wheels_on_y_axis"]', text="Wheels on Y axis")
-        layout.prop(context.object, '["suspension_factor"]', text="Suspension fact.")
-        layout.prop(context.object, '["suspension_rolling_factor"]', text="Suspension rolling fact.")
+        layout.prop(context.object, '["suspension_factor"]', text="Pitch factor")
+        layout.prop(context.object, '["suspension_rolling_factor"]', text="Roll factor")
 
     def display_ground_sensors_section(self, context, bones):
         ground_sensors_name = [b.name for b in bones if b.name.startswith('GroundSensor.')]
         for name in ground_sensors_name:
             ground_projection_constraint = context.object.pose.bones[name].constraints.get('Ground projection')
             if ground_projection_constraint is not None:
-                self.layout.label(text="%s:" % name, icon='BONE_DATA')
+                self.layout.label(text=name, icon='BONE_DATA')
                 self.layout.prop(ground_projection_constraint, 'target', text='Ground')
                 if ground_projection_constraint.target is not None:
                     self.layout.prop(ground_projection_constraint, 'shrinkwrap_type')
@@ -82,8 +86,8 @@ class BaseCarRigPanel:
                     self.layout.prop(ground_projection_constraint, 'influence')
             ground_projection_limit_constraint = context.object.pose.bones[name].constraints.get('Ground projection limitation')
             if ground_projection_limit_constraint is not None:
-                self.layout.prop(ground_projection_limit_constraint, 'min_z', text='min Z')
-                self.layout.prop(ground_projection_limit_constraint, 'max_z', text='max Z')
+                self.layout.prop(ground_projection_limit_constraint, 'min_z', text='Min local Z')
+                self.layout.prop(ground_projection_limit_constraint, 'max_z', text='Max local Z')
             self.layout.separator()
 
 
