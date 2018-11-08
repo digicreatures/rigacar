@@ -21,7 +21,7 @@
 bl_info = {
     "name": "Rigacar (Generates Car Rig)",
     "author": "David Gayerie",
-    "version": (3, 1),
+    "version": (4, 0),
     "blender": (2, 80, 0),
     "location": "View3D > Add > Armature",
     "description": "Adds a deformation rig for vehicules, generates animation rig and bake wheels animation.",
