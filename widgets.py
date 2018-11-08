@@ -22,6 +22,7 @@ import bpy
 
 COLLECTION_NAME = 'Rigacar widgets'
 
+
 def create():
     if COLLECTION_NAME not in bpy.data.collections:
         c = bpy.data.collections.new(COLLECTION_NAME)
