@@ -44,6 +44,21 @@ else:
     from . import car_rig
 
 
+def enumerate_ground_sensors(bones):
+    bone = bones.get('GroundSensor.Axle.Ft')
+    if bone is not None:
+        yield bone
+        for bone in bones:
+          if bone.name.startswith('GroundSensor.Ft'):
+            yield bone
+    bone = bones.get('GroundSensor.Axle.Bk')
+    if bone is not None:
+        yield bone
+        for bone in bones:
+          if bone.name.startswith('GroundSensor.Bk'):
+            yield bone
+
+
 class BaseCarRigPanel:
 
     def __init__(self):
@@ -72,19 +87,18 @@ class BaseCarRigPanel:
         layout.prop(context.object, '["suspension_factor"]', text="Pitch factor")
         layout.prop(context.object, '["suspension_rolling_factor"]', text="Roll factor")
 
-    def display_ground_sensors_section(self, context, bones):
-        ground_sensors_name = [b.name for b in bones if b.name.startswith('GroundSensor.')]
-        for name in ground_sensors_name:
-            ground_projection_constraint = context.object.pose.bones[name].constraints.get('Ground projection')
+    def display_ground_sensors_section(self, context):
+        for ground_sensor in enumerate_ground_sensors(context.object.pose.bones):
+            ground_projection_constraint = ground_sensor.constraints.get('Ground projection')
+            self.layout.label(text=ground_sensor.name, icon='BONE_DATA')
             if ground_projection_constraint is not None:
-                self.layout.label(text=name, icon='BONE_DATA')
                 self.layout.prop(ground_projection_constraint, 'target', text='Ground')
                 if ground_projection_constraint.target is not None:
                     self.layout.prop(ground_projection_constraint, 'shrinkwrap_type')
                     if ground_projection_constraint.shrinkwrap_type == 'PROJECT':
                         self.layout.prop(ground_projection_constraint, 'project_limit')
                     self.layout.prop(ground_projection_constraint, 'influence')
-            ground_projection_limit_constraint = context.object.pose.bones[name].constraints.get('Ground projection limitation')
+            ground_projection_limit_constraint = ground_sensor.constraints.get('Ground projection limitation')
             if ground_projection_limit_constraint is not None:
                 self.layout.prop(ground_projection_limit_constraint, 'min_z', text='Min local Z')
                 self.layout.prop(ground_projection_limit_constraint, 'max_z', text='Max local Z')
@@ -104,9 +118,9 @@ class UIRigacarRigPropertiesPanel(bpy.types.Panel, BaseCarRigPanel):
 
     def draw(self, context):
         if BaseCarRigPanel.is_car_rig_generated(context):
-            self.display_bake_section(context)
-            self.layout.separator()
             self.display_rig_props_section(context)
+            self.layout.separator()
+            self.display_bake_section(context)
         else:
             self.display_generate_section(context)
 
@@ -124,7 +138,7 @@ class UIRigacarGroundSensorsPropertiesPanel(bpy.types.Panel, BaseCarRigPanel):
         return BaseCarRigPanel.is_car_rig_generated(context)
 
     def draw(self, context):
-        self.display_ground_sensors_section(context, bpy.context.object.data.bones)
+        self.display_ground_sensors_section(context)
 
 
 class UIRigacarAnimationRigView3DPanel(bpy.types.Panel, BaseCarRigPanel):
@@ -170,7 +184,7 @@ class UIRigacarGroundSensorsView3DPanel(bpy.types.Panel, BaseCarRigPanel):
         return BaseCarRigPanel.is_car_rig_generated(context)
 
     def draw(self, context):
-        self.display_ground_sensors_section(context, bpy.context.object.data.bones)
+        self.display_ground_sensors_section(context)
 
 
 def menu_entries(menu, context):
