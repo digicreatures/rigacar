@@ -102,7 +102,7 @@ def name_range(prefix, nb=1000):
 
 
 def dispatch_bones_to_armature_layers(ob):
-    re_mch_bone = re.compile('^MCH-Wheel(Brake)?.(Ft|Bk).[LR](.\d+)?$')
+    re_mch_bone = re.compile('^MCH-Wheel(Brake)?\.(Ft|Bk)\.[LR](\.\d+)?$')
     default_visible_layers = [False] * 32
 
     for b in ob.data.bones:
@@ -1159,14 +1159,39 @@ class GenerateCarAnimationRigOperator(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class ClearSteeringWheelsRotationOperator(bpy.types.Operator):
+    bl_idname = "pose.car_animation_clear_steering_wheels_rotation"
+    bl_label = "Clear generated rotation for steering and wheels"
+    bl_description = "Clear generated rotation for steering and wheels (but do not remove keyframes)"
+    bl_options = {'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.object is not None and context.object.data is not None and context.object.data.get('Car Rig'))
+
+    def execute(self, context):
+        re_wheel_propname = re.compile('^Wheel\.rotation\.(Ft|Bk)\.[LR](\.\d+)?$')
+        for p in context.object.items():
+          if p[0] == 'Steering.rotation' or re_wheel_propname.match(p[0]):
+            context.object[p[0]] = .0
+        # this is a hack to force Blender to take into account the modification
+        # of the properties by changing the object mode.
+        mode = context.object.mode
+        bpy.ops.object.mode_set(mode='OBJECT' if mode == 'EDIT' else 'EDIT')
+        bpy.ops.object.mode_set(mode=mode)
+        return {"FINISHED"}
+
+
 def register():
     bpy.utils.register_class(GenerateCarAnimationRigOperator)
     bpy.utils.register_class(AddCarDeformationRigOperator)
+    bpy.utils.register_class(ClearSteeringWheelsRotationOperator)
 
 
 def unregister():
-    bpy.utils.unregister_class(GenerateCarAnimationRigOperator)
+    bpy.utils.unregister_class(ClearSteeringWheelsRotationOperator)
     bpy.utils.unregister_class(AddCarDeformationRigOperator)
+    bpy.utils.unregister_class(GenerateCarAnimationRigOperator)
 
 
 if __name__ == "__main__":

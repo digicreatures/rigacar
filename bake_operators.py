@@ -324,8 +324,8 @@ def register():
 
 
 def unregister():
-    bpy.utils.unregister_class(BakeWheelRotationOperator)
     bpy.utils.unregister_class(BakeSteeringOperator)
+    bpy.utils.unregister_class(BakeWheelRotationOperator)
 
 
 if __name__ == "__main__":
