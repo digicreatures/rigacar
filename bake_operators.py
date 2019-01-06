@@ -357,8 +357,8 @@ class ClearSteeringWheelsRotationOperator(bpy.types.Operator):
     bl_description = "Clear generated rotation for steering and wheels"
     bl_options = {'REGISTER', 'UNDO'}
 
-    clear_steering = bpy.props.BoolProperty(name="Steering", description="Clear generated animation for steering", default=True)
-    clear_wheels = bpy.props.BoolProperty(name="Wheels", description="Clear generated animation for wheels", default=True)
+    clear_steering: bpy.props.BoolProperty(name="Steering", description="Clear generated animation for steering", default=True)
+    clear_wheels: bpy.props.BoolProperty(name="Wheels", description="Clear generated animation for wheels", default=True)
 
     def draw(self, context):
         self.layout.label('Clear generated keyframes for')
@@ -378,10 +378,10 @@ class ClearSteeringWheelsRotationOperator(bpy.types.Operator):
                 clear_property_animation(context, prop, remove_keyframes=self.clear_wheels)
         # this is a hack to force Blender to take into account the modification
         # of the properties by changing the object mode.
+        # Don't know yet if it is specific to blender 2.80
         mode = context.object.mode
-        bpy.ops.object.mode_set(mode='OBJECT' if mode == 'EDIT' else 'EDIT')
+        bpy.ops.object.mode_set(mode='OBJECT' if mode == 'POSE' else 'POSE')
         bpy.ops.object.mode_set(mode=mode)
-        return {"FINISHED"}
 
 
 def register():
