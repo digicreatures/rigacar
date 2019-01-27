@@ -194,6 +194,17 @@ class BoundingBox:
     def len_z(self):
         return abs(self._xyz[4] - self._xyz[5])
 
+    @classmethod
+    def from_parented_to(cls, armature, bone_name):
+      objs = [o for o in armature.children if o.parent_bone == bone_name]
+      if objs:
+        return BoundingBox(*objs)
+      else:
+        bone = armature.data.bones[bone_name]
+        bb = BoundingBox()
+        bb._xyz = [bone.head.x - bone.length / 2, bone.head.x + bone.length / 2, bone.head.y - bone.length, bone.head.y + bone.length, .0, bone.head.z * 2]
+        return bb
+
 
 class WheelDimension():
 
@@ -201,7 +212,7 @@ class WheelDimension():
         self.position = position
         self.side_position = side_position
 
-        wheels = (armature.edit_bones.get(name) for name in name_range('DEF-Wheel.%s.%s' % (position, side_position)))
+        wheels = (armature.data.edit_bones.get(name) for name in name_range('DEF-Wheel.%s.%s' % (position, side_position)))
         nb_wheels = 0
         min_wheel = default_pos.copy()
         max_wheel = default_pos.copy()
@@ -232,27 +243,34 @@ class WheelDimension():
 class CarDimension():
 
     def __init__(self, armature):
-        body = armature.edit_bones['DEF-Body']
+        body = armature.data.edit_bones['DEF-Body']
+
+        bb_body = BoundingBox.from_parented_to(armature, 'DEF-Body')
 
         self.wheels_front_left = WheelDimension(armature, 'Ft', 'L', body.head)
         self.wheels_front_right = WheelDimension(armature, 'Ft', 'R', body.head)
         self.wheels_back_left = WheelDimension(armature, 'Bk', 'L', body.tail)
         self.wheels_back_right = WheelDimension(armature, 'Bk', 'R', body.tail)
 
-        if self.has_wheels:
-            self.width = max(self.wheels_front_left.max_width, self.wheels_front_right.max_width, self.wheels_back_left.max_width, self.wheels_back_right.max_width)
-        else:
-            self.width = min(1, body.length)
+        self.center = body.head
+        self.width = bb_body.len_x
+        self.height = bb_body.len_z
+        self.length = bb_body.len_y / 2
 
-        if self.has_front_wheels:
-            self.length = max(body.length, self.width)
-            self.center = body.head
-        else:
-            self.length = max(body.length * .6, self.width)
-            self.center = body.head.lerp(body.tail, .5)
+#        if self.has_wheels:
+#            self.width = max(self.wheels_front_left.max_width, self.wheels_front_right.max_width, self.wheels_back_left.max_width, self.wheels_back_right.max_width)
+#        else:
+#            self.width = min(1, body.length)
 
-        self.height = min(self.width, self.length) * 2.0
-        self.height = max(self.height, body.head.z * 4.0)
+#        if self.has_front_wheels:
+#            self.length = max(body.length, self.width)
+#            self.center = body.head
+#        else:
+#            self.length = max(body.length * .6, self.width)
+#            self.center = body.head.lerp(body.tail, .5)
+
+#        self.height = min(self.width, self.length) * 2.0
+#        self.height = max(self.height, body.head.z * 4.0)
 
     @property
     def wheels_front_position(self):
@@ -315,7 +333,7 @@ class ArmatureGenerator(object):
         self.ob['suspension_rolling_factor'] = .5
 
         bpy.ops.object.mode_set(mode='EDIT')
-        self.dimension = CarDimension(self.ob.data)
+        self.dimension = CarDimension(self.ob)
 
         self.generate_animation_rig()
         self.ob.data['Car Rig'] = True
