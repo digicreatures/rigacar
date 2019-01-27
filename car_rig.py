@@ -23,6 +23,7 @@ import math
 import bpy_extras
 import mathutils
 import re
+from math import inf
 
 CUSTOM_SHAPE_LAYER = 13
 MCH_BONE_EXTENSION_LAYER = 14
@@ -130,6 +131,73 @@ def dispatch_bones_to_armature_layers(ob):
                 ob.data.bones[b.custom_shape_transform.name].layers = shape_bone_layers
             else:
                 ob.data.bones[b.name].layers[CUSTOM_SHAPE_LAYER] = True
+
+
+class BoundingBox:
+
+    def __init__(self, *objs):
+        self._xyz = [inf, -inf, inf, -inf, inf, -inf]
+        self.add(*objs)
+
+    def add(self, *objs):
+        self._compute(mathutils.Matrix(), *objs)
+
+    def _compute(self, pmatrix, *objs):
+        for obj in objs:
+            omatrix = pmatrix * obj.matrix_world
+            if obj.dupli_group:
+                self._compute(omatrix, *obj.dupli_group.objects)
+            elif obj.bound_box:
+                for p in obj.bound_box:
+                    world_p = omatrix * mathutils.Vector(p)
+                    self._xyz[0] = min(world_p.x, self._xyz[0])
+                    self._xyz[1] = max(world_p.x, self._xyz[1])
+                    self._xyz[2] = min(world_p.y, self._xyz[2])
+                    self._xyz[3] = max(world_p.y, self._xyz[3])
+                    self._xyz[4] = min(world_p.z, self._xyz[4])
+                    self._xyz[5] = max(world_p.z, self._xyz[5])
+            self._compute(pmatrix, *obj.children)
+
+    @property
+    def min_x(self):
+        return self._xyz[0]
+
+    @property
+    def max_x(self):
+        return self._xyz[1]
+
+    @property
+    def min_y(self):
+        return self._xyz[2]
+
+    @property
+    def max_y(self):
+        return self._xyz[3]
+
+    @property
+    def min_z(self):
+        return self._xyz[4]
+
+    @property
+    def max_z(self):
+        return self._xyz[5]
+
+    @property
+    def len_x(self):
+        return abs(self._xyz[0] - self._xyz[1])
+
+    @property
+    def len_y(self):
+        return abs(self._xyz[2] - self._xyz[3])
+
+    @property
+    def len_z(self):
+        return abs(self._xyz[4] - self._xyz[5])
+
+
+def bounding_box_from_parented_objs(armature, bone_name):
+  objs = [o for o in armature.children if o.parent_bone == bone_name]
+  return BoundingBox(*objs) if objs else None
 
 
 class WheelDimension():
@@ -337,9 +405,14 @@ class ArmatureGenerator(object):
             wheels = amt.edit_bones.new('Front Wheels')
             wheels.head = wheelFtL.head
             wheels.tail = wheelFtL.tail
-            wheels.head.x = math.copysign(wheelFtL.head.x + 1.1 * wheelFtL.head.z, wheels.head.x)
-            wheels.tail.x = math.copysign(wheelFtL.tail.x + 1.1 * wheelFtL.head.z, wheels.tail.x)
+            bb = bounding_box_from_parented_objs(self.ob, wheelFtL.name)
             wheels.tail.y = wheels.head.y + wheels.head.z - (wheels.head.z / 10)
+            if not bb:
+              wheels.head.x = math.copysign(wheelFtL.head.x + 1.1 * wheelFtL.head.z, wheels.head.x)
+              wheels.tail.x = math.copysign(wheelFtL.tail.x + 1.1 * wheelFtL.head.z, wheels.tail.x)
+            else:
+              wheels.head.x = bb.max_x + .05
+              wheels.tail.x = bb.max_x + .05
             wheels.use_deform = False
             wheels.parent = amt.edit_bones['GroundSensor.Ft.L']
 
