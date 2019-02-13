@@ -136,101 +136,105 @@ def dispatch_bones_to_armature_layers(ob):
 class BoundingBox:
 
     def __init__(self, *objs):
-        self._xyz = [inf, -inf, inf, -inf, inf, -inf]
-        self.add(*objs)
+        self.__xyz = [inf, -inf, inf, -inf, inf, -inf]
+        self.__center = None
+        self.__compute(mathutils.Matrix(), *objs)
 
-    def add(self, *objs):
-        self._compute(mathutils.Matrix(), *objs)
-
-    def _compute(self, pmatrix, *objs):
+    def __compute(self, pmatrix, *objs):
         for obj in objs:
             omatrix = pmatrix * obj.matrix_world
             if obj.dupli_group:
-                self._compute(omatrix, *obj.dupli_group.objects)
+                self.__compute(omatrix, *obj.dupli_group.objects)
             elif obj.bound_box:
                 for p in obj.bound_box:
                     world_p = omatrix * mathutils.Vector(p)
-                    self._xyz[0] = min(world_p.x, self._xyz[0])
-                    self._xyz[1] = max(world_p.x, self._xyz[1])
-                    self._xyz[2] = min(world_p.y, self._xyz[2])
-                    self._xyz[3] = max(world_p.y, self._xyz[3])
-                    self._xyz[4] = min(world_p.z, self._xyz[4])
-                    self._xyz[5] = max(world_p.z, self._xyz[5])
-            self._compute(pmatrix, *obj.children)
+                    self.__xyz[0] = min(world_p.x, self.__xyz[0])
+                    self.__xyz[1] = max(world_p.x, self.__xyz[1])
+                    self.__xyz[2] = min(world_p.y, self.__xyz[2])
+                    self.__xyz[3] = max(world_p.y, self.__xyz[3])
+                    self.__xyz[4] = min(world_p.z, self.__xyz[4])
+                    self.__xyz[5] = max(world_p.z, self.__xyz[5])
+            self.__compute(pmatrix, *obj.children)
+
+    @property
+    def center(self):
+        return self.__center
 
     @property
     def min_x(self):
-        return self._xyz[0]
+        return self.__xyz[0]
 
     @property
     def max_x(self):
-        return self._xyz[1]
+        return self.__xyz[1]
 
     @property
     def min_y(self):
-        return self._xyz[2]
+        return self.__xyz[2]
 
     @property
     def max_y(self):
-        return self._xyz[3]
+        return self.__xyz[3]
 
     @property
     def min_z(self):
-        return self._xyz[4]
+        return self.__xyz[4]
 
     @property
     def max_z(self):
-        return self._xyz[5]
+        return self.__xyz[5]
 
     @property
     def len_x(self):
-        return abs(self._xyz[0] - self._xyz[1])
+        return abs(self.__xyz[0] - self.__xyz[1])
 
     @property
     def len_y(self):
-        return abs(self._xyz[2] - self._xyz[3])
+        return abs(self.__xyz[2] - self.__xyz[3])
 
     @property
     def len_z(self):
-        return abs(self._xyz[4] - self._xyz[5])
+        return abs(self.__xyz[4] - self.__xyz[5])
 
     @classmethod
     def from_parented_to(cls, armature, bone_name):
-      objs = [o for o in armature.children if o.parent_bone == bone_name]
-      if objs:
-        return BoundingBox(*objs)
-      else:
+        objs = [o for o in armature.children if o.parent_bone == bone_name]
         bone = armature.data.bones[bone_name]
-        bb = BoundingBox()
-        bb._xyz = [bone.head.x - bone.length / 2, bone.head.x + bone.length / 2, bone.head.y - bone.length, bone.head.y + bone.length, .0, bone.head.z * 2]
+        if objs:
+            bb = BoundingBox(*objs)
+        else:
+            bb = BoundingBox()
+            bb.__xyz = [bone.head.x - bone.length / 2, bone.head.x + bone.length / 2, bone.head.y - bone.length, bone.head.y + bone.length, .0, bone.head.z * 2]
+        bb.__center = bone.head.copy()
         return bb
 
 
-class WheelDimension():
+class WheelsDimension:
 
-    def __init__(self, armature, position, side_position, default_pos):
-        self.position = position
-        self.side_position = side_position
-
-        wheels = (armature.data.edit_bones.get(name) for name in name_range('DEF-Wheel.%s.%s' % (position, side_position)))
-        nb_wheels = 0
-        min_wheel = default_pos.copy()
-        max_wheel = default_pos.copy()
-        max_width = 0
-        for wheel in wheels:
-            if wheel is None:
+    def __init__(self, armature, position, side_position, default):
+        self.default = default
+        self.wheels = []
+        wheel_bones = (armature.data.edit_bones.get(name) for name in name_range('DEF-Wheel.%s.%s' % (position, side_position)))
+        for wheel_bone in wheel_bones:
+            if wheel_bone is None:
                 break
-            if nb_wheels == 0 or min_wheel.y > wheel.head.y:
-                min_wheel = wheel.head.copy()
-            if nb_wheels == 0 or max_wheel.y < wheel.head.y:
-                max_wheel = wheel.head.copy()
-            max_width = max(max_width, abs(wheel.head.x))
-            nb_wheels += 1
+            self.wheels.append(BoundingBox.from_parented_to(armature, wheel_bone.name))
 
-        self.min_position = min_wheel
-        self.max_position = max_wheel
-        self.max_width = max_width
-        self.nb = nb_wheels
+    @property
+    def nb(self):
+        return len(self.wheels)
+
+    @property
+    def min_position(self):
+        if self.nb == 0:
+            return self.default
+        return min(self.wheels, key=lambda w: w.center.y).center
+
+    @property
+    def max_position(self):
+        if self.nb == 0:
+            return self.default
+        return max(self.wheels, key=lambda w: w.center.y).center
 
     @property
     def medium_position(self):
@@ -239,38 +243,46 @@ class WheelDimension():
         else:
             return (self.min_position + self.max_position) / 2.0
 
+    @property
+    def outter_x(self):
+        max_x = max(map(lambda w: w.max_x, self.wheels))
+        if max_x < 0:
+            max_x = min(map(lambda w: w.min_x, self.wheels))
+        return max_x
 
-class CarDimension():
+class CarDimension:
 
     def __init__(self, armature):
         body = armature.data.edit_bones['DEF-Body']
+        self.bb_body = BoundingBox.from_parented_to(armature, 'DEF-Body')
+        self.wheels_front_left = WheelsDimension(armature, 'Ft', 'L', default=body.head)
+        self.wheels_front_right = WheelsDimension(armature, 'Ft', 'R', default=body.head)
+        self.wheels_back_left = WheelsDimension(armature, 'Bk', 'L', default=body.tail)
+        self.wheels_back_right = WheelsDimension(armature, 'Bk', 'R', default=body.tail)
 
-        bb_body = BoundingBox.from_parented_to(armature, 'DEF-Body')
+    @property
+    def center(self):
+        return self.bb_body.center
 
-        self.wheels_front_left = WheelDimension(armature, 'Ft', 'L', body.head)
-        self.wheels_front_right = WheelDimension(armature, 'Ft', 'R', body.head)
-        self.wheels_back_left = WheelDimension(armature, 'Bk', 'L', body.tail)
-        self.wheels_back_right = WheelDimension(armature, 'Bk', 'R', body.tail)
+    @property
+    def width(self):
+        return self.bb_body.len_x
 
-        self.center = body.head
-        self.width = bb_body.len_x
-        self.height = bb_body.len_z
-        self.length = bb_body.len_y / 2
+    @property
+    def height(self):
+        return self.bb_body.len_z
 
-#        if self.has_wheels:
-#            self.width = max(self.wheels_front_left.max_width, self.wheels_front_right.max_width, self.wheels_back_left.max_width, self.wheels_back_right.max_width)
-#        else:
-#            self.width = min(1, body.length)
+    @property
+    def length(self):
+        return self.bb_body.len_y
 
-#        if self.has_front_wheels:
-#            self.length = max(body.length, self.width)
-#            self.center = body.head
-#        else:
-#            self.length = max(body.length * .6, self.width)
-#            self.center = body.head.lerp(body.tail, .5)
+    @property
+    def min_y(self):
+        return self.bb_body.min_y
 
-#        self.height = min(self.width, self.length) * 2.0
-#        self.height = max(self.height, body.head.z * 4.0)
+    @property
+    def max_y(self):
+        return self.bb_body.max_y
 
     @property
     def wheels_front_position(self):
@@ -334,7 +346,6 @@ class ArmatureGenerator(object):
 
         bpy.ops.object.mode_set(mode='EDIT')
         self.dimension = CarDimension(self.ob)
-
         self.generate_animation_rig()
         self.ob.data['Car Rig'] = True
         deselect_edit_bones(self.ob)
@@ -355,22 +366,25 @@ class ArmatureGenerator(object):
 
         body = amt.edit_bones['DEF-Body']
         root = amt.edit_bones.new('Root')
-        root.head = (self.dimension.wheels_back_position.x, self.dimension.wheels_back_position.y, 0)
-        root.tail = (self.dimension.wheels_back_position.x, self.dimension.wheels_back_position.y + self.dimension.length, 0)
+        root.head = self.dimension.wheels_back_position
+        root.head.z = 0
+        root.tail = root.head
+        root.tail.y += self.dimension.length / 2
         root.use_deform = False
 
         shapeRoot = amt.edit_bones.new('SHP-Root')
-        shapeRoot.head = (self.dimension.center.x, self.dimension.center.y, 0.01)
-        shapeRoot.tail = (self.dimension.center.x, self.dimension.center.y + self.dimension.length, 0.01)
+        shapeRoot.head = self.dimension.center
+        shapeRoot.head.z = 0.01
+        shapeRoot.tail = shapeRoot.head
+        shapeRoot.tail.y += self.dimension.length / 2
         shapeRoot.use_deform = False
         shapeRoot.parent = root
 
         drift = amt.edit_bones.new('Drift')
         drift.head = self.dimension.wheels_front_position
-        drift.tail = self.dimension.wheels_front_position
-        drift.tail.y -= self.dimension.length
         drift.head.z = self.dimension.wheels_back_position.z
-        drift.tail.z = self.dimension.wheels_back_position.z
+        drift.tail = drift.head
+        drift.tail.y -= self.dimension.width * .95
         drift.roll = math.pi
         drift.use_deform = False
         drift.parent = root
@@ -378,31 +392,40 @@ class ArmatureGenerator(object):
 
         if self.dimension.has_front_wheels:
             groundsensor_axle_front = amt.edit_bones.new('GroundSensor.Axle.Ft')
-            groundsensor_axle_front.head = (self.dimension.wheels_front_position.x, self.dimension.wheels_front_position.y, 0)
-            groundsensor_axle_front.tail = (groundsensor_axle_front.head.x, groundsensor_axle_front.head.y + self.dimension.length / 8, 0)
+            groundsensor_axle_front.head = self.dimension.wheels_front_position
+            groundsensor_axle_front.head.z = 0
+            groundsensor_axle_front.tail = groundsensor_axle_front.head
+            groundsensor_axle_front.tail.y += self.dimension.length / 16
             groundsensor_axle_front.parent = root
 
             mch_root_axle_front = amt.edit_bones.new('MCH-Root.Axle.Ft')
-            mch_root_axle_front.head = (self.dimension.wheels_front_position.x, self.dimension.wheels_front_position.y, 0)
-            mch_root_axle_front.tail = (mch_root_axle_front.head.x, mch_root_axle_front.head.y + self.dimension.length / 3, 0)
+            mch_root_axle_front.head = self.dimension.wheels_front_position
+            mch_root_axle_front.head.z = 0
+            mch_root_axle_front.tail = mch_root_axle_front.head
+            mch_root_axle_front.tail.y += self.dimension.length / 6
             mch_root_axle_front.parent = groundsensor_axle_front
             if not self.dimension.has_back_wheels:
                 drift.parent = mch_root_axle_front
 
         if self.dimension.has_back_wheels:
             groundsensor_axle_back = amt.edit_bones.new('GroundSensor.Axle.Bk')
-            groundsensor_axle_back.head = (self.dimension.wheels_back_position.x, self.dimension.wheels_back_position.y, 0)
-            groundsensor_axle_back.tail = (groundsensor_axle_back.head.x, groundsensor_axle_back.head.y + self.dimension.length / 8, 0)
+            groundsensor_axle_back.head = self.dimension.wheels_back_position
+            groundsensor_axle_back.head.z = 0
+            groundsensor_axle_back.tail = groundsensor_axle_back.head
+            groundsensor_axle_back.tail.y += self.dimension.length / 16
             groundsensor_axle_back.parent = drift
 
             mch_root_axle_back = amt.edit_bones.new('MCH-Root.Axle.Bk')
-            mch_root_axle_back.head = (self.dimension.wheels_back_position.x, self.dimension.wheels_back_position.y, 0)
-            mch_root_axle_back.tail = (mch_root_axle_back.head.x, mch_root_axle_back.head.y + self.dimension.length / 3, 0)
+            mch_root_axle_back.head = self.dimension.wheels_back_position
+            mch_root_axle_back.head.z = 0
+            mch_root_axle_back.tail = mch_root_axle_back.head
+            mch_root_axle_back.tail.y += self.dimension.length / 6
             mch_root_axle_back.parent = groundsensor_axle_back
             base_bone_parent = mch_root_axle_back
 
         shapeDrift = amt.edit_bones.new('SHP-Drift')
-        shapeDrift.head = (self.dimension.center.x, self.dimension.center.y + self.dimension.length * 1.05, drift.head.z)
+        shapeDrift.head = self.dimension.center
+        shapeDrift.head.y = self.dimension.max_y
         shapeDrift.tail = shapeDrift.head
         shapeDrift.tail.y += drift.length
         shapeDrift.use_deform = False
@@ -433,21 +456,21 @@ class ArmatureGenerator(object):
             mchSteering = amt.edit_bones.new('MCH-Steering')
             mchSteering.head = self.dimension.wheels_front_position
             mchSteering.tail = self.dimension.wheels_front_position
-            mchSteering.tail.y += self.dimension.length / 2
+            mchSteering.tail.y += self.dimension.width / 2
             mchSteering.use_deform = False
             mchSteering.parent = groundsensor_axle_front if groundsensor_axle_front else root
 
             steeringRotation = amt.edit_bones.new('MCH-Steering.rotation')
             steeringRotation.head = mchSteering.head
-            steeringRotation.tail = mchSteering.head
+            steeringRotation.tail = mchSteering.tail
             steeringRotation.tail.y += 1
             steeringRotation.use_deform = False
 
             steering = amt.edit_bones.new('Steering')
             steering.head = steeringRotation.head
-            steering.tail = steeringRotation.tail
-            steering.head.y -= self.dimension.length
-            steering.tail.y -= self.dimension.length
+            steering.head.y = self.dimension.min_y - max(self.dimension.length, self.dimension.width) / 15
+            steering.tail = steering.head
+            steering.tail.y -= self.dimension.width / 2
             steering.use_deform = False
             steering.parent = steeringRotation
 
@@ -503,10 +526,9 @@ class ArmatureGenerator(object):
 
         suspension = amt.edit_bones.new('Suspension')
         suspension.head = self.dimension.center
-        suspension.tail = self.dimension.center
-        suspension.tail.y += self.dimension.length / 2
-        suspension.head.z = self.dimension.height * 1.2
-        suspension.tail.z = self.dimension.height * 1.2
+        suspension.head.z = self.dimension.height * 1.3
+        suspension.tail = suspension.head
+        suspension.tail.y += self.dimension.width * .6
         suspension.use_deform = False
         suspension.parent = axis
 
@@ -588,12 +610,12 @@ class ArmatureGenerator(object):
 
         wheel_damper = amt.edit_bones.new('WheelDamper.%s.%s' % (position, side_position))
         wheel_damper.head = wheels.medium_position
-        wheel_damper.tail = wheels.medium_position
-        wheel_damper.tail.y += abs(wheel_damper.tail.z)
-        wheel_damper.head.x = math.copysign(abs(wheels.medium_position.x) + wheels.medium_position.z, wheel_damper.head.x)
-        wheel_damper.tail.x = wheel_damper.head.x
+        wheel_damper_scale_ratio = abs(wheel_damper.head.z)
+        wheel_damper.head.x = wheels.outter_x
+        wheel_damper.head.x += math.copysign(wheel_damper_scale_ratio * .25, wheel_damper.head.x)
         wheel_damper.head.z *= 1.5
-        wheel_damper.tail.z *= 1.5
+        wheel_damper.tail = wheel_damper.head
+        wheel_damper.tail.y += wheel_damper_scale_ratio
         wheel_damper.use_deform = False
         wheel_damper.parent = wheel_damper_parent
 
