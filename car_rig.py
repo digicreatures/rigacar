@@ -278,12 +278,8 @@ class CarDimension(object):
         self.wheels_back_right = WheelsDimension(armature, 'Bk', 'R', default=body.tail)
 
     @property
-    def center(self):
-        return self.bb_body.center
-
-    @property
     def body_center(self):
-        return self.bb_body.center
+        return self.bb_body.box_center
 
     @property
     def width(self):
@@ -404,14 +400,14 @@ class ArmatureGenerator(object):
         if self.dimension.has_front_wheels:
             groundsensor_axle_front = amt.edit_bones.new('GroundSensor.Axle.Ft')
             groundsensor_axle_front.head = self.dimension.wheels_front_position
-            groundsensor_axle_front.head.z = 0
+            groundsensor_axle_front.head.z = 0.001
             groundsensor_axle_front.tail = groundsensor_axle_front.head
             groundsensor_axle_front.tail.y += self.dimension.length / 16
             groundsensor_axle_front.parent = root
 
             mch_root_axle_front = amt.edit_bones.new('MCH-Root.Axle.Ft')
             mch_root_axle_front.head = self.dimension.wheels_front_position
-            mch_root_axle_front.head.z = 0
+            mch_root_axle_front.head.z = 0.001
             mch_root_axle_front.tail = mch_root_axle_front.head
             mch_root_axle_front.tail.y += self.dimension.length / 6
             mch_root_axle_front.parent = groundsensor_axle_front
@@ -435,8 +431,9 @@ class ArmatureGenerator(object):
             base_bone_parent = mch_root_axle_back
 
         shapeDrift = amt.edit_bones.new('SHP-Drift')
-        shapeDrift.head = self.dimension.center
+        shapeDrift.head = self.dimension.body_center
         shapeDrift.head.y = self.dimension.max_y
+        shapeDrift.head.z = self.dimension.wheels_back_position.z
         shapeDrift.tail = shapeDrift.head
         shapeDrift.tail.y += drift.length
         shapeDrift.use_deform = False
@@ -535,7 +532,7 @@ class ArmatureGenerator(object):
         mchBody.parent = axis
 
         suspension = amt.edit_bones.new('Suspension')
-        suspension.head = self.dimension.center
+        suspension.head = self.dimension.body_center
         suspension.head.z = self.dimension.height + self.dimension.width * .25
         suspension.tail = suspension.head
         suspension.tail.y += self.dimension.width * .6
