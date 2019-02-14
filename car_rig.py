@@ -1043,11 +1043,6 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
                                                    default=(0, 0, 0),
                                                    subtype='TRANSLATION')
 
-    body_size_delta = bpy.props.FloatProperty(name='Delta Length',
-                                              description='Extra length added to the car body',
-                                              default=.0,
-                                              subtype='DISTANCE')
-
     nb_front_wheels_pairs = bpy.props.IntProperty(name='Pairs',
                                                   description='Number of front wheels pairs',
                                                   default=1,
@@ -1092,7 +1087,6 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
         self.layout.label('Body')
         layout = self.layout.box()
         layout.prop(self, 'body_pos_delta')
-        layout.prop(self, 'body_size_delta')
         self.layout.label('Front wheels')
         layout = self.layout.box()
         layout.prop(self, 'nb_front_wheels_pairs')
@@ -1170,7 +1164,7 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
 
         bpy.ops.object.mode_set(mode='EDIT')
 
-        self._create_bone(rig, 'Body', delta_pos=self.body_pos_delta, delta_length=self.body_size_delta)
+        self._create_bone(rig, 'Body', delta_pos=self.body_pos_delta)
 
         self._create_wheel_bones(rig, 'Wheel.Ft.L', self.nb_front_wheels_pairs, self.front_wheel_pos_delta)
         self._create_wheel_bones(rig, 'Wheel.Ft.R', self.nb_front_wheels_pairs, self.front_wheel_pos_delta.reflect(mathutils.Vector((1, 0, 0))))
@@ -1192,12 +1186,11 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
 
         return{'FINISHED'}
 
-    def _create_bone(self, rig, name, delta_pos, delta_length=0):
+    def _create_bone(self, rig, name, delta_pos):
         b = rig.data.edit_bones.new('DEF-' + name)
 
         b.head = self.bones_position[name] + delta_pos
         b.tail = b.head
-        b.tail.y += delta_length
         if name == 'Body':
             b.tail.y += b.tail.z * 4
         else:
@@ -1209,7 +1202,6 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
             if name == 'Body':
                 b.tail = b.head
                 b.tail.y += target_obj.dimensions[1] / 2 if target_obj.dimensions and target_obj.dimensions[0] != 0 else 1
-                b.tail.y += delta_length
             target_obj.parent = rig
             target_obj.parent_bone = b.name
             target_obj.parent_type = 'BONE'
