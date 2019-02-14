@@ -46,7 +46,7 @@ def cursor(cursor_mode):
     return cursor_decorator
 
 
-class FCurvesEvaluator:
+class FCurvesEvaluator(object):
     """Encapsulates a bunch of FCurves for vector animations."""
 
     def __init__(self, fcurves, default_value):
@@ -63,7 +63,7 @@ class FCurvesEvaluator:
         return result
 
 
-class VectorFCurvesEvaluator:
+class VectorFCurvesEvaluator(object):
 
     def __init__(self, fcurves_evaluator):
         self.fcurves_evaluator = fcurves_evaluator
@@ -72,7 +72,7 @@ class VectorFCurvesEvaluator:
         return mathutils.Vector(self.fcurves_evaluator.evaluate(f))
 
 
-class EulerToQuaternionFCurvesEvaluator:
+class EulerToQuaternionFCurvesEvaluator(object):
 
     def __init__(self, fcurves_evaluator):
         self.fcurves_evaluator = fcurves_evaluator
@@ -81,7 +81,7 @@ class EulerToQuaternionFCurvesEvaluator:
         return mathutils.Euler(self.fcurves_evaluator.evaluate(f)).to_quaternion()
 
 
-class BakingOperator:
+class BakingOperator(object):
     frame_start = bpy.props.IntProperty(name='Start Frame', min=1)
     frame_end = bpy.props.IntProperty(name='End Frame', min=1)
     keyframe_tolerance = bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.4)
