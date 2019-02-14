@@ -160,8 +160,9 @@ class BoundingBox(object):
     def center(self):
         return self.__center
 
+    @property
     def box_center(self):
-        return mathutils.Vertex(self.max_x - self.min_x, self.max_y - self.min_y, self.max_z - self.min_z) / 2
+        return mathutils.Vector((self.max_x + self.min_x, self.max_y + self.min_y, self.max_z + self.min_z)) / 2
 
     @property
     def min_x(self):
@@ -216,12 +217,18 @@ class WheelsDimension(object):
 
     def __init__(self, armature, position, side_position, default):
         self.default = default
+        self.position = position
+        self.side_position = side_position
         self.wheels = []
-        wheel_bones = (armature.data.edit_bones.get(name) for name in name_range('DEF-Wheel.%s.%s' % (position, side_position)))
+        wheel_bones = (armature.data.edit_bones.get(name) for name in name_range('DEF-Wheel.%s.%s' % (self.position, self.side_position)))
         for wheel_bone in wheel_bones:
             if wheel_bone is None:
                 break
             self.wheels.append(BoundingBox.from_parented_to(armature, wheel_bone.name))
+
+    def items(self):
+        for wheel, name_suffix in zip(self.wheels, name_range('%s.%s' % (self.position, self.side_position))):
+            yield name_suffix, wheel
 
     @property
     def nb(self):
@@ -434,11 +441,11 @@ class ArmatureGenerator(object):
         shapeDrift.parent = base_bone_parent
 
         if self.dimension.has_front_wheels:
-            for name in name_range('Ft.L', self.dimension.nb_front_wheels):
-                self.generate_animation_wheel_bones(name, base_bone_parent)
+            for name_suffix, wheel_dimension in self.dimension.wheels('Ft', 'L').items():
+                self.generate_animation_wheel_bones(name_suffix, wheel_dimension, base_bone_parent)
             self.generate_wheel_damper('Ft', 'L', base_bone_parent)
-            for name in name_range('Ft.R', self.dimension.nb_front_wheels):
-                self.generate_animation_wheel_bones(name, base_bone_parent)
+            for name_suffix, wheel_dimension in self.dimension.wheels('Ft', 'R').items():
+                self.generate_animation_wheel_bones(name_suffix, wheel_dimension, base_bone_parent)
             self.generate_wheel_damper('Ft', 'R', base_bone_parent)
 
             wheelFtR = amt.edit_bones.get('DEF-Wheel.Ft.R')
@@ -481,11 +488,11 @@ class ArmatureGenerator(object):
             steering.parent = steeringRotation
 
         if self.dimension.has_back_wheels:
-            for name in name_range('Bk.L', self.dimension.nb_back_wheels):
-                self.generate_animation_wheel_bones(name, base_bone_parent)
+            for name_suffix, wheel_dimension in self.dimension.wheels('Bk', 'L').items():
+                self.generate_animation_wheel_bones(name_suffix, wheel_dimension, base_bone_parent)
             self.generate_wheel_damper('Bk', 'L', base_bone_parent)
-            for name in name_range('Bk.R', self.dimension.nb_back_wheels):
-                self.generate_animation_wheel_bones(name, base_bone_parent)
+            for name_suffix, wheel_dimension in self.dimension.wheels('Bk', 'R').items():
+                self.generate_animation_wheel_bones(name_suffix, wheel_dimension, base_bone_parent)
             self.generate_wheel_damper('Bk', 'R', base_bone_parent)
 
             wheelBkR = amt.edit_bones.get('DEF-Wheel.Bk.R')
@@ -542,7 +549,7 @@ class ArmatureGenerator(object):
         suspension.use_deform = False
         suspension.parent = axis
 
-    def generate_animation_wheel_bones(self, name_suffix, parent_bone):
+    def generate_animation_wheel_bones(self, name_suffix, wheel_dimension, parent_bone):
         amt = self.ob.data
 
         def_wheel_bone = amt.edit_bones.get('DEF-Wheel.%s' % name_suffix)
@@ -551,19 +558,17 @@ class ArmatureGenerator(object):
             return
 
         ground_sensor = amt.edit_bones.new('GroundSensor.%s' % name_suffix)
-        ground_sensor.head = def_wheel_bone.head
-        ground_sensor.tail = def_wheel_bone.tail
-        ground_sensor.tail.y = ground_sensor.head.y + ground_sensor.head.z
+        ground_sensor.head = wheel_dimension.box_center
         ground_sensor.head.z = 0
-        ground_sensor.tail.z = 0
+        ground_sensor.tail = ground_sensor.head
+        ground_sensor.tail.y += max(wheel_dimension.len_z / 2.5, wheel_dimension.len_x * 1.02)
         ground_sensor.use_deform = False
         ground_sensor.parent = parent_bone
 
         shp_ground_sensor = amt.edit_bones.new('SHP-GroundSensor.%s' % name_suffix)
         shp_ground_sensor.head = ground_sensor.head
         shp_ground_sensor.tail = ground_sensor.tail
-        shp_ground_sensor.head.x = math.copysign(abs(def_wheel_bone.head.x) + def_wheel_bone.head.z * .4, def_wheel_bone.head.x)
-        shp_ground_sensor.tail.x = math.copysign(abs(def_wheel_bone.tail.x) + def_wheel_bone.head.z * .4, def_wheel_bone.head.x)
+        shp_ground_sensor.head.z = shp_ground_sensor.tail.z = .001
         shp_ground_sensor.use_deform = False
         shp_ground_sensor.parent = ground_sensor
 
