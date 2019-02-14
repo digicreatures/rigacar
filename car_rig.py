@@ -133,7 +133,7 @@ def dispatch_bones_to_armature_layers(ob):
                 ob.data.bones[b.name].layers[CUSTOM_SHAPE_LAYER] = True
 
 
-class BoundingBox:
+class BoundingBox(object):
 
     def __init__(self, *objs):
         self.__xyz = [inf, -inf, inf, -inf, inf, -inf]
@@ -212,7 +212,7 @@ class BoundingBox:
         return bb
 
 
-class WheelsDimension:
+class WheelsDimension(object):
 
     def __init__(self, armature, position, side_position, default):
         self.default = default
@@ -243,8 +243,7 @@ class WheelsDimension:
     def medium_position(self):
         if self.nb == 0:
             return self.min_position
-        else:
-            return (self.min_position + self.max_position) / 2.0
+        return (self.min_position + self.max_position) / 2.0
 
     @property
     def outter_x(self):
@@ -253,7 +252,7 @@ class WheelsDimension:
             max_x = min(map(lambda w: w.min_x, self.wheels))
         return max_x
 
-class CarDimension:
+class CarDimension(object):
 
     def __init__(self, armature):
         body = armature.data.edit_bones['DEF-Body']
@@ -364,10 +363,6 @@ class ArmatureGenerator(object):
         self.generate_bone_groups()
         dispatch_bones_to_armature_layers(self.ob)
 
-    def bounding_box_from_parented_objs(self, bone_name):
-      objs = [o for o in self.ob.children if o.parent_bone == bone_name]
-      return BoundingBox(*objs) if objs else None
-
     def generate_animation_rig(self):
         amt = self.ob.data
 
@@ -452,7 +447,11 @@ class ArmatureGenerator(object):
             wheels = amt.edit_bones.new('Front Wheels')
             wheels.use_deform = False
             wheels.parent = amt.edit_bones['GroundSensor.Ft.L']
-            self.position_wheels_animation_widget(wheels, wheelFtL)
+
+            wheels.head = wheelFtL.head
+            wheels.tail = wheelFtL.head
+            wheels.tail.y += wheels.tail.z * .9
+            wheels.head.x = wheels.tail.x = self.dimension.wheels('Ft', 'L').outter_x + wheels.length * .05
 
             axisFt = amt.edit_bones.new('MCH-Axis.Ft')
             axisFt.head = wheelFtR.head
@@ -495,7 +494,11 @@ class ArmatureGenerator(object):
             wheels = amt.edit_bones.new('Back Wheels')
             wheels.use_deform = False
             wheels.parent = amt.edit_bones['GroundSensor.Bk.L']
-            self.position_wheels_animation_widget(wheels, wheelBkL)
+
+            wheels.head = wheelBkL.head
+            wheels.tail = wheelBkL.head
+            wheels.tail.y += wheels.tail.z * .9
+            wheels.head.x = wheels.tail.x = self.dimension.wheels('Bk', 'L').outter_x + wheels.length * .05
 
             axisBk = amt.edit_bones.new('MCH-Axis.Bk')
             axisBk.head = wheelBkR.head
@@ -533,23 +536,11 @@ class ArmatureGenerator(object):
 
         suspension = amt.edit_bones.new('Suspension')
         suspension.head = self.dimension.center
-        suspension.head.z = self.dimension.height * 1.3
+        suspension.head.z = self.dimension.height + self.dimension.width * .25
         suspension.tail = suspension.head
         suspension.tail.y += self.dimension.width * .6
         suspension.use_deform = False
         suspension.parent = axis
-
-    def position_wheels_animation_widget(self, wheels_widget_bone, ref_bone):
-        wheels_widget_bone.head = ref_bone.head
-        wheels_widget_bone.tail = ref_bone.tail
-        bb = self.bounding_box_from_parented_objs(ref_bone.name)
-        wheels_widget_bone.tail.y = wheels_widget_bone.head.y + wheels_widget_bone.head.z * .9
-        if not bb:
-          wheels_widget_bone.head.x = math.copysign(ref_bone.head.x + 1.1 * ref_bone.head.z, wheels_widget_bone.head.x)
-          wheels_widget_bone.tail.x = math.copysign(ref_bone.tail.x + 1.1 * ref_bone.head.z, wheels_widget_bone.tail.x)
-        else:
-          wheels_widget_bone.head.x = bb.max_x + bb.len_z * .02
-          wheels_widget_bone.tail.x = bb.max_x + bb.len_z * .02
 
     def generate_animation_wheel_bones(self, name_suffix, parent_bone):
         amt = self.ob.data
