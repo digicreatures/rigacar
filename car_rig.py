@@ -160,6 +160,9 @@ class BoundingBox:
     def center(self):
         return self.__center
 
+    def box_center(self):
+        return mathutils.Vertex(self.max_x - self.min_x, self.max_y - self.min_y, self.max_z - self.min_z) / 2
+
     @property
     def min_x(self):
         return self.__xyz[0]
@@ -262,6 +265,10 @@ class CarDimension:
 
     @property
     def center(self):
+        return self.bb_body.center
+
+    @property
+    def body_center(self):
         return self.bb_body.center
 
     @property
@@ -369,14 +376,14 @@ class ArmatureGenerator(object):
         root.head = self.dimension.wheels_back_position
         root.head.z = 0
         root.tail = root.head
-        root.tail.y += self.dimension.length / 2
+        root.tail.y += max(self.dimension.length / 2, self.dimension.width)
         root.use_deform = False
 
         shapeRoot = amt.edit_bones.new('SHP-Root')
-        shapeRoot.head = self.dimension.center
+        shapeRoot.head = self.dimension.body_center
         shapeRoot.head.z = 0.01
         shapeRoot.tail = shapeRoot.head
-        shapeRoot.tail.y += self.dimension.length / 2
+        shapeRoot.tail.y += root.length
         shapeRoot.use_deform = False
         shapeRoot.parent = root
 
