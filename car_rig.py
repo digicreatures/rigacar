@@ -227,8 +227,16 @@ class WheelsDimension(object):
             self.wheels.append(BoundingBox.from_parented_to(armature, wheel_bone.name))
 
     def items(self):
-        for wheel, name_suffix in zip(self.wheels, name_range('%s.%s' % (self.position, self.side_position))):
+        for wheel, name_suffix in zip(self.wheels, self.names()):
             yield name_suffix, wheel
+
+    def names(self, base_name=None):
+        for name_suffix in name_range('%s.%s' % (self.position, self.side_position), self.nb):
+            yield '%s.%s' % (base_name, name_suffix) if base_name else name_suffix
+
+    def name(self, base_name=None):
+        suffix = '%s.%s' % (self.position, self.side_position)
+        return '%s.%s' % (base_name, suffix) if base_name else suffix
 
     @property
     def nb(self):
@@ -326,10 +334,6 @@ class CarDimension(object):
         return self.nb_back_wheels > 0
 
     @property
-    def has_front_and_back_wheels(self):
-        return self.nb_front_wheels > 0 and self.nb_back_wheels > 0
-
-    @property
     def nb_front_wheels(self):
         return max(self.wheels_front_left.nb, self.wheels_front_right.nb)
 
@@ -337,11 +341,9 @@ class CarDimension(object):
     def nb_back_wheels(self):
         return max(self.wheels_back_left.nb, self.wheels_back_right.nb)
 
-    def wheels(self, position, side_position):
-        if position == 'Ft':
-            return self.wheels_front_left if side_position == 'L' else self.wheels_front_right
-        else:
-            return self.wheels_back_left if side_position == 'L' else self.wheels_back_right
+    @property
+    def wheels_dimensions(self):
+        return filter (lambda w: w.nb, (self.wheels_front_left, self.wheels_front_right, self.wheels_back_left, self.wheels_back_right))
 
 
 class ArmatureGenerator(object):
@@ -440,14 +442,12 @@ class ArmatureGenerator(object):
         shapeDrift.use_deform = False
         shapeDrift.parent = base_bone_parent
 
-        if self.dimension.has_front_wheels:
-            for name_suffix, wheel_dimension in self.dimension.wheels('Ft', 'L').items():
-                self.generate_animation_wheel_bones(name_suffix, wheel_dimension, base_bone_parent)
-            self.generate_wheel_damper('Ft', 'L', base_bone_parent)
-            for name_suffix, wheel_dimension in self.dimension.wheels('Ft', 'R').items():
-                self.generate_animation_wheel_bones(name_suffix, wheel_dimension, base_bone_parent)
-            self.generate_wheel_damper('Ft', 'R', base_bone_parent)
+        for wheel_dimension in self.dimension.wheels_dimensions:
+            for name_suffix, bounding_box in wheel_dimension.items():
+                self.generate_animation_wheel_bones(name_suffix, bounding_box, base_bone_parent)
+            self.generate_wheel_damper(wheel_dimension, base_bone_parent)
 
+        if self.dimension.has_front_wheels:
             wheelFtR = amt.edit_bones.get('DEF-Wheel.Ft.R')
             wheelFtL = amt.edit_bones.get('DEF-Wheel.Ft.L')
 
@@ -458,7 +458,7 @@ class ArmatureGenerator(object):
             wheels.head = wheelFtL.head
             wheels.tail = wheelFtL.head
             wheels.tail.y += wheels.tail.z * .9
-            wheels.head.x = wheels.tail.x = self.dimension.wheels('Ft', 'L').outter_x + wheels.length * .05
+            wheels.head.x = wheels.tail.x = self.dimension.wheels_front_left.outter_x + wheels.length * .05
 
             axisFt = amt.edit_bones.new('MCH-Axis.Ft')
             axisFt.head = wheelFtR.head
@@ -488,13 +488,6 @@ class ArmatureGenerator(object):
             steering.parent = steeringRotation
 
         if self.dimension.has_back_wheels:
-            for name_suffix, wheel_dimension in self.dimension.wheels('Bk', 'L').items():
-                self.generate_animation_wheel_bones(name_suffix, wheel_dimension, base_bone_parent)
-            self.generate_wheel_damper('Bk', 'L', base_bone_parent)
-            for name_suffix, wheel_dimension in self.dimension.wheels('Bk', 'R').items():
-                self.generate_animation_wheel_bones(name_suffix, wheel_dimension, base_bone_parent)
-            self.generate_wheel_damper('Bk', 'R', base_bone_parent)
-
             wheelBkR = amt.edit_bones.get('DEF-Wheel.Bk.R')
             wheelBkL = amt.edit_bones.get('DEF-Wheel.Bk.L')
 
@@ -505,7 +498,7 @@ class ArmatureGenerator(object):
             wheels.head = wheelBkL.head
             wheels.tail = wheelBkL.head
             wheels.tail.y += wheels.tail.z * .9
-            wheels.head.x = wheels.tail.x = self.dimension.wheels('Bk', 'L').outter_x + wheels.length * .05
+            wheels.head.x = wheels.tail.x = self.dimension.wheels_back_left.outter_x + wheels.length * .05
 
             axisBk = amt.edit_bones.new('MCH-Axis.Bk')
             axisBk.head = wheelBkR.head
@@ -549,7 +542,7 @@ class ArmatureGenerator(object):
         suspension.use_deform = False
         suspension.parent = axis
 
-    def generate_animation_wheel_bones(self, name_suffix, wheel_dimension, parent_bone):
+    def generate_animation_wheel_bones(self, name_suffix, bounding_box, parent_bone):
         amt = self.ob.data
 
         def_wheel_bone = amt.edit_bones.get('DEF-Wheel.%s' % name_suffix)
@@ -558,10 +551,10 @@ class ArmatureGenerator(object):
             return
 
         ground_sensor = amt.edit_bones.new('GroundSensor.%s' % name_suffix)
-        ground_sensor.head = wheel_dimension.box_center
+        ground_sensor.head = bounding_box.box_center
         ground_sensor.head.z = 0
         ground_sensor.tail = ground_sensor.head
-        ground_sensor.tail.y += max(wheel_dimension.len_z / 2.5, wheel_dimension.len_x * 1.02)
+        ground_sensor.tail.y += max(bounding_box.len_z / 2.5, bounding_box.len_x * 1.02)
         ground_sensor.use_deform = False
         ground_sensor.parent = parent_bone
 
@@ -595,26 +588,25 @@ class ArmatureGenerator(object):
             mch_wheel.use_deform = False
             mch_wheel.parent = ground_sensor
 
-    def generate_wheel_damper(self, position, side_position, parent_bone):
+    def generate_wheel_damper(self, wheel_dimension, parent_bone):
         amt = self.ob.data
-        wheels = self.dimension.wheels(position, side_position)
 
-        if wheels.nb == 1:
-            wheel_damper_parent = amt.edit_bones['GroundSensor.%s.%s' % (position, side_position)]
+        if wheel_dimension.nb == 1:
+            wheel_damper_parent = amt.edit_bones[wheel_dimension.name('GroundSensor')]
         else:
-            wheel_damper_parent = amt.edit_bones.new('MCH-GroundSensor.%s.%s' % (position, side_position))
-            wheel_damper_parent.head = wheels.medium_position
-            wheel_damper_parent.tail = wheels.medium_position
+            wheel_damper_parent = amt.edit_bones.new(wheel_dimension.name('MCH-GroundSensor'))
+            wheel_damper_parent.head = wheel_dimension.medium_position
+            wheel_damper_parent.tail = wheel_dimension.medium_position
             wheel_damper_parent.tail.y += 1.0
             wheel_damper_parent.head.z = 0
             wheel_damper_parent.tail.z = 0
             wheel_damper_parent.use_deform = False
             wheel_damper_parent.parent = parent_bone
 
-        wheel_damper = amt.edit_bones.new('WheelDamper.%s.%s' % (position, side_position))
-        wheel_damper.head = wheels.medium_position
+        wheel_damper = amt.edit_bones.new(wheel_dimension.name('WheelDamper'))
+        wheel_damper.head = wheel_dimension.medium_position
         wheel_damper_scale_ratio = abs(wheel_damper.head.z)
-        wheel_damper.head.x = wheels.outter_x
+        wheel_damper.head.x = wheel_dimension.outter_x
         wheel_damper.head.x += math.copysign(wheel_damper_scale_ratio * .25, wheel_damper.head.x)
         wheel_damper.head.z *= 1.5
         wheel_damper.tail = wheel_damper.head
@@ -622,9 +614,9 @@ class ArmatureGenerator(object):
         wheel_damper.use_deform = False
         wheel_damper.parent = wheel_damper_parent
 
-        mch_wheel_damper = amt.edit_bones.new('MCH-WheelDamper.%s.%s' % (position, side_position))
-        mch_wheel_damper.head = wheels.medium_position
-        mch_wheel_damper.tail = wheels.medium_position
+        mch_wheel_damper = amt.edit_bones.new(wheel_dimension.name('MCH-WheelDamper'))
+        mch_wheel_damper.head = wheel_dimension.medium_position
+        mch_wheel_damper.tail = wheel_dimension.medium_position
         mch_wheel_damper.tail.y += 2
         mch_wheel_damper.use_deform = False
         mch_wheel_damper.parent = wheel_damper
@@ -640,21 +632,10 @@ class ArmatureGenerator(object):
                 b.lock_scale = (True, True, True)
                 b.lock_rotation_w = True
 
-        for name in name_range('Ft.L', self.dimension.nb_front_wheels):
-            self.generate_constraints_on_wheel_bones(name)
-        self.generate_constraints_on_wheel_damper('Ft.L', self.dimension.nb_front_wheels)
-
-        for name in name_range('Ft.R', self.dimension.nb_front_wheels):
-            self.generate_constraints_on_wheel_bones(name)
-        self.generate_constraints_on_wheel_damper('Ft.R', self.dimension.nb_front_wheels)
-
-        for name in name_range('Bk.L', self.dimension.nb_back_wheels):
-            self.generate_constraints_on_wheel_bones(name)
-        self.generate_constraints_on_wheel_damper('Bk.L', self.dimension.nb_back_wheels)
-
-        for name in name_range('Bk.R', self.dimension.nb_back_wheels):
-            self.generate_constraints_on_wheel_bones(name)
-        self.generate_constraints_on_wheel_damper('Bk.R', self.dimension.nb_back_wheels)
+        for wheel_dimension in self.dimension.wheels_dimensions:
+          for name in wheel_dimension.names():
+              self.generate_constraints_on_wheel_bones(name)
+          self.generate_constraints_on_wheel_damper(wheel_dimension)
 
         self.generate_constraints_on_axle_bones('Ft')
         self.generate_constraints_on_axle_bones('Bk')
@@ -1010,11 +991,11 @@ class ArmatureGenerator(object):
         self.generate_childof_constraint(mch_wheel_rotation, ground_sensor)
         create_rotation_euler_x_driver(self.ob, mch_wheel_rotation, '["Wheel.rotation.%s"]' % name_suffix)
 
-    def generate_constraints_on_wheel_damper(self, name_suffix, nb_wheels):
+    def generate_constraints_on_wheel_damper(self, wheel_dimension):
         pose = self.ob.pose
         amt = self.ob.data
 
-        wheel_damper = pose.bones.get('WheelDamper.%s' % name_suffix)
+        wheel_damper = pose.bones.get(wheel_dimension.name('WheelDamper'))
         if wheel_damper is not None:
             wheel_damper.lock_location = (True, True, False)
             wheel_damper.lock_rotation = (True, True, True)
@@ -1023,13 +1004,13 @@ class ArmatureGenerator(object):
             wheel_damper.custom_shape = bpy.data.objects['WGT-CarRig.WheelDamper']
             amt.bones[wheel_damper.name].show_wire = True
 
-        mch_ground_sensor = pose.bones.get('MCH-GroundSensor.%s' % name_suffix)
+        mch_ground_sensor = pose.bones.get(wheel_dimension.name('MCH-GroundSensor'))
         if mch_ground_sensor is not None:
             fcurve = mch_ground_sensor.driver_add('location', 2)
             drv = fcurve.driver
             drv.type = 'MAX'
 
-            for i, ground_sensor_name in enumerate(name_range('GroundSensor.%s' % name_suffix, nb_wheels)):
+            for i, ground_sensor_name in enumerate(wheel_dimension.names('GroundSensor')):
                 if ground_sensor_name in pose.bones:
                     var = drv.variables.new()
                     var.name = 'groundSensor%03d' % i
@@ -1046,12 +1027,10 @@ class ArmatureGenerator(object):
         create_bone_group(pose, 'Direction', color_set='THEME04', bone_names=('Root', 'Drift', 'SHP-Root', 'SHP-Drift'))
         create_bone_group(pose, 'Suspension', color_set='THEME09', bone_names=('Suspension', 'WheelDamper.Ft.L', 'WheelDamper.Ft.R', 'WheelDamper.Bk.L', 'WheelDamper.Bk.R'))
         create_bone_group(pose, 'Wheel', color_set='THEME03', bone_names=('Steering', 'Front Wheels', 'Back Wheels'))
-        ground_sensor_names = tuple(name_range('GroundSensor.Ft.L', self.dimension.nb_front_wheels))
-        ground_sensor_names += tuple(name_range('GroundSensor.Ft.R', self.dimension.nb_front_wheels))
-        ground_sensor_names += tuple(name_range('GroundSensor.Bk.L', self.dimension.nb_back_wheels))
-        ground_sensor_names += tuple(name_range('GroundSensor.Bk.R', self.dimension.nb_back_wheels))
+        ground_sensor_names = ('GroundSensor.Axle.Ft', 'GroundSensor.Axle.Bk')
+        for wheel_dimension in self.dimension.wheels_dimensions:
+            ground_sensor_names += tuple(wheel_dimension.names('GroundSensor'))
         ground_sensor_names += tuple("SHP-%s" % i for i in ground_sensor_names)
-        ground_sensor_names += ('GroundSensor.Axle.Ft', 'GroundSensor.Axle.Bk')
         create_bone_group(pose, 'GroundSensor', color_set='THEME02', bone_names=ground_sensor_names)
 
 
