@@ -373,7 +373,12 @@ class ArmatureGenerator(object):
 
         body = amt.edit_bones['DEF-Body']
         root = amt.edit_bones.new('Root')
-        root.head = self.dimension.wheels_back_position
+        if self.dimension.has_back_wheels:
+          root.head = self.dimension.wheels_back_position
+        elif self.dimension.has_front_wheels:
+          root.head = self.dimension.wheels_front_position
+        else:
+          root.head = self.dimension.body_center
         root.head.z = 0
         root.tail = root.head
         root.tail.y += max(self.dimension.length / 2, self.dimension.width)
