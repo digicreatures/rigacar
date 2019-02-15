@@ -267,6 +267,7 @@ class WheelsDimension(object):
             max_x = min(map(lambda w: w.min_x, self.wheels))
         return max_x
 
+
 class CarDimension(object):
 
     def __init__(self, armature):
@@ -339,7 +340,7 @@ class CarDimension(object):
 
     @property
     def wheels_dimensions(self):
-        return filter (lambda w: w.nb, (self.wheels_front_left, self.wheels_front_right, self.wheels_back_left, self.wheels_back_right))
+        return filter(lambda w: w.nb, (self.wheels_front_left, self.wheels_front_right, self.wheels_back_left, self.wheels_back_right))
 
 
 class ArmatureGenerator(object):
@@ -374,11 +375,11 @@ class ArmatureGenerator(object):
         body = amt.edit_bones['DEF-Body']
         root = amt.edit_bones.new('Root')
         if self.dimension.has_back_wheels:
-          root.head = self.dimension.wheels_back_position
+            root.head = self.dimension.wheels_back_position
         elif self.dimension.has_front_wheels:
-          root.head = self.dimension.wheels_front_position
+            root.head = self.dimension.wheels_front_position
         else:
-          root.head = self.dimension.body_center
+            root.head = self.dimension.body_center
         root.head.z = 0
         root.tail = root.head
         root.tail.y += max(self.dimension.length / 2, self.dimension.width)
@@ -635,9 +636,9 @@ class ArmatureGenerator(object):
                 b.lock_rotation_w = True
 
         for wheel_dimension in self.dimension.wheels_dimensions:
-          for name in wheel_dimension.names():
-              self.generate_constraints_on_wheel_bones(name)
-          self.generate_constraints_on_wheel_damper(wheel_dimension)
+            for name in wheel_dimension.names():
+                self.generate_constraints_on_wheel_bones(name)
+            self.generate_constraints_on_wheel_damper(wheel_dimension)
 
         self.generate_constraints_on_axle_bones('Ft')
         self.generate_constraints_on_axle_bones('Bk')
@@ -1259,8 +1260,8 @@ class ClearSteeringWheelsRotationOperator(bpy.types.Operator):
     def execute(self, context):
         re_wheel_propname = re.compile('^Wheel\.rotation\.(Ft|Bk)\.[LR](\.\d+)?$')
         for p in context.object.items():
-          if p[0] == 'Steering.rotation' or re_wheel_propname.match(p[0]):
-            context.object[p[0]] = .0
+            if p[0] == 'Steering.rotation' or re_wheel_propname.match(p[0]):
+                context.object[p[0]] = .0
         # this is a hack to force Blender to take into account the modification
         # of the properties by changing the object mode.
         mode = context.object.mode
