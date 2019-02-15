@@ -101,7 +101,6 @@ def name_range(prefix, nb=1000):
         for i in range(1, nb):
             yield '%s.%03d' % (prefix, i)
 
-
 def dispatch_bones_to_armature_layers(ob):
     re_mch_bone = re.compile('^MCH-Wheel(Brake)?\.(Ft|Bk)\.[LR](\.\d+)?$')
     default_visible_layers = [False] * 32
@@ -1054,6 +1053,16 @@ class ArmatureGenerator(object):
         ground_sensor_names += tuple("SHP-%s" % i for i in ground_sensor_names)
         create_bone_group(pose, 'GroundSensor', color_set='THEME02', bone_names=ground_sensor_names)
 
+    def set_origin(self, scene):
+        root = self.ob.data.bones.get('Root')
+        if root:
+            cursor_location = scene.cursor_location[:]
+            scene.cursor_location = root.head
+            try:
+                bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+            finally:
+                scene.cursor_location = cursor_location
+
 
 class AddCarDeformationRigOperator(bpy.types.Operator):
     bl_idname = "object.armature_car_deformation_rig"
@@ -1262,6 +1271,7 @@ class GenerateCarAnimationRigOperator(bpy.types.Operator):
 
         armature_generator = ArmatureGenerator(context.object)
         armature_generator.generate()
+        armature_generator.set_origin(context.scene)
         return {"FINISHED"}
 
 
