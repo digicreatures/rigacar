@@ -189,15 +189,15 @@ class BoundingBox(object):
         return self.__xyz[5]
 
     @property
-    def len_x(self):
+    def width(self):
         return abs(self.__xyz[0] - self.__xyz[1])
 
     @property
-    def len_y(self):
+    def length(self):
         return abs(self.__xyz[2] - self.__xyz[3])
 
     @property
-    def len_z(self):
+    def height(self):
         return abs(self.__xyz[4] - self.__xyz[5])
 
     @classmethod
@@ -267,6 +267,18 @@ class WheelsDimension(object):
             max_x = min(map(lambda w: w.min_x, self.wheels))
         return max_x
 
+    @property
+    def outter_z(self):
+        return max(map(lambda w: w.max_z, self.wheels))
+
+    @property
+    def outter_front(self):
+        return min(map(lambda w: w.min_y, self.wheels))
+
+    @property
+    def outter_back(self):
+        return max(map(lambda w: w.max_y, self.wheels))
+
 
 class CarDimension(object):
 
@@ -280,27 +292,33 @@ class CarDimension(object):
 
     @property
     def body_center(self):
-        return self.bb_body.box_center
+        return self.bb_body.center
+
+    @property
+    def car_center(self):
+        center = self.bb_body.box_center.copy()
+        center.y = (self.max_y + self.min_y) / 2
+        return center
 
     @property
     def width(self):
-        return self.bb_body.len_x
+        return max([self.bb_body.width] + [abs(w.outter_x) * 2 for w in self.wheels_dimensions])
 
     @property
     def height(self):
-        return self.bb_body.len_z
+        return max([self.bb_body.max_z] + [w.outter_z for w in self.wheels_dimensions])
 
     @property
     def length(self):
-        return self.bb_body.len_y
+        return abs(self.max_y - self.min_y)
 
     @property
     def min_y(self):
-        return self.bb_body.min_y
+        return min([self.bb_body.min_y] + [w.outter_front for w in self.wheels_dimensions])
 
     @property
     def max_y(self):
-        return self.bb_body.max_y
+        return max([self.bb_body.max_y] + [w.outter_back for w in self.wheels_dimensions])
 
     @property
     def wheels_front_position(self):
@@ -382,11 +400,11 @@ class ArmatureGenerator(object):
             root.head = self.dimension.body_center
         root.head.z = 0
         root.tail = root.head
-        root.tail.y += max(self.dimension.length / 2, self.dimension.width)
+        root.tail.y += max(self.dimension.length / 1.95, self.dimension.width * 1.1)
         root.use_deform = False
 
         shapeRoot = amt.edit_bones.new('SHP-Root')
-        shapeRoot.head = self.dimension.body_center
+        shapeRoot.head = self.dimension.car_center
         shapeRoot.head.z = 0.01
         shapeRoot.tail = shapeRoot.head
         shapeRoot.tail.y += root.length
@@ -438,7 +456,7 @@ class ArmatureGenerator(object):
 
         shapeDrift = amt.edit_bones.new('SHP-Drift')
         shapeDrift.head = self.dimension.body_center
-        shapeDrift.head.y = self.dimension.max_y
+        shapeDrift.head.y = self.dimension.max_y + drift.length * .2
         shapeDrift.head.z = self.dimension.wheels_back_position.z
         shapeDrift.tail = shapeDrift.head
         shapeDrift.tail.y += drift.length
@@ -484,7 +502,7 @@ class ArmatureGenerator(object):
 
             steering = amt.edit_bones.new('Steering')
             steering.head = steeringRotation.head
-            steering.head.y = self.dimension.min_y - max(self.dimension.length, self.dimension.width) / 15
+            steering.head.y = self.dimension.min_y - 4 * wheelFtL.length
             steering.tail = steering.head
             steering.tail.y -= self.dimension.width / 2
             steering.use_deform = False
@@ -541,7 +559,7 @@ class ArmatureGenerator(object):
         suspension.head = self.dimension.body_center
         suspension.head.z = self.dimension.height + self.dimension.width * .25
         suspension.tail = suspension.head
-        suspension.tail.y += self.dimension.width * .6
+        suspension.tail.y += root.length * .5
         suspension.use_deform = False
         suspension.parent = axis
 
@@ -557,7 +575,7 @@ class ArmatureGenerator(object):
         ground_sensor.head = bounding_box.box_center
         ground_sensor.head.z = 0
         ground_sensor.tail = ground_sensor.head
-        ground_sensor.tail.y += max(bounding_box.len_z / 2.5, bounding_box.len_x * 1.02)
+        ground_sensor.tail.y += max(bounding_box.height / 2.5, bounding_box.width * 1.02)
         ground_sensor.use_deform = False
         ground_sensor.parent = parent_bone
 
