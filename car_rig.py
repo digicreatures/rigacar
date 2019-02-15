@@ -365,7 +365,7 @@ class ArmatureGenerator(object):
     def __init__(self, ob):
         self.ob = ob
 
-    def generate(self):
+    def generate(self, scene):
         from . import widgets
         widgets.create()
 
@@ -373,18 +373,26 @@ class ArmatureGenerator(object):
         self.ob['suspension_factor'] = .5
         self.ob['suspension_rolling_factor'] = .5
 
-        bpy.ops.object.mode_set(mode='EDIT')
-        self.dimension = CarDimension(self.ob)
-        self.generate_animation_rig()
-        self.ob.data['Car Rig'] = True
-        deselect_edit_bones(self.ob)
+        location = self.ob.location.copy()
+        self.ob.location = (0,0,0)
+        try:
+            bpy.ops.object.mode_set(mode='EDIT')
+            self.dimension = CarDimension(self.ob)
+            self.generate_animation_rig()
+            self.ob.data['Car Rig'] = True
+            deselect_edit_bones(self.ob)
 
-        bpy.ops.object.mode_set(mode='POSE')
-        self.generate_constraints_on_rig()
-        self.ob.draw_type = 'WIRE'
+            bpy.ops.object.mode_set(mode='OBJECT')
+            self.set_origin(scene)
 
-        self.generate_bone_groups()
-        dispatch_bones_to_armature_layers(self.ob)
+            bpy.ops.object.mode_set(mode='POSE')
+            self.generate_constraints_on_rig()
+            self.ob.draw_type = 'WIRE'
+
+            self.generate_bone_groups()
+            dispatch_bones_to_armature_layers(self.ob)
+        finally:
+            self.ob.location += location
 
     def generate_animation_rig(self):
         amt = self.ob.data
@@ -1270,8 +1278,7 @@ class GenerateCarAnimationRigOperator(bpy.types.Operator):
             return {"CANCELLED"}
 
         armature_generator = ArmatureGenerator(context.object)
-        armature_generator.generate()
-        armature_generator.set_origin(context.scene)
+        armature_generator.generate(context.scene)
         return {"FINISHED"}
 
 
