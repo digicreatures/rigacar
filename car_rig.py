@@ -301,7 +301,7 @@ class CarDimension(object):
 
     @property
     def width(self):
-        return max([self.bb_body.width] + [abs(w.outter_x) * 2 for w in self.wheels_dimensions])
+        return max([self.bb_body.width] + [abs(w.outter_x - self.bb_body.center.x) * 2 for w in self.wheels_dimensions])
 
     @property
     def height(self):
