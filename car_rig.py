@@ -259,12 +259,14 @@ class WheelsDimension(object):
             return self.min_position
         return (self.min_position + self.max_position) / 2.0
 
-    @property
-    def outter_x(self):
-        max_x = max(map(lambda w: w.max_x, self.wheels))
-        if max_x < 0:
-            max_x = min(map(lambda w: w.min_x, self.wheels))
-        return max_x
+    def compute_outter_x(self, delta=0):
+        if self.side_position == 'L':
+            x = max(map(lambda w: w.max_x, self.wheels))
+            x += delta
+        else:
+            x = min(map(lambda w: w.min_x, self.wheels))
+            x -= delta
+        return x
 
     @property
     def outter_z(self):
@@ -301,7 +303,7 @@ class CarDimension(object):
 
     @property
     def width(self):
-        return max([self.bb_body.width] + [abs(w.outter_x - self.bb_body.center.x) * 2 for w in self.wheels_dimensions])
+        return max([self.bb_body.width] + [abs(w.compute_outter_x() - self.bb_body.center.x) * 2 for w in self.wheels_dimensions])
 
     @property
     def height(self):
@@ -494,7 +496,7 @@ class ArmatureGenerator(object):
             wheels.head = wheelFtL.head
             wheels.tail = wheelFtL.head
             wheels.tail.y += wheels.tail.z * .9
-            wheels.head.x = wheels.tail.x = self.dimension.wheels_front_left.outter_x + wheels.length * .05
+            wheels.head.x = wheels.tail.x = self.dimension.wheels_front_left.compute_outter_x(wheels.length * .05)
 
             axisFt = amt.edit_bones.new('MCH-Axis.Ft')
             axisFt.head = wheelFtR.head
@@ -534,7 +536,7 @@ class ArmatureGenerator(object):
             wheels.head = wheelBkL.head
             wheels.tail = wheelBkL.head
             wheels.tail.y += wheels.tail.z * .9
-            wheels.head.x = wheels.tail.x = self.dimension.wheels_back_left.outter_x + wheels.length * .05
+            wheels.head.x = wheels.tail.x = self.dimension.wheels_back_left.compute_outter_x(wheels.length * .05)
 
             axisBk = amt.edit_bones.new('MCH-Axis.Bk')
             axisBk.head = wheelBkR.head
@@ -642,8 +644,7 @@ class ArmatureGenerator(object):
         wheel_damper = amt.edit_bones.new(wheel_dimension.name('WheelDamper'))
         wheel_damper.head = wheel_dimension.medium_position
         wheel_damper_scale_ratio = abs(wheel_damper.head.z)
-        wheel_damper.head.x = wheel_dimension.outter_x
-        wheel_damper.head.x += math.copysign(wheel_damper_scale_ratio * .25, wheel_damper.head.x)
+        wheel_damper.head.x = wheel_dimension.compute_outter_x(wheel_damper_scale_ratio * .25)
         wheel_damper.head.z *= 1.5
         wheel_damper.tail = wheel_damper.head
         wheel_damper.tail.y += wheel_damper_scale_ratio
