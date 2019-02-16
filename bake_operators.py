@@ -186,11 +186,11 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
     @cursor('WAIT')
     def _bake_wheels_rotation(self, context):
         bones = context.object.data.bones
-        wheel_bones = tuple(bone_range(bones, 'MCH-Wheel.rotation.Ft.L'))
-        wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.rotation.Ft.R'))
-        wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.rotation.Bk.L'))
-        wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.rotation.Bk.R'))
-        brake_bones = tuple(bones[name] for name in ('Front Wheels', 'Back Wheels') if name in bones)
+        wheel_bones = tuple()
+        brake_bones = tuple()
+        for suffix in ('Ft.L', 'Ft.R', 'Bk.L', 'Bk.R'):
+            wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.rotation.%s' % suffix))
+            brake_bones += tuple(bone_range(bones, 'Wheel.%s' % suffix))
 
         for property_name in map(lambda wheel_bone: wheel_bone.name.replace('MCH-', ''), wheel_bones):
             self._clear_property_fcurve(context, property_name)
@@ -198,9 +198,8 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
         baked_action = self._bake_action(context, *wheel_bones + brake_bones)
 
         try:
-            for wheel_bone in wheel_bones:
-                brake_name = 'Front Wheels' if wheel_bone.name.startswith('MCH-Wheel.rotation.Ft.') else 'Back Wheels'
-                self._bake_wheel_rotation(context, baked_action, wheel_bone, bones[brake_name])
+            for wheel_bone, brake_bone in zip(wheel_bones, brake_bones):
+                self._bake_wheel_rotation(context, baked_action, wheel_bone, brake_bone)
         finally:
             bpy.data.actions.remove(baked_action)
 

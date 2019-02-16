@@ -135,10 +135,15 @@ def dispatch_bones_to_armature_layers(ob):
 
 class BoundingBox(object):
 
-    def __init__(self, *objs):
-        self.__xyz = [inf, -inf, inf, -inf, inf, -inf]
-        self.__center = None
-        self.__compute(mathutils.Matrix(), *objs)
+    def __init__(self, armature, bone_name):
+        objs = [o for o in armature.children if o.parent_bone == bone_name]
+        bone = armature.data.bones[bone_name]
+        self.__center = bone.head.copy()
+        if not objs:
+            self.__xyz = [bone.head.x - bone.length / 2, bone.head.x + bone.length / 2, bone.head.y - bone.length, bone.head.y + bone.length, .0, bone.head.z * 2]
+        else:
+            self.__xyz = [inf, -inf, inf, -inf, inf, -inf]
+            self.__compute(mathutils.Matrix(), *objs)
 
     def __compute(self, pmatrix, *objs):
         for obj in objs:
@@ -200,17 +205,40 @@ class BoundingBox(object):
     def height(self):
         return abs(self.__xyz[4] - self.__xyz[5])
 
-    @classmethod
-    def from_parented_to(cls, armature, bone_name):
-        objs = [o for o in armature.children if o.parent_bone == bone_name]
-        bone = armature.data.bones[bone_name]
-        if objs:
-            bb = BoundingBox(*objs)
+
+class WheelBoundingBox(BoundingBox):
+
+    def __init__(self, armature, bone_name, side):
+        super().__init__(armature, bone_name)
+        self.side = side
+
+    def compute_outter_x(self, delta=0):
+        if self.side == 'L':
+            return self.max_x + delta
         else:
-            bb = BoundingBox()
-            bb.__xyz = [bone.head.x - bone.length / 2, bone.head.x + bone.length / 2, bone.head.y - bone.length, bone.head.y + bone.length, .0, bone.head.z * 2]
-        bb.__center = bone.head.copy()
-        return bb
+            return self.min_x - delta
+
+
+class NameSuffix(object):
+
+    def __init__(self, position, side, index=0):
+        self.position = position
+        self.side = side
+        self.index = index
+        if index == 0:
+            self.value = '%s.%s' % (position, side)
+        else:
+            self.value = '%s.%s.%03d' % (position, side, index)
+
+    def name(self, base_name=None):
+        return '%s.%s' % (base_name, self.value) if base_name else self.value
+
+    @property
+    def is_front(self):
+        return self.position == 'Ft'
+
+    def __str__(self):
+        return self.value
 
 
 class WheelsDimension(object):
@@ -224,11 +252,11 @@ class WheelsDimension(object):
         for wheel_bone in wheel_bones:
             if wheel_bone is None:
                 break
-            self.wheels.append(BoundingBox.from_parented_to(armature, wheel_bone.name))
+            self.wheels.append(WheelBoundingBox(armature, wheel_bone.name, side_position))
 
-    def items(self):
-        for wheel, name_suffix in zip(self.wheels, self.names()):
-            yield name_suffix, wheel
+    def name_suffixes(self):
+        for i in range(len(self.wheels)):
+            yield NameSuffix(self.position, self.side_position, i)
 
     def names(self, base_name=None):
         for name_suffix in name_range('%s.%s' % (self.position, self.side_position), self.nb):
@@ -286,7 +314,7 @@ class CarDimension(object):
 
     def __init__(self, armature):
         body = armature.data.edit_bones['DEF-Body']
-        self.bb_body = BoundingBox.from_parented_to(armature, 'DEF-Body')
+        self.bb_body = BoundingBox(armature, 'DEF-Body')
         self.wheels_front_left = WheelsDimension(armature, 'Ft', 'L', default=body.head)
         self.wheels_front_right = WheelsDimension(armature, 'Ft', 'R', default=body.head)
         self.wheels_back_left = WheelsDimension(armature, 'Bk', 'L', default=body.tail)
@@ -482,22 +510,13 @@ class ArmatureGenerator(object):
         shapeDrift.parent = base_bone_parent
 
         for wheel_dimension in self.dimension.wheels_dimensions:
-            for name_suffix, bounding_box in wheel_dimension.items():
-                self.generate_animation_wheel_bones(name_suffix, bounding_box, base_bone_parent)
+            for name_suffix, wheel_bounding_box in zip(wheel_dimension.name_suffixes(), wheel_dimension.wheels):
+                self.generate_animation_wheel_bones(name_suffix, wheel_bounding_box, base_bone_parent)
             self.generate_wheel_damper(wheel_dimension, base_bone_parent)
 
         if self.dimension.has_front_wheels:
             wheelFtR = amt.edit_bones.get('DEF-Wheel.Ft.R')
             wheelFtL = amt.edit_bones.get('DEF-Wheel.Ft.L')
-
-            wheels = amt.edit_bones.new('Front Wheels')
-            wheels.use_deform = False
-            wheels.parent = amt.edit_bones['GroundSensor.Ft.L']
-
-            wheels.head = wheelFtL.head
-            wheels.tail = wheelFtL.head
-            wheels.tail.y += wheels.tail.z * .9
-            wheels.head.x = wheels.tail.x = self.dimension.wheels_front_left.compute_outter_x(wheels.length * .05)
 
             axisFt = amt.edit_bones.new('MCH-Axis.Ft')
             axisFt.head = wheelFtR.head
@@ -529,15 +548,6 @@ class ArmatureGenerator(object):
         if self.dimension.has_back_wheels:
             wheelBkR = amt.edit_bones.get('DEF-Wheel.Bk.R')
             wheelBkL = amt.edit_bones.get('DEF-Wheel.Bk.L')
-
-            wheels = amt.edit_bones.new('Back Wheels')
-            wheels.use_deform = False
-            wheels.parent = amt.edit_bones['GroundSensor.Bk.L']
-
-            wheels.head = wheelBkL.head
-            wheels.tail = wheelBkL.head
-            wheels.tail.y += wheels.tail.z * .9
-            wheels.head.x = wheels.tail.x = self.dimension.wheels_back_left.compute_outter_x(wheels.length * .05)
 
             axisBk = amt.edit_bones.new('MCH-Axis.Bk')
             axisBk.head = wheelBkR.head
@@ -581,51 +591,61 @@ class ArmatureGenerator(object):
         suspension.use_deform = False
         suspension.parent = axis
 
-    def generate_animation_wheel_bones(self, name_suffix, bounding_box, parent_bone):
+    def generate_animation_wheel_bones(self, name_suffix, wheel_bounding_box, parent_bone):
         amt = self.ob.data
 
-        def_wheel_bone = amt.edit_bones.get('DEF-Wheel.%s' % name_suffix)
+        def_wheel_bone = amt.edit_bones.get(name_suffix.name('DEF-Wheel'))
 
         if def_wheel_bone is None:
             return
 
-        ground_sensor = amt.edit_bones.new('GroundSensor.%s' % name_suffix)
-        ground_sensor.head = bounding_box.box_center
+        ground_sensor = amt.edit_bones.new(name_suffix.name('GroundSensor'))
+        ground_sensor.head = wheel_bounding_box.box_center
         ground_sensor.head.z = 0
         ground_sensor.tail = ground_sensor.head
-        ground_sensor.tail.y += max(bounding_box.height / 2.5, bounding_box.width * 1.02)
+        ground_sensor.tail.y += max(wheel_bounding_box.height / 2.5, wheel_bounding_box.width * 1.02)
         ground_sensor.use_deform = False
         ground_sensor.parent = parent_bone
 
-        shp_ground_sensor = amt.edit_bones.new('SHP-GroundSensor.%s' % name_suffix)
+        shp_ground_sensor = amt.edit_bones.new(name_suffix.name('SHP-GroundSensor'))
         shp_ground_sensor.head = ground_sensor.head
         shp_ground_sensor.tail = ground_sensor.tail
         shp_ground_sensor.head.z = shp_ground_sensor.tail.z = .001
         shp_ground_sensor.use_deform = False
         shp_ground_sensor.parent = ground_sensor
 
-        mch_wheel = amt.edit_bones.new('MCH-Wheel.%s' % name_suffix)
+        mch_wheel = amt.edit_bones.new(name_suffix.name('MCH-Wheel'))
         mch_wheel.head = def_wheel_bone.head
         mch_wheel.tail = def_wheel_bone.tail
         mch_wheel.tail.y += .5
         mch_wheel.use_deform = False
         mch_wheel.parent = ground_sensor
 
-        self.ob['Wheel.rotation.%s' % name_suffix] = .0
-        mch_wheel_rotation = amt.edit_bones.new('MCH-Wheel.rotation.%s' % name_suffix)
+        self.ob[name_suffix.name('Wheel.rotation')] = .0
+        mch_wheel_rotation = amt.edit_bones.new(name_suffix.name('MCH-Wheel.rotation'))
         mch_wheel_rotation.head = def_wheel_bone.head
         mch_wheel_rotation.tail = def_wheel_bone.head
         mch_wheel_rotation.tail.y += mch_wheel_rotation.tail.z
         mch_wheel_rotation.use_deform = False
 
-        def_wheel_brake_bone = amt.edit_bones.get('DEF-WheelBrake.%s' % name_suffix)
+        def_wheel_brake_bone = amt.edit_bones.get(name_suffix.name('DEF-WheelBrake'))
         if def_wheel_brake_bone is not None:
-            mch_wheel = amt.edit_bones.new('MCH-WheelBrake.%s' % name_suffix)
+            mch_wheel = amt.edit_bones.new(name_suffix.name('MCH-WheelBrake'))
             mch_wheel.head = def_wheel_brake_bone.head
             mch_wheel.tail = def_wheel_brake_bone.tail
             mch_wheel.tail.y += .5
             mch_wheel.use_deform = False
             mch_wheel.parent = ground_sensor
+
+        wheel = amt.edit_bones.new(name_suffix.name('Wheel'))
+        wheel.use_deform = False
+        wheel.parent = ground_sensor
+
+        wheel.head = def_wheel_bone.head
+        wheel.tail = def_wheel_bone.head
+        wheel.tail.y += wheel.tail.z * .9
+
+        wheel.head.x = wheel.tail.x = wheel_bounding_box.compute_outter_x(wheel_bounding_box.length * .05)
 
     def generate_wheel_damper(self, wheel_dimension, parent_bone):
         amt = self.ob.data
@@ -671,8 +691,8 @@ class ArmatureGenerator(object):
                 b.lock_rotation_w = True
 
         for wheel_dimension in self.dimension.wheels_dimensions:
-            for name in wheel_dimension.names():
-                self.generate_constraints_on_wheel_bones(name)
+            for name_suffix in wheel_dimension.name_suffixes():
+                self.generate_constraints_on_wheel_bones(name_suffix)
             self.generate_constraints_on_wheel_damper(wheel_dimension)
 
         self.generate_constraints_on_axle_bones('Ft')
@@ -856,35 +876,7 @@ class ArmatureGenerator(object):
         return cns
 
     def generate_constraints_on_axle_bones(self, position):
-        pos_name = 'Front' if position == 'Ft' else 'Back'
         pose = self.ob.pose
-        amt = self.ob.data
-
-        wheels = pose.bones.get('%s Wheels' % pos_name)
-        if wheels is not None:
-            wheels.rotation_mode = "XYZ"
-            wheels.lock_location = (True, True, True)
-            wheels.lock_rotation = (False, True, True)
-            wheels.lock_scale = (True, False, False)
-            wheels.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
-            amt.bones[wheels.name].show_wire = True
-
-            cns = wheels.constraints.new('LIMIT_SCALE')
-            cns.name = 'Brakes'
-            cns.use_transform_limit = True
-            cns.owner_space = 'LOCAL'
-            cns.use_max_x = True
-            cns.use_min_x = True
-            cns.min_x = 1.0
-            cns.max_x = 1.0
-            cns.use_max_y = True
-            cns.use_min_y = True
-            cns.min_y = .5
-            cns.max_y = 1.0
-            cns.use_max_z = True
-            cns.use_min_z = True
-            cns.min_z = .5
-            cns.max_z = 1.0
 
         subtarget = 'MCH-Axis.%s' % position
         if subtarget in pose.bones:
@@ -931,21 +923,21 @@ class ArmatureGenerator(object):
         pose = self.ob.pose
         amt = self.ob.data
 
-        def_wheel = pose.bones.get('DEF-Wheel.%s' % name_suffix)
+        def_wheel = pose.bones.get(name_suffix.name('DEF-Wheel'))
         if def_wheel is None:
             return
 
         cns = def_wheel.constraints.new('COPY_TRANSFORMS')
         cns.target = self.ob
-        cns.subtarget = 'MCH-Wheel.%s' % name_suffix
+        cns.subtarget = name_suffix.name('MCH-Wheel')
 
-        def_wheel_brake = pose.bones.get('DEF-WheelBrake.%s' % name_suffix)
+        def_wheel_brake = pose.bones.get(name_suffix.name('DEF-WheelBrake'))
         if def_wheel_brake is not None:
             cns = def_wheel_brake.constraints.new('COPY_TRANSFORMS')
             cns.target = self.ob
-            cns.subtarget = 'MCH-WheelBrake.%s' % name_suffix
+            cns.subtarget = name_suffix.name('MCH-WheelBrake')
 
-        ground_sensor = pose.bones['GroundSensor.%s' % name_suffix]
+        ground_sensor = pose.bones[name_suffix.name('GroundSensor')]
         ground_sensor.lock_location = (True, True, False)
         ground_sensor.lock_rotation = (True, True, True)
         ground_sensor.lock_rotation_w = True
@@ -954,7 +946,7 @@ class ArmatureGenerator(object):
         ground_sensor.custom_shape_transform = pose.bones['SHP-%s' % ground_sensor.name]
         amt.bones[ground_sensor.name].show_wire = True
 
-        if name_suffix.startswith('Ft.'):
+        if name_suffix.is_front:
             cns = ground_sensor.constraints.new('COPY_ROTATION')
             cns.name = 'Steering rotation'
             cns.target = self.ob
@@ -984,13 +976,38 @@ class ArmatureGenerator(object):
         cns.min_z = -.2
         cns.max_z = .2
 
-        mch_wheel = pose.bones['MCH-Wheel.%s' % name_suffix]
+        wheel = pose.bones.get(name_suffix.name('Wheel'))
+        wheel.rotation_mode = "XYZ"
+        wheel.lock_location = (True, True, True)
+        wheel.lock_rotation = (False, True, True)
+        wheel.lock_scale = (True, False, False)
+        wheel.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
+        amt.bones[wheel.name].show_wire = True
+
+        cns = wheel.constraints.new('LIMIT_SCALE')
+        cns.name = 'Brakes'
+        cns.use_transform_limit = True
+        cns.owner_space = 'LOCAL'
+        cns.use_max_x = True
+        cns.use_min_x = True
+        cns.min_x = 1.0
+        cns.max_x = 1.0
+        cns.use_max_y = True
+        cns.use_min_y = True
+        cns.min_y = .5
+        cns.max_y = 1.0
+        cns.use_max_z = True
+        cns.use_min_z = True
+        cns.min_z = .5
+        cns.max_z = 1.0
+
+        mch_wheel = pose.bones[name_suffix.name('MCH-Wheel')]
         mch_wheel.rotation_mode = "XYZ"
 
         cns = mch_wheel.constraints.new('COPY_ROTATION')
         cns.name = 'Bake animation wheels'
         cns.target = self.ob
-        cns.subtarget = 'MCH-Wheel.rotation.%s' % name_suffix
+        cns.subtarget = name_suffix.name('MCH-Wheel.rotation')
         cns.use_x = True
         cns.use_y = False
         cns.use_z = False
@@ -1018,7 +1035,7 @@ class ArmatureGenerator(object):
         cns = mch_wheel.constraints.new('COPY_ROTATION')
         cns.name = 'Animation wheels'
         cns.target = self.ob
-        cns.subtarget = '%s Wheels' % ('Front' if name_suffix.startswith('Ft.') else 'Back')
+        cns.subtarget = wheel.name
         cns.use_x = True
         cns.use_y = False
         cns.use_z = False
@@ -1026,10 +1043,10 @@ class ArmatureGenerator(object):
         cns.owner_space = 'LOCAL'
         cns.target_space = 'LOCAL'
 
-        mch_wheel_rotation = pose.bones['MCH-Wheel.rotation.%s' % name_suffix]
+        mch_wheel_rotation = pose.bones[name_suffix.name('MCH-Wheel.rotation')]
         mch_wheel_rotation.rotation_mode = "XYZ"
         self.generate_childof_constraint(mch_wheel_rotation, ground_sensor)
-        create_rotation_euler_x_driver(self.ob, mch_wheel_rotation, '["Wheel.rotation.%s"]' % name_suffix)
+        create_rotation_euler_x_driver(self.ob, mch_wheel_rotation, '["%s"]' % name_suffix.name('Wheel.rotation'))
 
     def generate_constraints_on_wheel_damper(self, wheel_dimension):
         pose = self.ob.pose
@@ -1066,7 +1083,12 @@ class ArmatureGenerator(object):
         pose = self.ob.pose
         create_bone_group(pose, 'Direction', color_set='THEME04', bone_names=('Root', 'Drift', 'SHP-Root', 'SHP-Drift'))
         create_bone_group(pose, 'Suspension', color_set='THEME09', bone_names=('Suspension', 'WheelDamper.Ft.L', 'WheelDamper.Ft.R', 'WheelDamper.Bk.L', 'WheelDamper.Bk.R'))
-        create_bone_group(pose, 'Wheel', color_set='THEME03', bone_names=('Steering', 'Front Wheels', 'Back Wheels'))
+
+        wheel_widgets = ('Steering',)
+        for wheel_dimension in self.dimension.wheels_dimensions:
+            wheel_widgets += tuple(wheel_dimension.names('Wheel'))
+        create_bone_group(pose, 'Wheel', color_set='THEME03', bone_names=wheel_widgets)
+
         ground_sensor_names = ('GroundSensor.Axle.Ft', 'GroundSensor.Axle.Bk')
         for wheel_dimension in self.dimension.wheels_dimensions:
             ground_sensor_names += tuple(wheel_dimension.names('GroundSensor'))
