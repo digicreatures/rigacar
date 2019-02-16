@@ -321,19 +321,27 @@ class CarDimension(object):
 
     @property
     def wheels_front_position(self):
-        return (self.wheels_front_left.min_position + self.wheels_front_right.min_position) / 2
+        position = (self.wheels_front_left.min_position + self.wheels_front_right.min_position) / 2
+        position.x = self.bb_body.center.x
+        return position
 
     @property
     def wheels_back_position(self):
-        return (self.wheels_back_left.max_position + self.wheels_back_right.max_position) / 2
+        position = (self.wheels_back_left.max_position + self.wheels_back_right.max_position) / 2
+        position.x = self.bb_body.center.x
+        return position
 
     @property
     def suspension_front_position(self):
-        return (self.wheels_front_left.medium_position + self.wheels_front_right.medium_position) / 2
+        position = (self.wheels_front_left.medium_position + self.wheels_front_right.medium_position) / 2
+        position.x = self.bb_body.center.x
+        return position
 
     @property
     def suspension_back_position(self):
-        return (self.wheels_back_left.medium_position + self.wheels_back_right.medium_position) / 2
+        position = (self.wheels_back_left.medium_position + self.wheels_back_right.medium_position) / 2
+        position.x = self.bb_body.center.x
+        return position
 
     @property
     def has_wheels(self):
