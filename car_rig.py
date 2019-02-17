@@ -186,12 +186,12 @@ class BoundingBox(object):
 
     def __compute(self, pmatrix, *objs):
         for obj in objs:
-            omatrix = pmatrix * obj.matrix_world
-            if obj.dupli_group:
-                self.__compute(omatrix, *obj.dupli_group.objects)
+            omatrix = pmatrix @ obj.matrix_world
+            if obj.instance_type == 'COLLECTION':
+                self.__compute(omatrix, *obj.instance_collection.all_objects)
             elif obj.bound_box:
                 for p in obj.bound_box:
-                    world_p = omatrix * mathutils.Vector(p)
+                    world_p = omatrix @ mathutils.Vector(p)
                     self.__xyz[0] = min(world_p.x, self.__xyz[0])
                     self.__xyz[1] = max(world_p.x, self.__xyz[1])
                     self.__xyz[2] = min(world_p.y, self.__xyz[2])
@@ -1332,7 +1332,7 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
             target_obj.parent_bone = b.name
             target_obj.parent_type = 'BONE'
             target_obj.location += rig.matrix_world.to_translation()
-            target_obj.matrix_parent_inverse = (rig.matrix_world * mathutils.Matrix.Translation(b.tail)).inverted()
+            target_obj.matrix_parent_inverse = (rig.matrix_world @ mathutils.Matrix.Translation(b.tail)).inverted()
 
         return b
 
