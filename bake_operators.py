@@ -86,7 +86,7 @@ def clear_property_animation(context, property_name, remove_keyframes=True):
 def create_property_animation(context, property_name):
     action = context.object.animation_data.action
     fcurve_datapath = '["%s"]' % property_name
-    return action.fcurves.new(fcurve_datapath, 0, 'Wheels rotation')
+    return action.fcurves.new(fcurve_datapath, index=0, action_group='Wheels rotation')
 
 
 class FCurvesEvaluator(object):
@@ -365,9 +365,10 @@ class ClearSteeringWheelsRotationOperator(bpy.types.Operator):
     clear_wheels: bpy.props.BoolProperty(name="Wheels", description="Clear generated animation for wheels", default=True)
 
     def draw(self, context):
-        self.layout.label('Clear generated keyframes for')
-        self.layout.prop(self, 'clear_steering')
-        self.layout.prop(self, 'clear_wheels')
+        self.layout.use_property_decorate = False
+        self.layout.label(text='Clear generated keyframes for')
+        self.layout.prop(self, property='clear_steering')
+        self.layout.prop(self, property='clear_wheels')
 
     @classmethod
     def poll(cls, context):
@@ -386,6 +387,7 @@ class ClearSteeringWheelsRotationOperator(bpy.types.Operator):
         mode = context.object.mode
         bpy.ops.object.mode_set(mode='OBJECT' if mode == 'POSE' else 'POSE')
         bpy.ops.object.mode_set(mode=mode)
+        return {'FINISHED'}
 
 
 def register():
