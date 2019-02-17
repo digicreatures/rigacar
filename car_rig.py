@@ -101,6 +101,7 @@ def name_range(prefix, nb=1000):
         for i in range(1, nb):
             yield '%s.%03d' % (prefix, i)
 
+
 def dispatch_bones_to_armature_layers(ob):
     re_mch_bone = re.compile('^MCH-Wheel(Brake)?\.(Ft|Bk)\.[LR](\.\d+)?$')
     default_visible_layers = [False] * 32
@@ -384,7 +385,7 @@ class ArmatureGenerator(object):
         self.ob['suspension_rolling_factor'] = .5
 
         location = self.ob.location.copy()
-        self.ob.location = (0,0,0)
+        self.ob.location = (0, 0, 0)
         try:
             bpy.ops.object.mode_set(mode='EDIT')
             self.dimension = CarDimension(self.ob)
