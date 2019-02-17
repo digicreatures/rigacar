@@ -722,6 +722,8 @@ class ArmatureGenerator(object):
                     cns.target = self.ob
                     cns.subtarget = 'GroundSensor.Axle.Bk'
                     cns.use_transform_limit = True
+                    cns.owner_space = 'POSE'
+                    cns.target_space = 'POSE'
 
         mch_root_axle_front = pose.bones.get('MCH-Root.Axle.Ft')
         mch_root_axle_back = pose.bones.get('MCH-Root.Axle.Bk')
@@ -759,7 +761,6 @@ class ArmatureGenerator(object):
 
             mch_steering_rotation = pose.bones['MCH-Steering.rotation']
             mch_steering_rotation.rotation_mode = 'ZYX'
-            self.generate_childof_constraint(mch_steering_rotation, mch_root_axle_front if mch_root_axle_front else root)
             self.ob['Steering.rotation'] = .0
             create_translation_x_driver(self.ob, mch_steering_rotation, '["Steering.rotation"]')
 
@@ -771,9 +772,10 @@ class ArmatureGenerator(object):
                 cns.use_x = True
                 cns.use_y = False
                 cns.use_z = False
-                cns.use_offset = True
                 cns.owner_space = 'LOCAL'
                 cns.target_space = 'LOCAL'
+
+            self.generate_childof_constraint(mch_steering_rotation, mch_root_axle_front if mch_root_axle_front else root)
 
             mch_steering = pose.bones['MCH-Steering']
             cns = mch_steering.constraints.new('DAMPED_TRACK')
