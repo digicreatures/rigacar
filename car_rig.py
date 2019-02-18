@@ -237,6 +237,14 @@ class NameSuffix(object):
     def is_front(self):
         return self.position == 'Ft'
 
+    @property
+    def is_left(self):
+        return self.side == 'L'
+
+    @property
+    def is_first(self):
+        return self.index == 0
+
     def __str__(self):
         return self.value
 
@@ -640,12 +648,18 @@ class ArmatureGenerator(object):
         wheel = amt.edit_bones.new(name_suffix.name('Wheel'))
         wheel.use_deform = False
         wheel.parent = ground_sensor
-
         wheel.head = def_wheel_bone.head
-        wheel.tail = def_wheel_bone.head
+        wheel.head.x = wheel_bounding_box.compute_outter_x(wheel_bounding_box.length * .05)
+        wheel.tail = wheel.head
         wheel.tail.y += wheel.tail.z * .9
 
-        wheel.head.x = wheel.tail.x = wheel_bounding_box.compute_outter_x(wheel_bounding_box.length * .05)
+        if name_suffix.is_left and name_suffix.is_first:
+            wheel_brake = amt.edit_bones.new(name_suffix.name('WheelBrake'))
+            wheel_brake.use_deform = False
+            wheel_brake.parent = mch_wheel
+            wheel_brake.head = wheel.head
+            wheel_brake.tail = wheel.tail
+
 
     def generate_wheel_damper(self, wheel_dimension, parent_bone):
         amt = self.ob.data
@@ -980,26 +994,34 @@ class ArmatureGenerator(object):
         wheel.rotation_mode = "XYZ"
         wheel.lock_location = (True, True, True)
         wheel.lock_rotation = (False, True, True)
-        wheel.lock_scale = (True, False, False)
+        wheel.lock_scale = (True, True, True)
         wheel.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
         amt.bones[wheel.name].show_wire = True
 
-        cns = wheel.constraints.new('LIMIT_SCALE')
-        cns.name = 'Brakes'
-        cns.use_transform_limit = True
-        cns.owner_space = 'LOCAL'
-        cns.use_max_x = True
-        cns.use_min_x = True
-        cns.min_x = 1.0
-        cns.max_x = 1.0
-        cns.use_max_y = True
-        cns.use_min_y = True
-        cns.min_y = .5
-        cns.max_y = 1.0
-        cns.use_max_z = True
-        cns.use_min_z = True
-        cns.min_z = .5
-        cns.max_z = 1.0
+        wheel_brake = pose.bones.get(name_suffix.name('WheelBrake'))
+        if wheel_brake:
+            wheel_brake.lock_location = (True, True, True)
+            wheel_brake.lock_rotation = (True, True, True)
+            wheel_brake.lock_scale = (True, False, False)
+            wheel_brake.custom_shape = bpy.data.objects['WGT-CarRig.WheelBrake']
+            amt.bones[wheel_brake.name].show_wire = True
+
+            cns = wheel_brake.constraints.new('LIMIT_SCALE')
+            cns.name = 'Brakes'
+            cns.use_transform_limit = True
+            cns.owner_space = 'LOCAL'
+            cns.use_max_x = True
+            cns.use_min_x = True
+            cns.min_x = 1.0
+            cns.max_x = 1.0
+            cns.use_max_y = True
+            cns.use_min_y = True
+            cns.min_y = .5
+            cns.max_y = 1.0
+            cns.use_max_z = True
+            cns.use_min_z = True
+            cns.min_z = .5
+            cns.max_z = 1.0
 
         mch_wheel = pose.bones[name_suffix.name('MCH-Wheel')]
         mch_wheel.rotation_mode = "XYZ"
@@ -1087,6 +1109,7 @@ class ArmatureGenerator(object):
         wheel_widgets = ('Steering',)
         for wheel_dimension in self.dimension.wheels_dimensions:
             wheel_widgets += tuple(wheel_dimension.names('Wheel'))
+            wheel_widgets += tuple(wheel_dimension.names('WheelBrake'))
         create_bone_group(pose, 'Wheel', color_set='THEME03', bone_names=wheel_widgets)
 
         ground_sensor_names = ('GroundSensor.Axle.Ft', 'GroundSensor.Axle.Bk')
