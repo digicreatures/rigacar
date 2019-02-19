@@ -736,7 +736,7 @@ class ArmatureGenerator(object):
         root.lock_scale = (True, True, True)
         root.custom_shape = bpy.data.objects['WGT-CarRig.Root']
         root.custom_shape_transform = pose.bones['SHP-Root']
-        amt.bones[root.name].show_wire = True
+        root.bone.show_wire = True
 
         for ground_sensor_axle_name in ('GroundSensor.Axle.Ft', 'GroundSensor.Axle.Bk'):
             groundsensor_axle = pose.bones.get(ground_sensor_axle_name)
@@ -746,7 +746,7 @@ class ArmatureGenerator(object):
                 groundsensor_axle.lock_scale = (True, True, True)
                 groundsensor_axle.custom_shape = bpy.data.objects['WGT-CarRig.GroundSensor.Axle']
                 groundsensor_axle.lock_rotation_w = True
-                amt.bones[groundsensor_axle.name].show_wire = True
+                groundsensor_axle.bone.show_wire = True
                 self.generate_ground_projection_constraint(groundsensor_axle)
 
                 if groundsensor_axle.name == 'GroundSensor.Axle.Ft' and 'GroundSensor.Axle.Bk' in pose.bones:
@@ -775,14 +775,14 @@ class ArmatureGenerator(object):
         drift.rotation_mode = 'ZYX'
         drift.custom_shape = bpy.data.objects['WGT-CarRig.DriftHandle']
         drift.custom_shape_transform = pose.bones['SHP-Drift']
-        amt.bones[drift.name].show_wire = True
+        drift.bone.show_wire = True
 
         suspension = pose.bones['Suspension']
         suspension.lock_rotation = (True, True, True)
         suspension.lock_scale = (True, True, True)
         suspension.lock_rotation_w = True
         suspension.custom_shape = bpy.data.objects['WGT-CarRig.Suspension']
-        amt.bones[suspension.name].show_wire = True
+        suspension.bone.show_wire = True
 
         steering = pose.bones.get('Steering')
         if steering is not None:
@@ -791,7 +791,7 @@ class ArmatureGenerator(object):
             steering.lock_scale = (True, True, True)
             steering.lock_rotation_w = True
             steering.custom_shape = bpy.data.objects['WGT-CarRig.Steering']
-            amt.bones[steering.name].show_wire = True
+            steering.bone.show_wire = True
 
             mch_steering_rotation = pose.bones['MCH-Steering.rotation']
             mch_steering_rotation.rotation_mode = 'ZYX'
@@ -958,7 +958,7 @@ class ArmatureGenerator(object):
         ground_sensor.lock_scale = (True, True, True)
         ground_sensor.custom_shape = bpy.data.objects['WGT-CarRig.GroundSensor']
         ground_sensor.custom_shape_transform = pose.bones['SHP-%s' % ground_sensor.name]
-        amt.bones[ground_sensor.name].show_wire = True
+        ground_sensor.bone.show_wire = True
 
         if name_suffix.is_front:
             cns = ground_sensor.constraints.new('COPY_ROTATION')
@@ -996,7 +996,7 @@ class ArmatureGenerator(object):
         wheel.lock_rotation = (False, True, True)
         wheel.lock_scale = (True, True, True)
         wheel.custom_shape = bpy.data.objects['WGT-CarRig.Wheel']
-        amt.bones[wheel.name].show_wire = True
+        wheel.bone.show_wire = True
 
         wheel_brake = pose.bones.get(name_suffix.name('WheelBrake'))
         if wheel_brake:
@@ -1004,7 +1004,7 @@ class ArmatureGenerator(object):
             wheel_brake.lock_rotation = (True, True, True)
             wheel_brake.lock_scale = (True, False, False)
             wheel_brake.custom_shape = bpy.data.objects['WGT-CarRig.WheelBrake']
-            amt.bones[wheel_brake.name].show_wire = True
+            wheel_brake.bone.show_wire = True
 
             cns = wheel_brake.constraints.new('LIMIT_SCALE')
             cns.name = 'Brakes'
@@ -1081,7 +1081,7 @@ class ArmatureGenerator(object):
             wheel_damper.lock_rotation_w = True
             wheel_damper.lock_scale = (True, True, True)
             wheel_damper.custom_shape = bpy.data.objects['WGT-CarRig.WheelDamper']
-            amt.bones[wheel_damper.name].show_wire = True
+            wheel_damper.bone.show_wire = True
 
         mch_ground_sensor = pose.bones.get(wheel_dimension.name('MCH-GroundSensor'))
         if mch_ground_sensor is not None:
@@ -1339,6 +1339,68 @@ class GenerateCarAnimationRigOperator(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class AddBrakeWheeBonesOperator(bpy.types.Operator):
+    bl_idname = "pose.car_animation_add_brake_wheel_bones"
+    bl_label = "Add missing brake wheel bones"
+    bl_description = "Generates missing brake wheel bones for each selected wheel widget."
+    bl_options = {'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.object is not None and context.object.data is not None and context.object.data.get('Car Rig'))
+
+    def execute(self, context):
+        mode = context.object.mode
+        re_wheel_bone_name = re.compile(r'^Wheel\.(Ft|Bk)\.([LR])(\.\d+)?$')
+        for pose_bone in context.selected_pose_bones:
+            matcher = re_wheel_bone_name.match(pose_bone.name)
+            if matcher:
+                wheelbrake_name = 'WheelBrake.%s.%s%s' % matcher.groups(default='')
+                parent_name = 'MCH-Wheel.%s.%s%s' % matcher.groups(default='')
+                self.create_wheelbrake_bone(context, pose_bone, wheelbrake_name, parent_name)
+        bpy.ops.object.mode_set(mode=mode)
+        return {"FINISHED"}
+
+    def create_wheelbrake_bone(self, context, wheel_pose_bone, name, parent_name):
+        obj = context.object
+        amt = context.object.data
+        if name not in amt.bones and parent_name in amt.bones:
+            bpy.ops.object.mode_set(mode='EDIT')
+            wheel_brake = amt.edit_bones.new(name)
+            wheel_brake.use_deform = False
+            wheel_brake.parent = amt.edit_bones[parent_name]
+            wheel_brake.head = wheel_pose_bone.head
+            wheel_brake.tail = wheel_pose_bone.tail
+            wheel_brake.layers = wheel_pose_bone.bone.layers
+
+            bpy.ops.object.mode_set(mode='POSE')
+            wheel_brake = obj.pose.bones[name]
+            wheel_brake.lock_location = (True, True, True)
+            wheel_brake.lock_rotation = (True, True, True)
+            wheel_brake.lock_scale = (True, False, False)
+            # TODO load widget if not available
+            wheel_brake.custom_shape = bpy.data.objects['WGT-CarRig.WheelBrake']
+            wheel_brake.bone.show_wire = True
+            wheel_brake.bone_group = wheel_pose_bone.bone_group
+
+            cns = wheel_brake.constraints.new('LIMIT_SCALE')
+            cns.name = 'Brakes'
+            cns.use_transform_limit = True
+            cns.owner_space = 'LOCAL'
+            cns.use_max_x = True
+            cns.use_min_x = True
+            cns.min_x = 1.0
+            cns.max_x = 1.0
+            cns.use_max_y = True
+            cns.use_min_y = True
+            cns.min_y = .5
+            cns.max_y = 1.0
+            cns.use_max_z = True
+            cns.use_min_z = True
+            cns.min_z = .5
+            cns.max_z = 1.0
+
+
 class ClearSteeringWheelsRotationOperator(bpy.types.Operator):
     bl_idname = "pose.car_animation_clear_steering_wheels_rotation"
     bl_label = "Clear generated rotation for steering and wheels"
@@ -1350,10 +1412,10 @@ class ClearSteeringWheelsRotationOperator(bpy.types.Operator):
         return (context.object is not None and context.object.data is not None and context.object.data.get('Car Rig'))
 
     def execute(self, context):
-        re_wheel_propname = re.compile('^Wheel\.rotation\.(Ft|Bk)\.[LR](\.\d+)?$')
-        for p in context.object.items():
-            if p[0] == 'Steering.rotation' or re_wheel_propname.match(p[0]):
-                context.object[p[0]] = .0
+        re_wheel_propname = re.compile(r'^Wheel\.rotation\.(Ft|Bk)\.[LR](\.\d+)?$')
+        for prop in context.object.keys():
+            if prop == 'Steering.rotation' or re_wheel_propname.match(prop):
+                context.object[prop] = .0
         # this is a hack to force Blender to take into account the modification
         # of the properties by changing the object mode.
         mode = context.object.mode
@@ -1365,11 +1427,13 @@ class ClearSteeringWheelsRotationOperator(bpy.types.Operator):
 def register():
     bpy.utils.register_class(GenerateCarAnimationRigOperator)
     bpy.utils.register_class(AddCarDeformationRigOperator)
+    bpy.utils.register_class(AddBrakeWheeBonesOperator)
     bpy.utils.register_class(ClearSteeringWheelsRotationOperator)
 
 
 def unregister():
     bpy.utils.unregister_class(ClearSteeringWheelsRotationOperator)
+    bpy.utils.unregister_class(AddBrakeWheeBonesOperator)
     bpy.utils.unregister_class(AddCarDeformationRigOperator)
     bpy.utils.unregister_class(GenerateCarAnimationRigOperator)
 
