@@ -24,16 +24,6 @@ import math
 import itertools
 
 
-def name_range(prefix):
-    yield prefix
-    for i in itertools.count(1):
-        yield '%s.%03d' % (prefix, i)
-
-
-def bone_range(bones, name_prefix):
-    return map(lambda n: bones[n], itertools.takewhile(lambda n: n in bones, name_range(name_prefix)))
-
-
 def cursor(cursor_mode):
     def cursor_decorator(func):
         def wrapper(self, context, *args, **kwargs):
@@ -44,6 +34,42 @@ def cursor(cursor_mode):
                 context.window.cursor_modal_restore()
         return wrapper
     return cursor_decorator
+
+
+def bone_name(prefix, position, side, index=0):
+    if index ==0:
+        return '%s.%s.%s' % (prefix, position, side)
+    else:
+        return '%s.%s.%s.%03d' % (prefix, position, side, index)
+
+
+def bone_range(bones, name_prefix, position, side):
+    for index in itertools.count():
+        name = bone_name(name_prefix, position, side, index)
+        if name  in bones:
+            yield bones[name]
+        else:
+            break
+
+
+def find_wheelbrake_bone(bones, position, side, index):
+    other_side = 'R' if side == 'L' else 'L'
+    name_prefix = 'WheelBrake'
+    bone = bones.get(bone_name(name_prefix, position, side, index))
+    if bone:
+        return bone
+    bone = bones.get(bone_name(name_prefix, position, other_side, index))
+    if bone:
+        return bone
+    if index > 0:
+        bone = bones.get(bone_name(name_prefix, position, side))
+        if bone:
+            return bone
+        bone = bones.get(bone_name(name_prefix, position, other_side))
+        if bone:
+            return bone
+    backword_compatible_bone_name = '%s Wheels' % ('Front' if position == 'Ft' else 'Back')
+    return bones.get(backword_compatible_bone_name)
 
 
 class FCurvesEvaluator(object):
@@ -186,16 +212,19 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
     @cursor('WAIT')
     def _bake_wheels_rotation(self, context):
         bones = context.object.data.bones
-        wheel_bones = tuple()
-        brake_bones = tuple()
-        for suffix in ('Ft.L', 'Ft.R', 'Bk.L', 'Bk.R'):
-            wheel_bones += tuple(bone_range(bones, 'MCH-Wheel.rotation.%s' % suffix))
-            brake_bones += tuple(bone_range(bones, 'Wheel.%s' % suffix))
+
+        wheel_bones = []
+        brake_bones = []
+        for position, side in itertools.product(('Ft', 'Bk'), ('L', 'R')):
+            for index, wheel_bone in enumerate(bone_range(bones, 'MCH-Wheel.rotation', position, side)):
+                wheel_bones.append(wheel_bone)
+                brake_bones.append(find_wheelbrake_bone(bones, position, side, index) or wheel_bone)
 
         for property_name in map(lambda wheel_bone: wheel_bone.name.replace('MCH-', ''), wheel_bones):
             self._clear_property_fcurve(context, property_name)
 
-        baked_action = self._bake_action(context, *wheel_bones + brake_bones)
+        bones = set(wheel_bones + brake_bones)
+        baked_action = self._bake_action(context, *bones)
 
         try:
             for wheel_bone, brake_bone in zip(wheel_bones, brake_bones):
