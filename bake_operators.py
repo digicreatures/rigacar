@@ -37,7 +37,7 @@ def cursor(cursor_mode):
 
 
 def bone_name(prefix, position, side, index=0):
-    if index ==0:
+    if index == 0:
         return '%s.%s.%s' % (prefix, position, side)
     else:
         return '%s.%s.%s.%03d' % (prefix, position, side, index)
@@ -46,7 +46,7 @@ def bone_name(prefix, position, side, index=0):
 def bone_range(bones, name_prefix, position, side):
     for index in itertools.count():
         name = bone_name(name_prefix, position, side, index)
-        if name  in bones:
+        if name in bones:
             yield bones[name]
         else:
             break
