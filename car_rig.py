@@ -1362,7 +1362,9 @@ class AddBrakeWheeBonesOperator(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return (context.object is not None and context.object.data is not None and context.object.data.get('Car Rig'))
+        return context.object.mode == 'POSE' and\
+               context.object is not None and context.object.data is not None and\
+               context.object.data.get('Car Rig')
 
     def execute(self, context):
         mode = context.object.mode
@@ -1381,7 +1383,7 @@ class AddBrakeWheeBonesOperator(bpy.types.Operator):
         amt = context.object.data
         if name not in amt.bones and parent_name in amt.bones:
             bpy.ops.object.mode_set(mode='EDIT')
-            create_wheel_brake_bone(amt.edit_bones.new(name), amt.edit_bones[parent_name], wheel_pose_bone)
+            create_wheel_brake_bone(amt.edit_bones.new(name), amt.edit_bones[parent_name], amt.edit_bones[wheel_pose_bone.name])
             bpy.ops.object.mode_set(mode='POSE')
             generate_constraint_on_wheel_brake_bone(obj.pose.bones[name], wheel_pose_bone)
 
