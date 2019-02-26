@@ -22,6 +22,7 @@ import bpy
 import mathutils
 import math
 import itertools
+import re
 
 
 def cursor(cursor_mode):
@@ -70,6 +71,22 @@ def find_wheelbrake_bone(bones, position, side, index):
             return bone
     backword_compatible_bone_name = '%s Wheels' % ('Front' if position == 'Ft' else 'Back')
     return bones.get(backword_compatible_bone_name)
+
+
+def clear_property_animation(context, property_name, remove_keyframes=True):
+    if remove_keyframes and context.object.animation_data and context.object.animation_data.action:
+        fcurve_datapath = '["%s"]' % property_name
+        action = context.object.animation_data.action
+        fc_rot = action.fcurves.find(fcurve_datapath)
+        if fc_rot is not None:
+            action.fcurves.remove(fc_rot)
+    context.object[property_name] = .0
+
+
+def create_property_animation(context, property_name):
+    action = context.object.animation_data.action
+    fcurve_datapath = '["%s"]' % property_name
+    return action.fcurves.new(fcurve_datapath, 0, 'Wheels rotation')
 
 
 class FCurvesEvaluator(object):
@@ -185,23 +202,10 @@ class BakingOperator(object):
 
         return baked_action
 
-    def _clear_property_fcurve(self, context, property_name):
-        fcurve_datapath = '["%s"]' % property_name
-        action = context.object.animation_data.action
-        fc_rot = action.fcurves.find(fcurve_datapath)
-        if fc_rot is not None:
-            action.fcurves.remove(fc_rot)
-        context.object[property_name] = .0
-
-    def _create_property_fcurve(self, context, property_name):
-        action = context.object.animation_data.action
-        fcurve_datapath = '["%s"]' % property_name
-        return action.fcurves.new(fcurve_datapath, 0, 'Wheels rotation')
-
 
 class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
     bl_idname = 'anim.car_wheels_rotation_bake'
-    bl_label = 'Bake car wheels rotation'
+    bl_label = 'Bake wheels rotation'
     bl_description = 'Automatically generates wheels animation based on Root bone animation.'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -221,7 +225,7 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
                 brake_bones.append(find_wheelbrake_bone(bones, position, side, index) or wheel_bone)
 
         for property_name in map(lambda wheel_bone: wheel_bone.name.replace('MCH-', ''), wheel_bones):
-            self._clear_property_fcurve(context, property_name)
+            clear_property_animation(context, property_name)
 
         bones = set(wheel_bones + brake_bones)
         baked_action = self._bake_action(context, *bones)
@@ -264,7 +268,7 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
         yield self.frame_end, distance
 
     def _bake_wheel_rotation(self, context, baked_action, bone, brake_bone):
-        fc_rot = self._create_property_fcurve(context, bone.name.replace('MCH-', ''))
+        fc_rot = create_property_animation(context, bone.name.replace('MCH-', ''))
 
         for f, distance in self._evaluate_distance_per_frame(baked_action, bone, brake_bone):
             kf = fc_rot.keyframe_points.insert(f, distance)
@@ -328,8 +332,8 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
 
     @cursor('WAIT')
     def _bake_steering_rotation(self, context, distance, bone):
-        self._clear_property_fcurve(context, 'Steering.rotation')
-        fc_rot = self._create_property_fcurve(context, 'Steering.rotation')
+        clear_property_animation(context, 'Steering.rotation')
+        fc_rot = create_property_animation(context, 'Steering.rotation')
         action = self._bake_action(context, bone)
 
         previous_point = None
@@ -346,12 +350,47 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
             bpy.data.actions.remove(action)
 
 
+class ClearSteeringWheelsRotationOperator(bpy.types.Operator):
+    bl_idname = "anim.car_clear_steering_wheels_rotation"
+    bl_label = "Clear baked animation"
+    bl_description = "Clear generated rotation for steering and wheels"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    clear_steering = bpy.props.BoolProperty(name="Steering", description="Clear generated animation for steering", default=True)
+    clear_wheels = bpy.props.BoolProperty(name="Wheels", description="Clear generated animation for wheels", default=True)
+
+    def draw(self, context):
+        self.layout.label('Clear generated keyframes for')
+        self.layout.prop(self, 'clear_steering')
+        self.layout.prop(self, 'clear_wheels')
+
+    @classmethod
+    def poll(cls, context):
+        return (context.object is not None and context.object.data is not None and context.object.data.get('Car Rig'))
+
+    def execute(self, context):
+        re_wheel_propname = re.compile(r'^Wheel\.rotation\.(Ft|Bk)\.[LR](\.\d+)?$')
+        for prop in context.object.keys():
+            if prop == 'Steering.rotation':
+                clear_property_animation(context, prop, remove_keyframes=self.clear_steering)
+            elif re_wheel_propname.match(prop):
+                clear_property_animation(context, prop, remove_keyframes=self.clear_wheels)
+        # this is a hack to force Blender to take into account the modification
+        # of the properties by changing the object mode.
+        mode = context.object.mode
+        bpy.ops.object.mode_set(mode='OBJECT' if mode == 'EDIT' else 'EDIT')
+        bpy.ops.object.mode_set(mode=mode)
+        return {"FINISHED"}
+
+
 def register():
     bpy.utils.register_class(BakeWheelRotationOperator)
     bpy.utils.register_class(BakeSteeringOperator)
+    bpy.utils.register_class(ClearSteeringWheelsRotationOperator)
 
 
 def unregister():
+    bpy.utils.unregister_class(ClearSteeringWheelsRotationOperator)
     bpy.utils.unregister_class(BakeSteeringOperator)
     bpy.utils.unregister_class(BakeWheelRotationOperator)
 

@@ -1388,38 +1388,13 @@ class AddBrakeWheeBonesOperator(bpy.types.Operator):
             generate_constraint_on_wheel_brake_bone(obj.pose.bones[name], wheel_pose_bone)
 
 
-class ClearSteeringWheelsRotationOperator(bpy.types.Operator):
-    bl_idname = "pose.car_animation_clear_steering_wheels_rotation"
-    bl_label = "Clear generated rotation for steering and wheels"
-    bl_description = "Clear generated rotation for steering and wheels (but do not remove keyframes)"
-    bl_options = {'UNDO'}
-
-    @classmethod
-    def poll(cls, context):
-        return (context.object is not None and context.object.data is not None and context.object.data.get('Car Rig'))
-
-    def execute(self, context):
-        re_wheel_propname = re.compile(r'^Wheel\.rotation\.(Ft|Bk)\.[LR](\.\d+)?$')
-        for prop in context.object.keys():
-            if prop == 'Steering.rotation' or re_wheel_propname.match(prop):
-                context.object[prop] = .0
-        # this is a hack to force Blender to take into account the modification
-        # of the properties by changing the object mode.
-        mode = context.object.mode
-        bpy.ops.object.mode_set(mode='OBJECT' if mode == 'EDIT' else 'EDIT')
-        bpy.ops.object.mode_set(mode=mode)
-        return {"FINISHED"}
-
-
 def register():
     bpy.utils.register_class(GenerateCarAnimationRigOperator)
     bpy.utils.register_class(AddCarDeformationRigOperator)
     bpy.utils.register_class(AddBrakeWheeBonesOperator)
-    bpy.utils.register_class(ClearSteeringWheelsRotationOperator)
 
 
 def unregister():
-    bpy.utils.unregister_class(ClearSteeringWheelsRotationOperator)
     bpy.utils.unregister_class(AddBrakeWheeBonesOperator)
     bpy.utils.unregister_class(AddCarDeformationRigOperator)
     bpy.utils.unregister_class(GenerateCarAnimationRigOperator)
