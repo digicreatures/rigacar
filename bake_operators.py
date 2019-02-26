@@ -184,7 +184,10 @@ class BakingOperator(object):
             source_bones_matrix_basis.append(context.object.pose.bones[source_bone.name].matrix_basis.copy())
             source_bone.select = True
 
-        bpy.ops.nla.bake(frame_start=self.frame_start, frame_end=self.frame_end, only_selected=True, bake_types={'POSE'}, visual_keying=True)
+        #bpy.ops.nla.bake(frame_start=self.frame_start, frame_end=self.frame_end, only_selected=True, bake_types={'POSE'}, visual_keying=True)
+        # temporary fixing broken nla.bake operator by using anim_utils
+        from bpy_extras.anim_utils import bake_action
+        bake_action(context.object, action=None, frames=range(self.frame_start, self.frame_end), do_pose=True, only_selected=True, do_visual_keying=True)
         bpy.context.scene.update()
         baked_action = context.object.animation_data.action
 
