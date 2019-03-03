@@ -518,10 +518,15 @@ class ArmatureGenerator(object):
         if self.dimension.has_front_wheels:
             groundsensor_axle_front = amt.edit_bones.new('GroundSensor.Axle.Ft')
             groundsensor_axle_front.head = self.dimension.wheels_front_position
-            groundsensor_axle_front.head.z = 0.001
             groundsensor_axle_front.tail = groundsensor_axle_front.head
             groundsensor_axle_front.tail.y += self.dimension.length / 16
             groundsensor_axle_front.parent = root
+
+            shp_groundsensor_axle_front = amt.edit_bones.new('SHP-GroundSensor.Axle.Ft')
+            shp_groundsensor_axle_front.head = groundsensor_axle_front.head
+            shp_groundsensor_axle_front.tail = groundsensor_axle_front.tail
+            shp_groundsensor_axle_front.head.z = shp_groundsensor_axle_front.tail.z = 0.001
+            shp_groundsensor_axle_front.parent = groundsensor_axle_front
 
             mch_root_axle_front = amt.edit_bones.new('MCH-Root.Axle.Ft')
             mch_root_axle_front.head = self.dimension.wheels_front_position
@@ -535,10 +540,15 @@ class ArmatureGenerator(object):
         if self.dimension.has_back_wheels:
             groundsensor_axle_back = amt.edit_bones.new('GroundSensor.Axle.Bk')
             groundsensor_axle_back.head = self.dimension.wheels_back_position
-            groundsensor_axle_back.head.z = 0
             groundsensor_axle_back.tail = groundsensor_axle_back.head
             groundsensor_axle_back.tail.y += self.dimension.length / 16
             groundsensor_axle_back.parent = drift
+
+            shp_groundsensor_axle_back = amt.edit_bones.new('SHP-GroundSensor.Axle.Bk')
+            shp_groundsensor_axle_back.head = groundsensor_axle_back.head
+            shp_groundsensor_axle_back.tail = groundsensor_axle_back.tail
+            shp_groundsensor_axle_back.head.z = shp_groundsensor_axle_back.tail.z = 0.001
+            shp_groundsensor_axle_back.parent = groundsensor_axle_back
 
             mch_root_axle_back = amt.edit_bones.new('MCH-Root.Axle.Bk')
             mch_root_axle_back.head = self.dimension.wheels_back_position
@@ -649,7 +659,7 @@ class ArmatureGenerator(object):
 
         ground_sensor = amt.edit_bones.new(name_suffix.name('GroundSensor'))
         ground_sensor.head = wheel_bounding_box.box_center
-        ground_sensor.head.z = 0
+        ground_sensor.head.z = def_wheel_bone.head.z
         ground_sensor.tail = ground_sensor.head
         ground_sensor.tail.y += max(wheel_bounding_box.height / 2.5, wheel_bounding_box.width * 1.02)
         ground_sensor.use_deform = False
@@ -782,6 +792,7 @@ class ArmatureGenerator(object):
                 groundsensor_axle.lock_scale = (True, True, True)
                 groundsensor_axle.custom_shape = get_widget('WGT-CarRig.GroundSensor.Axle')
                 groundsensor_axle.lock_rotation_w = True
+                groundsensor_axle.custom_shape_transform = pose.bones['SHP-%s' % groundsensor_axle.name]
                 groundsensor_axle.bone.show_wire = True
                 self.generate_ground_projection_constraint(groundsensor_axle)
 
@@ -910,7 +921,7 @@ class ArmatureGenerator(object):
         cns.shrinkwrap_type = 'NEAREST_SURFACE'
         cns.project_axis_space = 'LOCAL'
         cns.project_axis = 'NEG_Z'
-        cns.distance = 0
+        cns.distance = abs(bone.head.z)
 
     def generate_childof_constraint(self, child, parent):
         cns = child.constraints.new('CHILD_OF')
@@ -1127,7 +1138,7 @@ class ArmatureGenerator(object):
             wheel_widgets += tuple(wheel_dimension.names('WheelBrake'))
         create_bone_group(pose, 'Wheel', color_set='THEME03', bone_names=wheel_widgets)
 
-        ground_sensor_names = ('GroundSensor.Axle.Ft', 'GroundSensor.Axle.Bk')
+        ground_sensor_names = ('GroundSensor.Axle.Ft', 'GroundSensor.Axle.Bk', 'SHP-GroundSensor.Axle.Ft', 'SHP-GroundSensor.Axle.Bk')
         for wheel_dimension in self.dimension.wheels_dimensions:
             ground_sensor_names += tuple(wheel_dimension.names('GroundSensor'))
         ground_sensor_names += tuple("SHP-%s" % i for i in ground_sensor_names)
