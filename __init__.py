@@ -49,14 +49,14 @@ def enumerate_ground_sensors(bones):
     if bone is not None:
         yield bone
         for bone in bones:
-          if bone.name.startswith('GroundSensor.Ft'):
-            yield bone
+            if bone.name.startswith('GroundSensor.Ft'):
+                yield bone
     bone = bones.get('GroundSensor.Axle.Bk')
     if bone is not None:
         yield bone
         for bone in bones:
-          if bone.name.startswith('GroundSensor.Bk'):
-            yield bone
+            if bone.name.startswith('GroundSensor.Bk'):
+                yield bone
 
 
 class BaseCarRigPanel:
