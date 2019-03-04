@@ -127,7 +127,7 @@ class EulerToQuaternionFCurvesEvaluator(object):
 class BakingOperator(object):
     frame_start = bpy.props.IntProperty(name='Start Frame', min=1)
     frame_end = bpy.props.IntProperty(name='End Frame', min=1)
-    keyframe_tolerance = bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.4)
+    keyframe_tolerance = bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.05)
 
     @classmethod
     def poll(cls, context):
@@ -282,7 +282,7 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
     bl_description = 'Automatically generates steering animation based on Root bone animation.'
     bl_options = {'REGISTER', 'UNDO'}
 
-    rotation_factor = bpy.props.FloatProperty(name='Rotation factor', min=0.1, default=1.0)
+    rotation_factor = bpy.props.FloatProperty(name='Rotation factor', min=0.1, default=1.5)
 
     def draw(self, context):
         self.layout.prop(self, 'frame_start')
