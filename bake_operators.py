@@ -210,6 +210,7 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        context.object['wheels_on_y_axis'] = False
         self._bake_wheels_rotation(context)
         return {'FINISHED'}
 
