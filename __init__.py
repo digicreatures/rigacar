@@ -34,9 +34,19 @@ bl_info = {
     "tracker_url": "https://github.com/digicreatures/rigacar/issues",
     "category": "Rigging"}
 
-import importlib
-importlib.reload(bake_operators)
-importlib.reload(car_rig)
+
+if "bpy" in locals():
+    import importlib
+    if "bake_operators" in locals():
+        importlib.reload(bake_operators)
+    if "car_rig" in locals():
+        importlib.reload(car_rig)
+    if "widgets" in locals():
+        importlib.reload(widgets)
+else:
+    import bpy
+    from . import bake_operators
+    from . import car_rig
 
 
 class BaseCarRigPanel:
