@@ -426,6 +426,7 @@ def create_wheel_brake_bone(wheel_brake, parent_bone, wheel_bone):
 def generate_constraint_on_wheel_brake_bone(wheel_brake_pose_bone, wheel_pose_bone):
     wheel_brake_pose_bone.lock_location = (True, True, True)
     wheel_brake_pose_bone.lock_rotation = (True, True, True)
+    wheel_brake_pose_bone.lock_rotation_w = True
     wheel_brake_pose_bone.lock_scale = (True, False, False)
     wheel_brake_pose_bone.custom_shape = get_widget('WGT-CarRig.WheelBrake')
     wheel_brake_pose_bone.bone.show_wire = True
