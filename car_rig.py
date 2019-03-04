@@ -121,7 +121,7 @@ def dispatch_bones_to_armature_layers(ob):
             layers[DEF_BONE_LAYER] = True
         elif b.name.startswith('MCH-'):
             layers[MCH_BONE_LAYER] = True
-            if b.name == 'MCH-Body' or re_mch_bone.match(b.name):
+            if b.name in ('MCH-Body', 'MCH-Steering') or re_mch_bone.match(b.name):
                 layers[MCH_BONE_EXTENSION_LAYER] = True
         else:
             layer_num = ob.pose.bones[b.name].bone_group_index
