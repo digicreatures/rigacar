@@ -1148,12 +1148,12 @@ class ArmatureGenerator(object):
     def set_origin(self, scene):
         root = self.ob.data.bones.get('Root')
         if root:
-            cursor_location = scene.cursor_location[:]
-            scene.cursor_location = root.head
+            cursor_location = scene.cursor.location[:]
+            scene.cursor.location = root.head
             try:
                 bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
             finally:
-                scene.cursor_location = cursor_location
+                scene.cursor.location = cursor_location
 
 
 class AddCarDeformationRigOperator(bpy.types.Operator):
