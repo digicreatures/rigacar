@@ -1156,7 +1156,7 @@ class ArmatureGenerator(object):
                 scene.cursor.location = cursor_location
 
 
-class AddCarDeformationRigOperator(bpy.types.Operator):
+class OBJECT_OT_armatureCarDeformationRig(bpy.types.Operator):
     bl_idname = "object.armature_car_deformation_rig"
     bl_label = "Add car deformation rig"
     bl_description = "Creates the base rig for a car."
@@ -1346,7 +1346,7 @@ class AddCarDeformationRigOperator(bpy.types.Operator):
             previous_wheel_default_pos = self.bones_position[wheel_name]
 
 
-class GenerateCarAnimationRigOperator(bpy.types.Operator):
+class POSE_OT_carAnimationRigGenerate(bpy.types.Operator):
     bl_idname = "pose.car_animation_rig_generate"
     bl_label = "Generate car animation rig"
     bl_description = "Creates the complete armature for animating the car."
@@ -1367,7 +1367,7 @@ class GenerateCarAnimationRigOperator(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class AddBrakeWheeBonesOperator(bpy.types.Operator):
+class POSE_OT_carAnimationAddBrakeWheelBones(bpy.types.Operator):
     bl_idname = "pose.car_animation_add_brake_wheel_bones"
     bl_label = "Add missing brake wheel bones"
     bl_description = "Generates missing brake wheel bones for each selected wheel widget."
@@ -1402,15 +1402,15 @@ class AddBrakeWheeBonesOperator(bpy.types.Operator):
 
 
 def register():
-    bpy.utils.register_class(GenerateCarAnimationRigOperator)
-    bpy.utils.register_class(AddCarDeformationRigOperator)
-    bpy.utils.register_class(AddBrakeWheeBonesOperator)
+    bpy.utils.register_class(POSE_OT_carAnimationRigGenerate)
+    bpy.utils.register_class(OBJECT_OT_armatureCarDeformationRig)
+    bpy.utils.register_class(POSE_OT_carAnimationAddBrakeWheelBones)
 
 
 def unregister():
-    bpy.utils.unregister_class(AddBrakeWheeBonesOperator)
-    bpy.utils.unregister_class(AddCarDeformationRigOperator)
-    bpy.utils.unregister_class(GenerateCarAnimationRigOperator)
+    bpy.utils.unregister_class(POSE_OT_carAnimationAddBrakeWheelBones)
+    bpy.utils.unregister_class(OBJECT_OT_armatureCarDeformationRig)
+    bpy.utils.unregister_class(POSE_OT_carAnimationRigGenerate)
 
 
 if __name__ == "__main__":
