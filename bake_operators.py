@@ -204,7 +204,7 @@ class BakingOperator(object):
         return baked_action
 
 
-class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
+class ANIM_OT_carWheelsRotationBake(bpy.types.Operator, BakingOperator):
     bl_idname = 'anim.car_wheels_rotation_bake'
     bl_label = 'Bake wheels rotation'
     bl_description = 'Automatically generates wheels animation based on Root bone animation.'
@@ -278,7 +278,7 @@ class BakeWheelRotationOperator(bpy.types.Operator, BakingOperator):
             kf.type = 'JITTER'
 
 
-class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
+class ANIM_OT_carSteeringBake(bpy.types.Operator, BakingOperator):
     bl_idname = 'anim.car_steering_bake'
     bl_label = 'Bake car steering'
     bl_description = 'Automatically generates steering animation based on Root bone animation.'
@@ -354,7 +354,7 @@ class BakeSteeringOperator(bpy.types.Operator, BakingOperator):
             bpy.data.actions.remove(action)
 
 
-class ClearSteeringWheelsRotationOperator(bpy.types.Operator):
+class ANIM_OT_carClearSteeringWheelsRotation(bpy.types.Operator):
     bl_idname = "anim.car_clear_steering_wheels_rotation"
     bl_label = "Clear baked animation"
     bl_description = "Clear generated rotation for steering and wheels"
@@ -390,15 +390,15 @@ class ClearSteeringWheelsRotationOperator(bpy.types.Operator):
 
 
 def register():
-    bpy.utils.register_class(BakeWheelRotationOperator)
-    bpy.utils.register_class(BakeSteeringOperator)
-    bpy.utils.register_class(ClearSteeringWheelsRotationOperator)
+    bpy.utils.register_class(ANIM_OT_carWheelsRotationBake)
+    bpy.utils.register_class(ANIM_OT_carSteeringBake)
+    bpy.utils.register_class(ANIM_OT_carClearSteeringWheelsRotation)
 
 
 def unregister():
-    bpy.utils.unregister_class(ClearSteeringWheelsRotationOperator)
-    bpy.utils.unregister_class(BakeSteeringOperator)
-    bpy.utils.unregister_class(BakeWheelRotationOperator)
+    bpy.utils.unregister_class(ANIM_OT_carClearSteeringWheelsRotation)
+    bpy.utils.unregister_class(ANIM_OT_carSteeringBake)
+    bpy.utils.unregister_class(ANIM_OT_carWheelsRotationBake)
 
 
 if __name__ == "__main__":

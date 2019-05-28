@@ -59,7 +59,7 @@ def enumerate_ground_sensors(bones):
                 yield bone
 
 
-class BaseCarRigPanel:
+class RIGACAR_PT_mixin:
 
     def __init__(self):
         self.layout.use_property_split = True
@@ -74,12 +74,12 @@ class BaseCarRigPanel:
         return cls.is_car_rig(context) and context.object.data['Car Rig']
 
     def display_generate_section(self, context):
-        self.layout.operator(car_rig.GenerateCarAnimationRigOperator.bl_idname, text='Generate')
+        self.layout.operator(car_rig.POSE_OT_carAnimationRigGenerate.bl_idname, text='Generate')
 
     def display_bake_section(self, context):
-        self.layout.operator(bake_operators.BakeSteeringOperator.bl_idname)
-        self.layout.operator(bake_operators.BakeWheelRotationOperator.bl_idname)
-        self.layout.operator(bake_operators.ClearSteeringWheelsRotationOperator.bl_idname)
+        self.layout.operator(bake_operators.ANIM_OT_carSteeringBake.bl_idname)
+        self.layout.operator(bake_operators.ANIM_OT_carWheelsRotationBake.bl_idname)
+        self.layout.operator(bake_operators.ANIM_OT_carClearSteeringWheelsRotation.bl_idname)
 
     def display_rig_props_section(self, context):
         layout = self.layout.column()
@@ -105,7 +105,7 @@ class BaseCarRigPanel:
             self.layout.separator()
 
 
-class UIRigacarRigPropertiesPanel(bpy.types.Panel, BaseCarRigPanel):
+class RIGACAR_PT_rigProperties(bpy.types.Panel, RIGACAR_PT_mixin):
     bl_label = "Rigacar"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
@@ -114,10 +114,10 @@ class UIRigacarRigPropertiesPanel(bpy.types.Panel, BaseCarRigPanel):
 
     @classmethod
     def poll(cls, context):
-        return BaseCarRigPanel.is_car_rig(context)
+        return RIGACAR_PT_mixin.is_car_rig(context)
 
     def draw(self, context):
-        if BaseCarRigPanel.is_car_rig_generated(context):
+        if RIGACAR_PT_mixin.is_car_rig_generated(context):
             self.display_rig_props_section(context)
             self.layout.separator()
             self.display_bake_section(context)
@@ -125,9 +125,9 @@ class UIRigacarRigPropertiesPanel(bpy.types.Panel, BaseCarRigPanel):
             self.display_generate_section(context)
 
 
-class UIRigacarGroundSensorsPropertiesPanel(bpy.types.Panel, BaseCarRigPanel):
+class RIGACAR_PT_groundSensorsProperties(bpy.types.Panel, RIGACAR_PT_mixin):
     bl_label = "Ground Sensors"
-    bl_parent_id = "UIRigacarRigPropertiesPanel"
+    bl_parent_id = "RIGACAR_PT_rigProperties"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "data"
@@ -135,13 +135,13 @@ class UIRigacarGroundSensorsPropertiesPanel(bpy.types.Panel, BaseCarRigPanel):
 
     @classmethod
     def poll(cls, context):
-        return BaseCarRigPanel.is_car_rig_generated(context)
+        return RIGACAR_PT_mixin.is_car_rig_generated(context)
 
     def draw(self, context):
         self.display_ground_sensors_section(context)
 
 
-class UIRigacarAnimationRigView3DPanel(bpy.types.Panel, BaseCarRigPanel):
+class RIGACAR_PT_animationRigView(bpy.types.Panel, RIGACAR_PT_mixin):
     bl_category = "Rigacar"
     bl_label = "Animation Rig"
     bl_space_type = "VIEW_3D"
@@ -149,16 +149,16 @@ class UIRigacarAnimationRigView3DPanel(bpy.types.Panel, BaseCarRigPanel):
 
     @classmethod
     def poll(cls, context):
-        return BaseCarRigPanel.is_car_rig(context)
+        return RIGACAR_PT_mixin.is_car_rig(context)
 
     def draw(self, context):
-        if BaseCarRigPanel.is_car_rig_generated(context):
+        if RIGACAR_PT_mixin.is_car_rig_generated(context):
             self.display_rig_props_section(context)
         else:
             self.display_generate_section(context)
 
 
-class UIRigacarWheelsAnimationView3DPanel(bpy.types.Panel, BaseCarRigPanel):
+class RIGACAR_PT_wheelsAnimationView(bpy.types.Panel, RIGACAR_PT_mixin):
     bl_category = "Rigacar"
     bl_label = "Wheels animation"
     bl_space_type = "VIEW_3D"
@@ -166,13 +166,13 @@ class UIRigacarWheelsAnimationView3DPanel(bpy.types.Panel, BaseCarRigPanel):
 
     @classmethod
     def poll(cls, context):
-        return BaseCarRigPanel.is_car_rig_generated(context)
+        return RIGACAR_PT_mixin.is_car_rig_generated(context)
 
     def draw(self, context):
         self.display_bake_section(context)
 
 
-class UIRigacarGroundSensorsView3DPanel(bpy.types.Panel, BaseCarRigPanel):
+class RIGACAR_PT_groundSensorsView(bpy.types.Panel, RIGACAR_PT_mixin):
     bl_category = "Rigacar"
     bl_label = "Ground Sensors"
     bl_space_type = "VIEW_3D"
@@ -181,22 +181,22 @@ class UIRigacarGroundSensorsView3DPanel(bpy.types.Panel, BaseCarRigPanel):
 
     @classmethod
     def poll(cls, context):
-        return BaseCarRigPanel.is_car_rig_generated(context)
+        return RIGACAR_PT_mixin.is_car_rig_generated(context)
 
     def draw(self, context):
         self.display_ground_sensors_section(context)
 
 
 def menu_entries(menu, context):
-    menu.layout.operator(car_rig.AddCarDeformationRigOperator.bl_idname, text="Car (deformation rig)", icon='AUTO')
+    menu.layout.operator(car_rig.OBJECT_OT_armatureCarDeformationRig.bl_idname, text="Car (deformation rig)", icon='AUTO')
 
 
 classes = (
-  UIRigacarRigPropertiesPanel,
-  UIRigacarGroundSensorsPropertiesPanel,
-  UIRigacarAnimationRigView3DPanel,
-  UIRigacarWheelsAnimationView3DPanel,
-  UIRigacarGroundSensorsView3DPanel,
+  RIGACAR_PT_rigProperties,
+  RIGACAR_PT_groundSensorsProperties,
+  RIGACAR_PT_animationRigView,
+  RIGACAR_PT_wheelsAnimationView,
+  RIGACAR_PT_groundSensorsView,
 )
 
 
