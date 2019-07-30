@@ -470,8 +470,12 @@ class ArmatureGenerator(object):
             self.ob.data['Car Rig'] = True
             deselect_edit_bones(self.ob)
 
-            bpy.ops.object.mode_set(mode='OBJECT')
-            self.set_origin(scene)
+            # 2.80 is buggish: cannot properly change origin
+            # for an armature
+            # https://developer.blender.org/T67507
+            # Bug fixed by Sergei... we have to wait 2.81
+            # bpy.ops.object.mode_set(mode='OBJECT')
+            # self.set_origin(scene)
 
             bpy.ops.object.mode_set(mode='POSE')
             self.generate_constraints_on_rig()
