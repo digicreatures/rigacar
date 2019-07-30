@@ -1292,7 +1292,13 @@ class OBJECT_OT_armatureCarDeformationRig(bpy.types.Operator):
 
         rig = bpy_extras.object_utils.object_data_add(context, amt, name='Car Rig')
 
-        bpy.ops.object.mode_set(mode='EDIT')
+        # TODO: cannot edit new object added to a hidden collection
+        # Could be a better fix (steal code from other addons).
+        try:
+            bpy.ops.object.mode_set(mode='EDIT')
+        except TypeError:
+            self.report({'ERROR'}, "Cannot edit the new armature! Please make sure the active collection is visible and editable")
+            return {'CANCELLED'}
 
         self._create_bone(rig, 'Body', delta_pos=self.body_pos_delta)
 
@@ -1314,7 +1320,7 @@ class OBJECT_OT_armatureCarDeformationRig(bpy.types.Operator):
 
         bpy.ops.object.mode_set(mode='OBJECT')
 
-        return{'FINISHED'}
+        return {'FINISHED'}
 
     def _create_bone(self, rig, name, delta_pos):
         b = rig.data.edit_bones.new('DEF-' + name)
