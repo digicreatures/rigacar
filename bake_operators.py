@@ -184,6 +184,12 @@ class BakingOperator(object):
             source_bones_matrix_basis.append(context.object.pose.bones[source_bone.name].matrix_basis.copy())
             source_bone.select = True
 
+        # Blender 2.81 : Another hack for another bug in the bake operator
+        # removing from the selection objects which are not the current one
+        for obj in context.selected_objects:
+            if obj is not context.object:
+                obj.select_set(state=False)
+
         bpy.ops.nla.bake(frame_start=self.frame_start, frame_end=self.frame_end, only_selected=True, bake_types={'POSE'}, visual_keying=True)
         baked_action = context.object.animation_data.action
 
