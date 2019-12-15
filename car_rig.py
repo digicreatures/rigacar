@@ -474,8 +474,8 @@ class ArmatureGenerator(object):
             # for an armature
             # https://developer.blender.org/T67507
             # Bug fixed by Sergei... we have to wait 2.81
-            # bpy.ops.object.mode_set(mode='OBJECT')
-            # self.set_origin(scene)
+            bpy.ops.object.mode_set(mode='OBJECT')
+            self.set_origin(scene)
 
             bpy.ops.object.mode_set(mode='POSE')
             self.generate_constraints_on_rig()
