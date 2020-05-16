@@ -304,11 +304,11 @@ class ANIM_OT_carSteeringBake(bpy.types.Operator, BakingOperator):
             if 'Steering' in context.object.data.bones and 'MCH-Steering.rotation' in context.object.data.bones:
                 steering = context.object.data.bones['Steering']
                 mch_steering_rotation = context.object.data.bones['MCH-Steering.rotation']
-                distance = abs(steering.head_local.y - mch_steering_rotation.head_local.y)
-                self._bake_steering_rotation(context, distance, mch_steering_rotation)
+                bone_offset = abs(steering.head_local.y - mch_steering_rotation.head_local.y)
+                self._bake_steering_rotation(context, bone_offset, mch_steering_rotation)
         return {'FINISHED'}
 
-    def _evaluate_rotation_per_frame(self, action, distance, bone):
+    def _evaluate_rotation_per_frame(self, action, bone_offset, bone):
         loc_evaluator = self._create_location_evaluator(action, bone)
         rot_evaluator = self._create_rotation_evaluator(action, bone)
 
@@ -320,23 +320,26 @@ class ANIM_OT_carSteeringBake(bpy.types.Operator, BakingOperator):
             next_pos = loc_evaluator.evaluate(f + 1)
             steering_direction_vector = next_pos - current_pos
 
-            # Approximation
-            steering_direction_vector.length = distance * self.rotation_factor
-            world_space_bone_direction_vector = rot_evaluator.evaluate(f) @ bone_direction_vector
-            world_space_bone_normal_vector = rot_evaluator.evaluate(f) @ bone_normal_vector
+            rotation_quaternion = rot_evaluator.evaluate(f)
+            world_space_bone_direction_vector = rotation_quaternion @ bone_direction_vector
+            world_space_bone_normal_vector = rotation_quaternion @ bone_normal_vector
+
+            projected_magnitude = abs(steering_direction_vector.dot(world_space_bone_direction_vector))
+            length_ratio = bone_offset * self.rotation_factor / projected_magnitude
+            steering_direction_vector.length *= length_ratio
+
             steering_position = mathutils.geometry.distance_point_to_plane(steering_direction_vector, world_space_bone_direction_vector, world_space_bone_normal_vector)
             yield f, steering_position
             current_pos = next_pos
 
     @cursor('WAIT')
-    def _bake_steering_rotation(self, context, distance, bone):
+    def _bake_steering_rotation(self, context, bone_offset, bone):
         clear_property_animation(context, 'Steering.rotation')
         fc_rot = create_property_animation(context, 'Steering.rotation')
         action = self._bake_action(context, bone)
 
         try:
-            for f, steering_pos in self._evaluate_rotation_per_frame(action, distance, bone):
-                print(steering_pos)
+            for f, steering_pos in self._evaluate_rotation_per_frame(action, bone_offset, bone):
                 kf = fc_rot.keyframe_points.insert(f, steering_pos)
                 kf.type = 'JITTER'
                 kf.interpolation = 'LINEAR'
