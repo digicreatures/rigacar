@@ -247,7 +247,7 @@ class ANIM_OT_carWheelsRotationBake(bpy.types.Operator, BakingOperator):
     def _evaluate_distance_per_frame(self, action, bone, brake_bone):
         loc_evaluator = self._create_location_evaluator(action, bone)
         rot_evaluator = self._create_rotation_evaluator(action, bone)
-        break_evaluator = self._create_scale_evaluator(action, brake_bone)
+        brake_evaluator = self._create_scale_evaluator(action, brake_bone)
 
         radius = bone.length if bone.length > .0 else 1.0
         bone_init_vector = (bone.head_local - bone.tail_local).normalized()
@@ -258,7 +258,7 @@ class ANIM_OT_carWheelsRotationBake(bpy.types.Operator, BakingOperator):
         for f in range(self.frame_start + 1, self.frame_end):
             pos = loc_evaluator.evaluate(f)
             speed_vector = pos - prev_pos
-            speed_vector *= 2 * break_evaluator.evaluate(f).y - 1
+            speed_vector *= 2 * brake_evaluator.evaluate(f).y - 1
             rotation_quaternion = rot_evaluator.evaluate(f)
             bone_orientation = rotation_quaternion @ bone_init_vector
             speed = math.copysign(speed_vector.magnitude, bone_orientation.dot(speed_vector))
@@ -320,16 +320,20 @@ class ANIM_OT_carSteeringBake(bpy.types.Operator, BakingOperator):
             next_pos = loc_evaluator.evaluate(f + 1)
             steering_direction_vector = next_pos - current_pos
 
+            if steering_direction_vector.magnitude < bone_offset * .05:
+                continue
+
             rotation_quaternion = rot_evaluator.evaluate(f)
             world_space_bone_direction_vector = rotation_quaternion @ bone_direction_vector
             world_space_bone_normal_vector = rotation_quaternion @ bone_normal_vector
 
-            projected_magnitude = abs(steering_direction_vector.dot(world_space_bone_direction_vector))
-            length_ratio = bone_offset * self.rotation_factor / projected_magnitude
-            steering_direction_vector.length *= length_ratio
+            projected_steering_direction = steering_direction_vector.dot(world_space_bone_direction_vector)
+            if projected_steering_direction != 0:
+                length_ratio = bone_offset * self.rotation_factor / abs(projected_steering_direction)
+                steering_direction_vector.length *= length_ratio
 
             steering_position = mathutils.geometry.distance_point_to_plane(steering_direction_vector, world_space_bone_direction_vector, world_space_bone_normal_vector)
-            yield f, steering_position
+            yield f, steering_position if projected_steering_direction >= 0 else -steering_position
             current_pos = next_pos
 
     @cursor('WAIT')
