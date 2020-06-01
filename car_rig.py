@@ -847,7 +847,7 @@ class ArmatureGenerator(object):
             steering.bone.show_wire = True
 
             mch_steering_rotation = pose.bones['MCH-Steering.rotation']
-            mch_steering_rotation.rotation_mode = 'ZYX'
+            mch_steering_rotation.rotation_mode = 'QUATERNION'
             self.ob['Steering.rotation'] = .0
             create_translation_x_driver(self.ob, mch_steering_rotation, '["Steering.rotation"]')
 
