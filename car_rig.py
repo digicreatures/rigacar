@@ -456,7 +456,7 @@ class ArmatureGenerator(object):
     def __init__(self, ob):
         self.ob = ob
 
-    def generate(self, scene):
+    def generate(self, scene, adjust_origin):
         self.ob['wheels_on_y_axis'] = False
         self.ob['suspension_factor'] = .5
         self.ob['suspension_rolling_factor'] = .5
@@ -470,12 +470,9 @@ class ArmatureGenerator(object):
             self.ob.data['Car Rig'] = True
             deselect_edit_bones(self.ob)
 
-            # 2.80 is buggish: cannot properly change origin
-            # for an armature
-            # https://developer.blender.org/T67507
-            # Bug fixed by Sergei... we have to wait 2.81
-            bpy.ops.object.mode_set(mode='OBJECT')
-            self.set_origin(scene)
+            if adjust_origin:
+                bpy.ops.object.mode_set(mode='OBJECT')
+                self.set_origin(scene)
 
             bpy.ops.object.mode_set(mode='POSE')
             self.generate_constraints_on_rig()
@@ -1151,6 +1148,7 @@ class ArmatureGenerator(object):
         create_bone_group(pose, 'GroundSensor', color_set='THEME02', bone_names=ground_sensor_names)
 
     def set_origin(self, scene):
+        object_location = self.ob.location[:]
         root = self.ob.data.bones.get('Root')
         if root:
             cursor_location = scene.cursor.location[:]
@@ -1159,6 +1157,7 @@ class ArmatureGenerator(object):
                 bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
             finally:
                 scene.cursor.location = cursor_location
+                self.ob.location = object_location
 
 
 class OBJECT_OT_armatureCarDeformationRig(bpy.types.Operator):
@@ -1361,12 +1360,28 @@ class POSE_OT_carAnimationRigGenerate(bpy.types.Operator):
     bl_idname = "pose.car_animation_rig_generate"
     bl_label = "Generate car animation rig"
     bl_description = "Creates the complete armature for animating the car."
-    bl_options = {'UNDO'}
+    bl_options = {'REGISTER', 'UNDO'}
+
+    adjust_origin: bpy.props.BoolProperty(name='Move origin',
+                                          description='Set origin of the armature at the same location as the root bone',
+                                          default=True)
 
     @classmethod
     def poll(cls, context):
         return (context.object is not None and context.object.data is not None and
                 'Car Rig' in context.object.data and not context.object.data['Car Rig'])
+
+    def draw(self, context):
+        self.layout.use_property_split = True
+        self.layout.use_property_decorate = False
+        self.layout.prop(self, 'adjust_origin')
+
+    def invoke(self, context, event):
+        # deselect extra objects
+        for obj in context.selected_objects:
+            if obj is not context.object:
+                obj.select_set(state=False)
+        return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
         if 'DEF-Body' not in context.object.data.bones:
@@ -1374,7 +1389,7 @@ class POSE_OT_carAnimationRigGenerate(bpy.types.Operator):
             return {"CANCELLED"}
 
         armature_generator = ArmatureGenerator(context.object)
-        armature_generator.generate(context.scene)
+        armature_generator.generate(context.scene, self.adjust_origin)
         return {"FINISHED"}
 
 
