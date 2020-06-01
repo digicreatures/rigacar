@@ -133,7 +133,7 @@ class QuaternionFCurvesEvaluator(object):
         return mathutils.Quaternion(self.fcurves_evaluator.evaluate(f))
 
 
-def fix_steering(rig_object):
+def fix_old_steering_rotation(rig_object):
     """
     Fix  armature generated with rigacar version < 6.0
     """
@@ -366,7 +366,7 @@ class ANIM_OT_carSteeringBake(bpy.types.Operator, BakingOperator):
     @cursor('WAIT')
     def _bake_steering_rotation(self, context, bone_offset, bone):
         clear_property_animation(context, 'Steering.rotation')
-        fix_steering(context.object)
+        fix_old_steering_rotation(context.object)
         fc_rot = create_property_animation(context, 'Steering.rotation')
         action = self._bake_action(context, bone)
 
