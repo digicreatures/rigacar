@@ -663,8 +663,7 @@ class ArmatureGenerator(object):
         ground_sensor.head = wheel_bounding_box.box_center
         ground_sensor.head.z = def_wheel_bone.head.z
         ground_sensor.tail = ground_sensor.head
-        # bug potentiel si on a affaire à une roue qui n'a pas de bounding box (comme un empty)
-        ground_sensor.tail.y += max(wheel_bounding_box.height / 2.5, wheel_bounding_box.width * 1.02)
+        ground_sensor.tail.y += max(max(wheel_bounding_box.height, ground_sensor.head.z) / 2.5, wheel_bounding_box.width * 1.02)
         ground_sensor.use_deform = False
         ground_sensor.parent = parent_bone
 
