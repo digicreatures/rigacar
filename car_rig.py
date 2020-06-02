@@ -1275,8 +1275,10 @@ class OBJECT_OT_armatureCarDeformationRig(bpy.types.Operator):
                 return count
 
     def _find_target_object(self, context, name):
+        escaped_name = re.escape(name).replace(r'\.', r'[\.-_ ]')
+        pattern = re.compile(f".*{escaped_name}", re.IGNORECASE)
         for obj in context.selected_objects:
-            if obj.name.endswith(name):
+            if pattern.match(obj.name):
                 self.target_objects_name[name] = obj.name
                 self.bones_position[name] = obj.location.copy()
                 return True
