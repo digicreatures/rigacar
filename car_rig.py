@@ -1367,22 +1367,18 @@ class POSE_OT_carAnimationRigGenerate(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return (context.object is not None and context.object.data is not None and
-                'Car Rig' in context.object.data and not context.object.data['Car Rig'])
+        return context.object is not None and context.object.data is not None and 'Car Rig' in context.object.data
 
     def draw(self, context):
         self.layout.use_property_split = True
         self.layout.use_property_decorate = False
         self.layout.prop(self, 'adjust_origin')
 
-    def invoke(self, context, event):
-        # deselect extra objects
-        for obj in context.selected_objects:
-            if obj is not context.object:
-                obj.select_set(state=False)
-        return context.window_manager.invoke_props_dialog(self)
-
     def execute(self, context):
+        if context.object.data['Car Rig']:
+            self.report({'INFO'}, 'Rig already generated')
+            return {"CANCELLED"}
+
         if 'DEF-Body' not in context.object.data.bones:
             self.report({'ERROR'}, 'No bone named DEF-Body. This is not a valid armature!')
             return {"CANCELLED"}
