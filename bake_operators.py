@@ -145,7 +145,7 @@ def fix_old_steering_rotation(rig_object):
 class BakingOperator(object):
     frame_start: bpy.props.IntProperty(name='Start Frame', min=1)
     frame_end: bpy.props.IntProperty(name='End Frame', min=1)
-    keyframe_tolerance: bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.05)
+    keyframe_tolerance: bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.01)
 
     @classmethod
     def poll(cls, context):
@@ -336,11 +336,13 @@ class ANIM_OT_carSteeringBake(bpy.types.Operator, BakingOperator):
         loc_evaluator = self._create_location_evaluator(action, bone)
         rot_evaluator = self._create_quaternion_evaluator(action, bone)
 
-        distance_threshold = pow(bone_offset * self.keyframe_tolerance, 2)
+        distance_threshold = pow(bone_offset * max(self.keyframe_tolerance, .001), 2)
+        steering_threshold = bone_offset * self.keyframe_tolerance * .1
         bone_direction_vector = (bone.head_local - bone.tail_local).normalized()
         bone_normal_vector = mathutils.Vector((1, 0, 0))
 
         current_pos = loc_evaluator.evaluate(self.frame_start)
+        previous_steering_position = None
         for f in range(self.frame_start, self.frame_end - 1):
             next_pos = loc_evaluator.evaluate(f + 1)
             steering_direction_vector = next_pos - current_pos
@@ -360,8 +362,14 @@ class ANIM_OT_carSteeringBake(bpy.types.Operator, BakingOperator):
             steering_direction_vector *= length_ratio
 
             steering_position = mathutils.geometry.distance_point_to_plane(steering_direction_vector, world_space_bone_direction_vector, world_space_bone_normal_vector)
+
+            if previous_steering_position is not None \
+               and abs(steering_position - previous_steering_position) < steering_threshold:
+                continue
+
             yield f, steering_position
             current_pos = next_pos
+            previous_steering_position = steering_position
 
     @cursor('WAIT')
     def _bake_steering_rotation(self, context, bone_offset, bone):
