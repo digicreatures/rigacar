@@ -69,17 +69,17 @@ def find_wheelbrake_bone(bones, position, side, index):
         bone = bones.get(bone_name(name_prefix, position, other_side))
         if bone:
             return bone
-    backword_compatible_bone_name = '%s Wheels' % ('Front' if position == 'Ft' else 'Back')
-    return bones.get(backword_compatible_bone_name)
+    backward_compatible_bone_name = '%s Wheels' % ('Front' if position == 'Ft' else 'Back')
+    return bones.get(backward_compatible_bone_name)
 
 
 def clear_property_animation(context, property_name, remove_keyframes=True):
     if remove_keyframes and context.object.animation_data and context.object.animation_data.action:
         fcurve_datapath = '["%s"]' % property_name
         action = context.object.animation_data.action
-        fc_rot = action.fcurves.find(fcurve_datapath)
-        if fc_rot is not None:
-            action.fcurves.remove(fc_rot)
+        fcurve = action.fcurves.find(fcurve_datapath)
+        if fcurve is not None:
+            action.fcurves.remove(fcurve)
     context.object[property_name] = .0
 
 
@@ -124,10 +124,28 @@ class EulerToQuaternionFCurvesEvaluator(object):
         return mathutils.Euler(self.fcurves_evaluator.evaluate(f)).to_quaternion()
 
 
+class QuaternionFCurvesEvaluator(object):
+
+    def __init__(self, fcurves_evaluator):
+        self.fcurves_evaluator = fcurves_evaluator
+
+    def evaluate(self, f):
+        return mathutils.Quaternion(self.fcurves_evaluator.evaluate(f))
+
+
+def fix_old_steering_rotation(rig_object):
+    """
+    Fix  armature generated with rigacar version < 6.0
+    """
+    if rig_object.pose and rig_object.pose.bones:
+        if 'MCH-Steering.rotation' in rig_object.pose.bones:
+            rig_object.pose.bones['MCH-Steering.rotation'].rotation_mode = 'QUATERNION'
+
+
 class BakingOperator(object):
     frame_start: bpy.props.IntProperty(name='Start Frame', min=1)
     frame_end: bpy.props.IntProperty(name='End Frame', min=1)
-    keyframe_tolerance: bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.05)
+    keyframe_tolerance: bpy.props.FloatProperty(name='Keyframe tolerance', min=0, default=.01)
 
     @classmethod
     def poll(cls, context):
@@ -153,19 +171,24 @@ class BakingOperator(object):
         self.layout.prop(self, 'frame_end')
         self.layout.prop(self, 'keyframe_tolerance')
 
-    def _create_rotation_evaluator(self, action, source_bone):
+    def _create_euler_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].rotation_euler' % source_bone.name
-        fc_root_rot = [action.fcurves.find(fcurve_name, index=i) for i in range(0, 3)]
+        fc_root_rot = [action.fcurves.find(fcurve_name, index=i) for i in range(3)]
         return EulerToQuaternionFCurvesEvaluator(FCurvesEvaluator(fc_root_rot, default_value=(.0, .0, .0)))
+
+    def _create_quaternion_evaluator(self, action, source_bone):
+        fcurve_name = 'pose.bones["%s"].rotation_quaternion' % source_bone.name
+        fc_root_rot = [action.fcurves.find(fcurve_name, index=i) for i in range(4)]
+        return QuaternionFCurvesEvaluator(FCurvesEvaluator(fc_root_rot, default_value=(1.0, .0, .0, .0)))
 
     def _create_location_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].location' % source_bone.name
-        fc_root_loc = [action.fcurves.find(fcurve_name, index=i) for i in range(0, 3)]
+        fc_root_loc = [action.fcurves.find(fcurve_name, index=i) for i in range(3)]
         return VectorFCurvesEvaluator(FCurvesEvaluator(fc_root_loc, default_value=(.0, .0, .0)))
 
     def _create_scale_evaluator(self, action, source_bone):
         fcurve_name = 'pose.bones["%s"].scale' % source_bone.name
-        fc_root_loc = [action.fcurves.find(fcurve_name, index=i) for i in range(0, 3)]
+        fc_root_loc = [action.fcurves.find(fcurve_name, index=i) for i in range(3)]
         return VectorFCurvesEvaluator(FCurvesEvaluator(fc_root_loc, default_value=(1.0, 1.0, 1.0)))
 
     def _bake_action(self, context, *source_bones):
@@ -246,8 +269,8 @@ class ANIM_OT_carWheelsRotationBake(bpy.types.Operator, BakingOperator):
 
     def _evaluate_distance_per_frame(self, action, bone, brake_bone):
         loc_evaluator = self._create_location_evaluator(action, bone)
-        rot_evaluator = self._create_rotation_evaluator(action, bone)
-        break_evaluator = self._create_scale_evaluator(action, brake_bone)
+        rot_evaluator = self._create_euler_evaluator(action, bone)
+        brake_evaluator = self._create_scale_evaluator(action, brake_bone)
 
         radius = bone.length if bone.length > .0 else 1.0
         bone_init_vector = (bone.head_local - bone.tail_local).normalized()
@@ -258,7 +281,7 @@ class ANIM_OT_carWheelsRotationBake(bpy.types.Operator, BakingOperator):
         for f in range(self.frame_start + 1, self.frame_end):
             pos = loc_evaluator.evaluate(f)
             speed_vector = pos - prev_pos
-            speed_vector *= 2 * break_evaluator.evaluate(f).y - 1
+            speed_vector *= 2 * brake_evaluator.evaluate(f).y - 1
             rotation_quaternion = rot_evaluator.evaluate(f)
             bone_orientation = rotation_quaternion @ bone_init_vector
             speed = math.copysign(speed_vector.magnitude, bone_orientation.dot(speed_vector))
@@ -290,71 +313,75 @@ class ANIM_OT_carSteeringBake(bpy.types.Operator, BakingOperator):
     bl_description = 'Automatically generates steering animation based on Root bone animation.'
     bl_options = {'REGISTER', 'UNDO'}
 
-    rotation_factor: bpy.props.FloatProperty(name='Rotation factor', min=0.1, default=1.5)
+    rotation_factor: bpy.props.FloatProperty(name='Rotation factor', min=.1, default=1)
 
     def draw(self, context):
         self.layout.use_property_split = True
         self.layout.use_property_decorate = False
         self.layout.prop(self, 'frame_start')
         self.layout.prop(self, 'frame_end')
-        self.layout.prop(self, 'keyframe_tolerance')
         self.layout.prop(self, 'rotation_factor')
+        self.layout.prop(self, 'keyframe_tolerance')
 
     def execute(self, context):
         if self.frame_end > self.frame_start:
             if 'Steering' in context.object.data.bones and 'MCH-Steering.rotation' in context.object.data.bones:
                 steering = context.object.data.bones['Steering']
                 mch_steering_rotation = context.object.data.bones['MCH-Steering.rotation']
-                distance = (steering.head - mch_steering_rotation.head).length
-                self._bake_steering_rotation(context, distance, mch_steering_rotation)
+                bone_offset = abs(steering.head_local.y - mch_steering_rotation.head_local.y)
+                self._bake_steering_rotation(context, bone_offset, mch_steering_rotation)
         return {'FINISHED'}
 
-    def _evaluate_rotation_per_frame(self, action, bone):
+    def _evaluate_rotation_per_frame(self, action, bone_offset, bone):
         loc_evaluator = self._create_location_evaluator(action, bone)
-        rot_evaluator = self._create_rotation_evaluator(action, bone)
+        rot_evaluator = self._create_quaternion_evaluator(action, bone)
 
-        tolerance = self.keyframe_tolerance * math.pi * .005
-        init_vector = bone.head - bone.tail
-        minimum_length = init_vector.magnitude / 10
+        distance_threshold = pow(bone_offset * max(self.keyframe_tolerance, .001), 2)
+        steering_threshold = bone_offset * self.keyframe_tolerance * .1
+        bone_direction_vector = (bone.head_local - bone.tail_local).normalized()
+        bone_normal_vector = mathutils.Vector((1, 0, 0))
+
         current_pos = loc_evaluator.evaluate(self.frame_start)
-        prev_rotation = .0
-        last_frame = self.frame_start
+        previous_steering_position = None
         for f in range(self.frame_start, self.frame_end - 1):
             next_pos = loc_evaluator.evaluate(f + 1)
-            if (next_pos - current_pos).length < minimum_length:
-                continue
-            world_space_tangent_vector = next_pos - current_pos
-            local_space_tangent_vector = rot_evaluator.evaluate(f).inverted() @ world_space_tangent_vector
-            current_rotation = local_space_tangent_vector.xy.angle_signed(init_vector.xy, prev_rotation)
-            drop_keyframe = abs(prev_rotation - current_rotation) < tolerance
-            if drop_keyframe and f > self.frame_start:
-                continue
-            # TODO should also take speed into account
-            anticipation = abs(prev_rotation - current_rotation) * 25
-            if anticipation > 6 and f - last_frame > anticipation:
-                yield f - anticipation, prev_rotation, 'KEYFRAME'
-            yield f, current_rotation, 'JITTER'
-            last_frame = f
-            prev_rotation = current_rotation
-            current_pos = next_pos
+            steering_direction_vector = next_pos - current_pos
 
-        yield self.frame_end, prev_rotation, 'JITTER'
+            if steering_direction_vector.length_squared < distance_threshold:
+                continue
+
+            rotation_quaternion = rot_evaluator.evaluate(f)
+            world_space_bone_direction_vector = rotation_quaternion @ bone_direction_vector
+            world_space_bone_normal_vector = rotation_quaternion @ bone_normal_vector
+
+            projected_steering_direction = steering_direction_vector.dot(world_space_bone_direction_vector)
+            if projected_steering_direction == 0:
+                continue
+
+            length_ratio = bone_offset * self.rotation_factor / projected_steering_direction
+            steering_direction_vector *= length_ratio
+
+            steering_position = mathutils.geometry.distance_point_to_plane(steering_direction_vector, world_space_bone_direction_vector, world_space_bone_normal_vector)
+
+            if previous_steering_position is not None \
+               and abs(steering_position - previous_steering_position) < steering_threshold:
+                continue
+
+            yield f, steering_position
+            current_pos = next_pos
+            previous_steering_position = steering_position
 
     @cursor('WAIT')
-    def _bake_steering_rotation(self, context, distance, bone):
+    def _bake_steering_rotation(self, context, bone_offset, bone):
         clear_property_animation(context, 'Steering.rotation')
+        fix_old_steering_rotation(context.object)
         fc_rot = create_property_animation(context, 'Steering.rotation')
         action = self._bake_action(context, bone)
 
-        previous_point = None
         try:
-            for f, rotation_angle, keyframe_type in self._evaluate_rotation_per_frame(action, bone):
-                current_point = math.tan(rotation_angle * self.rotation_factor) * distance
-                if previous_point is None:
-                    previous_point = current_point
-                kf = fc_rot.keyframe_points.insert(f, (current_point + previous_point) / 2.0)
-                previous_point = current_point
-                kf.type = keyframe_type
+            for f, steering_pos in self._evaluate_rotation_per_frame(action, bone_offset, bone):
+                kf = fc_rot.keyframe_points.insert(f, steering_pos)
+                kf.type = 'JITTER'
                 kf.interpolation = 'LINEAR'
         finally:
             bpy.data.actions.remove(action)
@@ -377,7 +404,7 @@ class ANIM_OT_carClearSteeringWheelsRotation(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return (context.object is not None and context.object.data is not None and context.object.data.get('Car Rig'))
+        return context.object is not None and context.object.data is not None and context.object.data.get('Car Rig')
 
     def execute(self, context):
         re_wheel_propname = re.compile(r'^Wheel\.rotation\.(Ft|Bk)\.[LR](\.\d+)?$')
