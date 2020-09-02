@@ -111,7 +111,7 @@ def get_widget(name):
     return widget
 
 
-def define_custom_property(target, name, value, description = None, overridable=True):
+def define_custom_property(target, name, value, description=None, overridable=True):
     target[name] = value
     target.property_overridable_library_set(f'["{name}"]', overridable)
     if description:
