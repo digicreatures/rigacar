@@ -111,6 +111,15 @@ def get_widget(name):
     return widget
 
 
+def define_custom_property(target, name, value, description=None, overridable=True):
+    target[name] = value
+    target.property_overridable_library_set(f'["{name}"]', overridable)
+    if description:
+        from rna_prop_ui import rna_idprop_ui_prop_get
+        prop_ui = rna_idprop_ui_prop_get(target, name)
+        prop_ui['description'] = description
+
+
 def dispatch_bones_to_armature_layers(ob):
     re_mch_bone = re.compile(r'^MCH-Wheel(Brake)?\.(Ft|Bk)\.[LR](\.\d+)?$')
     default_visible_layers = [False] * 32
@@ -457,9 +466,18 @@ class ArmatureGenerator(object):
         self.ob = ob
 
     def generate(self, scene, adjust_origin):
-        self.ob['wheels_on_y_axis'] = False
-        self.ob['suspension_factor'] = .5
-        self.ob['suspension_rolling_factor'] = .5
+        define_custom_property(self.ob,
+                               name='wheels_on_y_axis',
+                               value=False,
+                               description="Activate wheels rotation when moving the root bone along the Y axis")
+        define_custom_property(self.ob,
+                               name='suspension_factor',
+                               value=.5,
+                               description="Influence of the dampers over the pitch of the body")
+        define_custom_property(self.ob,
+                               name='suspension_rolling_factor',
+                               value=.5,
+                               description="Influence of the dampers over the roll of the body")
 
         location = self.ob.location.copy()
         self.ob.location = (0, 0, 0)
@@ -681,7 +699,10 @@ class ArmatureGenerator(object):
         mch_wheel.use_deform = False
         mch_wheel.parent = ground_sensor
 
-        self.ob[name_suffix.name('Wheel.rotation')] = .0
+        define_custom_property(self.ob,
+                               name=name_suffix.name('Wheel.rotation'),
+                               value=.0,
+                               description="Animation property for wheel spinning")
         mch_wheel_rotation = amt.edit_bones.new(name_suffix.name('MCH-Wheel.rotation'))
         mch_wheel_rotation.head = def_wheel_bone.head
         mch_wheel_rotation.tail = def_wheel_bone.head
@@ -844,7 +865,10 @@ class ArmatureGenerator(object):
 
             mch_steering_rotation = pose.bones['MCH-Steering.rotation']
             mch_steering_rotation.rotation_mode = 'QUATERNION'
-            self.ob['Steering.rotation'] = .0
+            define_custom_property(self.ob,
+                                   name='Steering.rotation',
+                                   value=.0,
+                                   description="Animation property for steering")
             create_translation_x_driver(self.ob, mch_steering_rotation, '["Steering.rotation"]')
 
             if mch_root_axle_back:
