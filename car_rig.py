@@ -151,6 +151,14 @@ def dispatch_bones_to_armature_layers(ob):
                 ob.data.bones[b.name].layers[CUSTOM_SHAPE_LAYER] = True
 
 
+def parent_to_bone(target_obj, rig_object, bone):
+    target_obj.parent = rig_object
+    target_obj.parent_bone = bone.name
+    target_obj.parent_type = 'BONE'
+    target_obj.location += rig_object.matrix_world.to_translation()
+    target_obj.matrix_parent_inverse = (rig_object.matrix_world @ mathutils.Matrix.Translation(bone.tail)).inverted()
+
+
 class NameSuffix(object):
 
     def __init__(self, position, side, index=0):
@@ -483,6 +491,7 @@ class ArmatureGenerator(object):
         self.ob.location = (0, 0, 0)
         try:
             bpy.ops.object.mode_set(mode='EDIT')
+            self.parent_objects_to_deformation_bones()
             self.dimension = CarDimension(self.ob)
             self.generate_animation_rig()
             self.ob.data['Car Rig'] = True
@@ -500,6 +509,14 @@ class ArmatureGenerator(object):
             dispatch_bones_to_armature_layers(self.ob)
         finally:
             self.ob.location += location
+
+    def parent_objects_to_deformation_bones(self):
+        for b in self.ob.data.edit_bones:
+            if 'objects' in b:
+                objects = b['objects']
+                for o in objects:
+                    parent_to_bone(o, self.ob, b)
+                del b['objects']
 
     def generate_animation_rig(self):
         amt = self.ob.data
@@ -1361,13 +1378,9 @@ class OBJECT_OT_armatureCarDeformationRig(bpy.types.Operator):
             if name == 'Body':
                 b.tail = b.head
                 b.tail.y += target_obj.dimensions[1] / 2 if target_obj.dimensions and target_obj.dimensions[0] != 0 else 1
-            target_obj.parent = rig
-            target_obj.parent_bone = b.name
-            target_obj.parent_type = 'BONE'
-            target_obj.location += rig.matrix_world.to_translation()
-            target_obj.matrix_parent_inverse = (rig.matrix_world @ mathutils.Matrix.Translation(b.tail)).inverted()
-
+            b['objects'] = [target_obj]
         return b
+
 
     def _create_wheel_bones(self, rig, base_wheel_name, nb_wheels, delta_pos):
         for wheel_name in name_range(base_wheel_name, nb_wheels):
