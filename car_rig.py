@@ -915,7 +915,7 @@ class ArmatureGenerator(object):
             cns.use_x = False
             cns.use_y = False
             cns.use_z = True
-            cns.use_offset = True
+            cns.mix_mode = 'BEFORE'
             cns.owner_space = 'LOCAL'
             cns.target_space = 'LOCAL'
 
@@ -1101,7 +1101,7 @@ class ArmatureGenerator(object):
         cns.use_x = True
         cns.use_y = False
         cns.use_z = False
-        cns.use_offset = False
+        cns.mix_mode = 'REPLACE'
         cns.owner_space = 'POSE'
         cns.target_space = 'POSE'
 
@@ -1129,7 +1129,7 @@ class ArmatureGenerator(object):
         cns.use_x = True
         cns.use_y = False
         cns.use_z = False
-        cns.use_offset = True
+        cns.mix_mode = 'BEFORE'
         cns.owner_space = 'LOCAL'
         cns.target_space = 'LOCAL'
 
