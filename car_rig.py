@@ -24,6 +24,7 @@ import bpy_extras
 import mathutils
 import re
 from math import inf
+from rna_prop_ui import rna_idprop_ui_create
 
 CUSTOM_SHAPE_LAYER = 13
 MCH_BONE_EXTENSION_LAYER = 14
@@ -112,12 +113,7 @@ def get_widget(name):
 
 
 def define_custom_property(target, name, value, description=None, overridable=True):
-    target[name] = value
-    target.property_overridable_library_set(f'["{name}"]', overridable)
-    if description:
-        from rna_prop_ui import rna_idprop_ui_prop_get
-        prop_ui = rna_idprop_ui_prop_get(target, name)
-        prop_ui['description'] = description
+    rna_idprop_ui_create(target, name, default=value, description=description, overridable=overridable)
 
 
 def dispatch_bones_to_armature_layers(ob):
