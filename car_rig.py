@@ -113,7 +113,7 @@ def get_widget(name):
 
 
 def define_custom_property(target, name, value, description=None, overridable=True):
-    rna_idprop_ui_create(target, name, default=value, description=description, overridable=overridable)
+    rna_idprop_ui_create(target, name, default=value, description=description, overridable=overridable, min=-inf, max=inf)
 
 
 def dispatch_bones_to_armature_layers(ob):
