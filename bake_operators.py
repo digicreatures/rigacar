@@ -160,7 +160,8 @@ class BakingOperator(object):
             context.object.animation_data.action = bpy.data.actions.new("%sAction" % context.object.name)
 
         action = context.object.animation_data.action
-        self.frame_start, self.frame_end = action.frame_range
+        self.frame_start = int(action.frame_range[0])
+        self.frame_end = int(action.frame_range[1])
 
         return context.window_manager.invoke_props_dialog(self)
 
