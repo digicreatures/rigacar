@@ -19,6 +19,7 @@
 # <pep8 compliant>
 
 import bpy
+import bpy_extras.anim_utils
 import mathutils
 import math
 import itertools
@@ -208,14 +209,15 @@ class BakingOperator(object):
             source_bones_matrix_basis.append(context.object.pose.bones[source_bone.name].matrix_basis.copy())
             source_bone.select = True
 
-        # Blender 2.81 : Another hack for another bug in the bake operator
-        # removing from the selection objects which are not the current one
-        for obj in context.selected_objects:
-            if obj is not context.object:
-                obj.select_set(state=False)
-
-        bpy.ops.nla.bake(frame_start=self.frame_start, frame_end=self.frame_end, only_selected=True, bake_types={'POSE'}, visual_keying=True)
-        baked_action = context.object.animation_data.action
+        baked_action = bpy_extras.anim_utils.bake_action(
+            context.object,
+            action=None,
+            frames=range(self.frame_start, self.frame_end + 1),
+            only_selected=True,
+            do_pose=True,
+            do_object=False,
+            do_visual_keying=True,
+        )
 
         # restoring context
         for source_bone, matrix_basis in zip(source_bones, source_bones_matrix_basis):
@@ -377,15 +379,21 @@ class ANIM_OT_carSteeringBake(bpy.types.Operator, BakingOperator):
         clear_property_animation(context, 'Steering.rotation')
         fix_old_steering_rotation(context.object)
         fc_rot = create_property_animation(context, 'Steering.rotation')
-        action = self._bake_action(context, bone)
+        baked_action = self._bake_action(context, bone)
+        
 
         try:
-            for f, steering_pos in self._evaluate_rotation_per_frame(action, bone_offset, bone):
+            # Reset the transform of the steering bone, because baking action manipulates the transform
+            # and evaluate_rotation_frame expects it at it's default position
+            pb: bpy.types.PoseBone = context.object.pose.bones[bone.name]
+            pb.matrix_basis.identity()
+
+            for f, steering_pos in self._evaluate_rotation_per_frame(baked_action, bone_offset, bone):
                 kf = fc_rot.keyframe_points.insert(f, steering_pos)
                 kf.type = 'JITTER'
                 kf.interpolation = 'LINEAR'
         finally:
-            bpy.data.actions.remove(action)
+            bpy.data.actions.remove(baked_action)
 
 
 class ANIM_OT_carClearSteeringWheelsRotation(bpy.types.Operator):

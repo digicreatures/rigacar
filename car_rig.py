@@ -26,10 +26,11 @@ import re
 from math import inf
 from rna_prop_ui import rna_idprop_ui_create
 
-CUSTOM_SHAPE_LAYER = 13
-MCH_BONE_EXTENSION_LAYER = 14
-DEF_BONE_LAYER = 15
-MCH_BONE_LAYER = 31
+DEFAULT_VISIBLE_LAYER = 'CarRig_Default_Ctrls' # New Setting for Blender4.0
+CUSTOM_SHAPE_LAYER    = 'CarRig_Custom_Ctrls'#13
+MCH_BONE_EXTENSION_LAYER = 'CarRig_MCH_Bone_Ext'#14
+DEF_BONE_LAYER = 'CarRig_Def_Bone' #15
+MCH_BONE_LAYER = 'CarRig_MCH_Bone' #31
 
 
 def deselect_edit_bones(ob):
@@ -88,13 +89,11 @@ def create_translation_x_driver(ob, bone, driver_data_path):
 
 
 def create_bone_group(pose, group_name, color_set, bone_names):
-    group = pose.bone_groups.new(name=group_name)
-    group.color_set = color_set
+    
     for bone_name in bone_names:
         bone = pose.bones.get(bone_name)
         if bone is not None:
-            bone.bone_group = group
-
+            bone.color.palette = color_set
 
 def name_range(prefix, nb=1000):
     if nb > 0:
@@ -117,34 +116,45 @@ def define_custom_property(target, name, value, description=None, overridable=Tr
 
 
 def dispatch_bones_to_armature_layers(ob):
+    '''Bone Collections were introduced in Blender 4.0 as replacement of Armature Layers and Bone Groups.'''
+    amt = bpy.context.object.data
+    default_visible_layer       = amt.collections.new(name= DEFAULT_VISIBLE_LAYER) 
+    custom_shape_layer          = amt.collections.new(name= CUSTOM_SHAPE_LAYER) #13
+    def_bone_layer              = amt.collections.new(name= DEF_BONE_LAYER) #15
+    mch_bone_layer              = amt.collections.new(name= MCH_BONE_LAYER) #31
+    mch_bone_extension_layer    = amt.collections.new(name= MCH_BONE_EXTENSION_LAYER) #14
+    
+    #set visiblity
+    custom_shape_layer.is_visible       = False
+    def_bone_layer.is_visible           = False
+    mch_bone_extension_layer.is_visible = False
+    mch_bone_layer.is_visible           = False
+
     re_mch_bone = re.compile(r'^MCH-Wheel(Brake)?\.(Ft|Bk)\.[LR](\.\d+)?$')
-    default_visible_layers = [False] * 32
-
     for b in ob.data.bones:
-        layers = [False] * 32
         if b.name.startswith('DEF-'):
-            layers[DEF_BONE_LAYER] = True
+            def_bone_layer.assign(b)
         elif b.name.startswith('MCH-'):
-            layers[MCH_BONE_LAYER] = True
+            mch_bone_layer.assign(b)
             if b.name in ('MCH-Body', 'MCH-Steering') or re_mch_bone.match(b.name):
-                layers[MCH_BONE_EXTENSION_LAYER] = True
+                mch_bone_extension_layer.assign(b)
         else:
-            layer_num = ob.pose.bones[b.name].bone_group_index
-            layers[layer_num] = True
-            default_visible_layers[layer_num] = True
-        b.layers = layers
+            default_visible_layer.assign(b)
+            pass
 
-    ob.data.layers = default_visible_layers
-
-    shape_bone_layers = [False] * 32
-    shape_bone_layers[CUSTOM_SHAPE_LAYER] = True
     for b in ob.pose.bones:
         if b.custom_shape:
             if b.custom_shape_transform:
                 ob.pose.bones[b.custom_shape_transform.name].custom_shape = b.custom_shape
-                ob.data.bones[b.custom_shape_transform.name].layers = shape_bone_layers
+                custom_shape_layer.assign(ob.pose.bones[b.custom_shape_transform.name])
+                #ob.data.bones[b.custom_shape_transform.name].layers = shape_bone_layers
             else:
-                ob.data.bones[b.name].layers[CUSTOM_SHAPE_LAYER] = True
+                default_visible_layer.assign(ob.data.bones[b.name])
+                #ob.data.bones[b.name].layers[CUSTOM_SHAPE_LAYER] = True
+    
+    #remove custome shape from default layer
+    for bone in custom_shape_layer.bones:
+        default_visible_layer.unassign(bone)
 
 
 class NameSuffix(object):
@@ -435,8 +445,13 @@ def generate_constraint_on_wheel_brake_bone(wheel_brake_pose_bone, wheel_pose_bo
     wheel_brake_pose_bone.lock_scale = (True, False, False)
     wheel_brake_pose_bone.custom_shape = get_widget('WGT-CarRig.WheelBrake')
     wheel_brake_pose_bone.bone.show_wire = True
-    wheel_brake_pose_bone.bone_group = wheel_pose_bone.bone_group
-    wheel_brake_pose_bone.bone.layers = wheel_pose_bone.bone.layers
+    amt = bpy.context.object.data
+    groups = amt.collections
+    for group in groups:
+        for bone in group.bones:
+            if bone.name == wheel_pose_bone.anme:
+                group.assign(wheel_brake_pose_bone)
+
 
     cns = wheel_brake_pose_bone.constraints.new('LIMIT_SCALE')
     cns.name = 'Brakes'
