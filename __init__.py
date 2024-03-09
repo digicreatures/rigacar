@@ -21,17 +21,18 @@
 bl_info = {
     "name": "Rigacar (Generates Car Rig)",
     "author": "David Gayerie",
-    "version": (7, 1),
-    "blender": (2, 83, 0),
+    "version": (8, 0),
+    "blender": (4, 0, 0),
     "location": "View3D > Add > Armature",
     "description": "Adds a deformation rig for vehicules, generates animation rig and bake wheels animation.",
     "wiki_url": "http://digicreatures.net/articles/rigacar.html",
     "tracker_url": "https://github.com/digicreatures/rigacar/issues",
-    "category": "Rigging"}
-
+    "category": "Rigging"
+}
 
 if "bpy" in locals():
     import importlib
+
     if "bake_operators" in locals():
         importlib.reload(bake_operators)
     if "car_rig" in locals():
@@ -188,15 +189,16 @@ class RIGACAR_PT_groundSensorsView(bpy.types.Panel, RIGACAR_PT_mixin):
 
 
 def menu_entries(menu, context):
-    menu.layout.operator(car_rig.OBJECT_OT_armatureCarDeformationRig.bl_idname, text="Car (deformation rig)", icon='AUTO')
+    menu.layout.operator(car_rig.OBJECT_OT_armatureCarDeformationRig.bl_idname, text="Car (deformation rig)",
+                         icon='AUTO')
 
 
 classes = (
-  RIGACAR_PT_rigProperties,
-  RIGACAR_PT_groundSensorsProperties,
-  RIGACAR_PT_animationRigView,
-  RIGACAR_PT_wheelsAnimationView,
-  RIGACAR_PT_groundSensorsView,
+    RIGACAR_PT_rigProperties,
+    RIGACAR_PT_groundSensorsProperties,
+    RIGACAR_PT_animationRigView,
+    RIGACAR_PT_wheelsAnimationView,
+    RIGACAR_PT_groundSensorsView,
 )
 
 
