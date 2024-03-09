@@ -19,6 +19,7 @@
 # <pep8 compliant>
 
 import bpy
+import bpy_extras.anim_utils
 import mathutils
 import math
 import itertools
@@ -33,7 +34,9 @@ def cursor(cursor_mode):
                 return func(self, context, *args, **kwargs)
             finally:
                 context.window.cursor_modal_restore()
+
         return wrapper
+
     return cursor_decorator
 
 
@@ -135,7 +138,7 @@ class QuaternionFCurvesEvaluator(object):
 
 def fix_old_steering_rotation(rig_object):
     """
-    Fix  armature generated with rigacar version < 6.0
+    Fix  armature generated with Rigacar version < 6.0
     """
     if rig_object.pose and rig_object.pose.bones:
         if 'MCH-Steering.rotation' in rig_object.pose.bones:
@@ -194,7 +197,8 @@ class BakingOperator(object):
 
     def _bake_action(self, context, *source_bones):
         action = context.object.animation_data.action
-        nla_tweak_mode = context.object.animation_data.use_tweak_mode if hasattr(context.object.animation_data, 'use_tweak_mode') else False
+        nla_tweak_mode = context.object.animation_data.use_tweak_mode if hasattr(context.object.animation_data,
+                                                                                 'use_tweak_mode') else False
 
         # saving context
         selected_bones = [b for b in context.object.data.bones if b.select]
@@ -208,14 +212,15 @@ class BakingOperator(object):
             source_bones_matrix_basis.append(context.object.pose.bones[source_bone.name].matrix_basis.copy())
             source_bone.select = True
 
-        # Blender 2.81 : Another hack for another bug in the bake operator
-        # removing from the selection objects which are not the current one
-        for obj in context.selected_objects:
-            if obj is not context.object:
-                obj.select_set(state=False)
-
-        bpy.ops.nla.bake(frame_start=self.frame_start, frame_end=self.frame_end, only_selected=True, bake_types={'POSE'}, visual_keying=True)
-        baked_action = context.object.animation_data.action
+        baked_action = bpy_extras.anim_utils.bake_action(
+            context.object,
+            action=None,
+            frames=range(self.frame_start, self.frame_end + 1),
+            only_selected=True,
+            do_pose=True,
+            do_object=False,
+            do_visual_keying=True,
+        )
 
         # restoring context
         for source_bone, matrix_basis in zip(source_bones, source_bones_matrix_basis):
@@ -262,6 +267,10 @@ class ANIM_OT_carWheelsRotationBake(bpy.types.Operator, BakingOperator):
         bones = set(wheel_bones + brake_bones)
         baked_action = self._bake_action(context, *bones)
 
+        if baked_action is None:
+            self.report({'WARNING'}, "Existing action failed to bake. Won't bake wheel rotation")
+            return
+
         try:
             for wheel_bone, brake_bone in zip(wheel_bones, brake_bones):
                 self._bake_wheel_rotation(context, baked_action, wheel_bone, brake_bone)
@@ -301,6 +310,10 @@ class ANIM_OT_carWheelsRotationBake(bpy.types.Operator, BakingOperator):
 
     def _bake_wheel_rotation(self, context, baked_action, bone, brake_bone):
         fc_rot = create_property_animation(context, bone.name.replace('MCH-', ''))
+
+        # Reset the transform of the wheel bone, otherwise baking yields wrong results
+        pb: bpy.types.PoseBone = context.object.pose.bones[bone.name]
+        pb.matrix_basis.identity()
 
         for f, distance in self._evaluate_distance_per_frame(baked_action, bone, brake_bone):
             kf = fc_rot.keyframe_points.insert(f, distance)
@@ -362,10 +375,12 @@ class ANIM_OT_carSteeringBake(bpy.types.Operator, BakingOperator):
             length_ratio = bone_offset * self.rotation_factor / projected_steering_direction
             steering_direction_vector *= length_ratio
 
-            steering_position = mathutils.geometry.distance_point_to_plane(steering_direction_vector, world_space_bone_direction_vector, world_space_bone_normal_vector)
+            steering_position = mathutils.geometry.distance_point_to_plane(steering_direction_vector,
+                                                                           world_space_bone_direction_vector,
+                                                                           world_space_bone_normal_vector)
 
             if previous_steering_position is not None \
-               and abs(steering_position - previous_steering_position) < steering_threshold:
+                    and abs(steering_position - previous_steering_position) < steering_threshold:
                 continue
 
             yield f, steering_position
@@ -377,15 +392,24 @@ class ANIM_OT_carSteeringBake(bpy.types.Operator, BakingOperator):
         clear_property_animation(context, 'Steering.rotation')
         fix_old_steering_rotation(context.object)
         fc_rot = create_property_animation(context, 'Steering.rotation')
-        action = self._bake_action(context, bone)
+
+        baked_action = self._bake_action(context, bone)
+        if baked_action is None:
+            self.report({'WARNING'}, "Existing action failed to bake. Won't bake steering rotation")
+            return
 
         try:
-            for f, steering_pos in self._evaluate_rotation_per_frame(action, bone_offset, bone):
+            # Reset the transform of the steering bone, because baking action manipulates the transform
+            # and evaluate_rotation_frame expects it at it's default position
+            pb: bpy.types.PoseBone = context.object.pose.bones[bone.name]
+            pb.matrix_basis.identity()
+
+            for f, steering_pos in self._evaluate_rotation_per_frame(baked_action, bone_offset, bone):
                 kf = fc_rot.keyframe_points.insert(f, steering_pos)
                 kf.type = 'JITTER'
                 kf.interpolation = 'LINEAR'
         finally:
-            bpy.data.actions.remove(action)
+            bpy.data.actions.remove(baked_action)
 
 
 class ANIM_OT_carClearSteeringWheelsRotation(bpy.types.Operator):
@@ -394,8 +418,10 @@ class ANIM_OT_carClearSteeringWheelsRotation(bpy.types.Operator):
     bl_description = "Clear generated rotation for steering and wheels"
     bl_options = {'REGISTER', 'UNDO'}
 
-    clear_steering: bpy.props.BoolProperty(name="Steering", description="Clear generated animation for steering", default=True)
-    clear_wheels: bpy.props.BoolProperty(name="Wheels", description="Clear generated animation for wheels", default=True)
+    clear_steering: bpy.props.BoolProperty(name="Steering", description="Clear generated animation for steering",
+                                           default=True)
+    clear_wheels: bpy.props.BoolProperty(name="Wheels", description="Clear generated animation for wheels",
+                                         default=True)
 
     def draw(self, context):
         self.layout.use_property_decorate = False
